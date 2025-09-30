@@ -3,12 +3,24 @@
 import type * as React from "react"
 import { useEffect } from "react"
 import { Folder, Zap, Rocket } from "lucide-react"
+import Image from "next/image"
 
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar"
 import { useAppContext } from "@/lib/app-context"
+
+// Custom component for rhinom logo
+const RhinomLogo = ({ className }: { className?: string }) => (
+  <Image 
+    src="/rhinom-logo.svg" 
+    alt="Rhinoback Logo" 
+    width={32} 
+    height={7} 
+    className={`${className} object-contain`}
+  />
+)
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state, dispatch } = useAppContext()
@@ -24,7 +36,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     teams: [
       {
         name: "Rhinoback",
-        logo: Rocket,
+        logo: RhinomLogo,
         plan: "Pro",
       },
       {

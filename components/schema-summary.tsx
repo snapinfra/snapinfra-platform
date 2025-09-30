@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CodeGenerationModal } from "./code-generation-modal"
 import { DeploymentModal } from "./deployment-modal"
+import { IacGenerationModal } from "./iac-generation-modal"
 import { TableSchema, DatabaseType } from "@/lib/app-context"
 import {
   DropdownMenu,
@@ -332,6 +333,12 @@ export function SchemaSummary() {
                         Generate Code
                       </Button>
                     </CodeGenerationModal>
+                    <IacGenerationModal>
+                      <Button variant="outline" className="justify-center sm:justify-start text-xs sm:text-sm py-2">
+                        <Layers className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                        Generate IaC
+                      </Button>
+                    </IacGenerationModal>
                     <DeploymentModal>
                       <Button variant="outline" className="justify-center sm:justify-start text-xs sm:text-sm py-2">
                         <Rocket className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />

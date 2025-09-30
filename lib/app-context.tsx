@@ -22,6 +22,9 @@ export interface User {
   plan: 'free' | 'pro' | 'enterprise'
 }
 
+import type { SystemArchitecture } from './types/architecture'
+import type { SystemDecisionsSummary } from './types/system-decisions'
+
 export interface Project {
   id: string
   name: string
@@ -33,6 +36,15 @@ export interface Project {
   endpoints: ApiEndpoint[]
   database: DatabaseConfig
   deployment?: DeploymentInfo
+  // Added: Outputs from onboarding Steps 4 and 5
+  architecture?: SystemArchitecture
+  decisions?: SystemDecisionsSummary
+  selectedTools?: Record<string, string>
+  // Added: Analysis from Step 1/2 (db recs, scaling, optimizations, security, smart)
+  analysis?: any
+  // Added: Generated artifacts
+  generatedCode?: any
+  generatedIaC?: any
 }
 
 export interface TableSchema {
@@ -181,6 +193,8 @@ type AppAction =
   | { type: 'UPDATE_SCHEMA'; payload: TableSchema[] }
   | { type: 'UPDATE_ENDPOINTS'; payload: ApiEndpoint[] }
   | { type: 'UPDATE_DATABASE'; payload: DatabaseConfig }
+  | { type: 'UPDATE_ARCHITECTURE'; payload: SystemArchitecture }
+  | { type: 'UPDATE_DECISIONS'; payload: { decisions: SystemDecisionsSummary; selectedTools?: Record<string, string> } }
 
 // Initial state
 const initialState: AppState = {
@@ -346,6 +360,31 @@ function appReducer(state: AppState, action: AppAction): AppState {
         currentProject: {
           ...state.currentProject,
           database: action.payload,
+          updatedAt: new Date()
+        }
+      }
+    
+    case 'UPDATE_ARCHITECTURE':
+      if (!state.currentProject) return state
+
+      return {
+        ...state,
+        currentProject: {
+          ...state.currentProject,
+          architecture: action.payload,
+          updatedAt: new Date()
+        }
+      }
+
+    case 'UPDATE_DECISIONS':
+      if (!state.currentProject) return state
+
+      return {
+        ...state,
+        currentProject: {
+          ...state.currentProject,
+          decisions: action.payload.decisions,
+          selectedTools: action.payload.selectedTools || state.currentProject.selectedTools,
           updatedAt: new Date()
         }
       }

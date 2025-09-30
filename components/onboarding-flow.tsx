@@ -6,17 +6,22 @@ import { Button } from "@/components/ui/button"
 import { StepOne } from "@/components/onboarding/step-one"
 import { StepTwo } from "@/components/onboarding/step-two"
 import { StepThree } from "@/components/onboarding/step-three"
+import { StepFour } from "@/components/onboarding/step-four"
+import { StepFive } from "@/components/onboarding/step-five"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Sparkles, Database, Rocket, Menu, X } from "lucide-react"
+import { Sparkles, Database, Rocket, Network, Settings, Menu, X } from "lucide-react"
 import { GridPattern } from "@/components/ui/shadcn-io/grid-pattern"
 import { useAppContext } from "@/lib/app-context"
 import type { Project, TableSchema, ChatMessage } from "@/lib/app-context"
 
 interface GeneratedData {
+  projectName?: string
   description: string
   schemas: any[]
+  analysis?: any
   database: string
   endpoints: any[]
+  architecture?: any
 }
 
 export function OnboardingFlow() {
@@ -29,7 +34,7 @@ export function OnboardingFlow() {
   const searchParams = useSearchParams()
   const { state, dispatch } = useAppContext()
 
-  const totalSteps = 3
+  const totalSteps = 5
   const progress = (currentStep / totalSteps) * 100
 
   // Initialize state from URL and localStorage on component mount
@@ -231,17 +236,71 @@ export function OnboardingFlow() {
         createdAt: new Date(),
         updatedAt: new Date(),
         schema: tables,
-        endpoints: [],
+        endpoints: Array.isArray(data.endpoints) ? data.endpoints : [],
         database: {
           type: data.database?.toLowerCase() || 'postgresql',
           reasoning: `Recommended for this ${data.description ? 'use case' : 'project'} based on AI analysis`,
           confidence: 0.9,
           features: ['ACID compliance', 'Complex queries', 'Scalability']
-        }
+        },
+        architecture: (data as any)?.architecture,
+        decisions: (data as any)?.decisions,
+        selectedTools: (data as any)?.selectedTools,
+        analysis: (data as any)?.analysis
       }
 
       // Add project to state
       dispatch({ type: 'ADD_PROJECT', payload: project })
+
+      // Fire-and-forget: generate backend code and IaC by default; update project when ready
+      ;(async () => {
+        try {
+          // Backend code (defaults)
+          const codeResp = await fetch('/api/generate-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              project,
+              framework: 'express',
+              language: 'typescript',
+              includeAuth: false,
+              includeTests: false,
+            }),
+          })
+          const codeData = await codeResp.json()
+          if (codeData?.success) {
+            dispatch({ type: 'UPDATE_PROJECT', payload: { id: project.id, generatedCode: codeData.data } as any })
+          } else {
+            dispatch({ type: 'UPDATE_PROJECT', payload: { id: project.id, generatedCode: { files: [], instructions: '', dependencies: [], success: false, error: codeData?.error || 'Code generation failed' } } as any })
+          }
+        } catch (e) {
+          console.warn('Auto code generation failed:', e)
+        }
+
+        try {
+          // IaC (defaults)
+          const iacResp = await fetch('/api/generate-iac', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              project,
+              options: {
+                targets: ['terraform', 'aws-cdk', 'docker-compose'],
+                cloud: 'aws',
+                environment: 'development',
+              },
+            }),
+          })
+          const iacData = await iacResp.json()
+          if (iacData?.success) {
+            dispatch({ type: 'UPDATE_PROJECT', payload: { id: project.id, generatedIaC: iacData.data } as any })
+          } else {
+            dispatch({ type: 'UPDATE_PROJECT', payload: { id: project.id, generatedIaC: { files: [], instructions: '', dependencies: [], success: false, error: iacData?.error || 'IaC generation failed' } } as any })
+          }
+        } catch (e) {
+          console.warn('Auto IaC generation failed:', e)
+        }
+      })()
       
       // Create initial chat message from user description
       const userMessage: ChatMessage = {
@@ -304,17 +363,31 @@ What would you like to explore next?`,
     },
     {
       number: 2,
-      title: "Review & Customize",
-      description: "Fine-tune your generated database schema and API endpoints",
+      title: "Review Database Schema",
+      description: "Fine-tune your generated database schema and analysis",
       icon: Database,
       status: currentStep > 2 ? "completed" : currentStep === 2 ? "active" : "upcoming",
     },
     {
       number: 3,
-      title: "Deploy & Launch",
-      description: "Configure your deployment settings and launch your backend",
+      title: "Test API Endpoints",
+      description: "Explore and test your auto-generated API endpoints",
       icon: Rocket,
-      status: currentStep === 3 ? "active" : "upcoming",
+      status: currentStep > 3 ? "completed" : currentStep === 3 ? "active" : "upcoming",
+    },
+    {
+      number: 4,
+      title: "System Architecture",
+      description: "Visualize and customize your system architecture",
+      icon: Network,
+      status: currentStep > 4 ? "completed" : currentStep === 4 ? "active" : "upcoming",
+    },
+    {
+      number: 5,
+      title: "Tool Selection",
+      description: "Choose tools and finalize system decisions",
+      icon: Settings,
+      status: currentStep === 5 ? "active" : "upcoming",
     },
   ]
 
@@ -322,6 +395,19 @@ What would you like to explore next?`,
     if (currentStep === 1 && data) {
       // AI generation happens here - save data to localStorage
       saveData(data)
+    } else if (currentStep === 4 && data) {
+      // Save architecture data from Step 4
+      const updatedData = { ...generatedData, architecture: data }
+      saveData(updatedData)
+    } else if (currentStep === 5 && data) {
+      // Save tool decisions from Step 5 before project creation
+      const updatedData = { ...generatedData, decisions: data.decisions, selectedTools: data.selectedTools }
+      saveData(updatedData)
+      // Close sidebar on mobile when step is completed
+      setIsSidebarOpen(false)
+      // Create project and initiate chat conversation when completing step 5 using the latest updated data
+      createProjectAndChat(updatedData)
+      return
     }
 
     // Close sidebar on mobile when step is completed
@@ -329,9 +415,6 @@ What would you like to explore next?`,
 
     if (currentStep < totalSteps) {
       updateStep(currentStep + 1)
-    } else {
-      // Create project and initiate chat conversation when completing step 3
-      createProjectAndChat(generatedData)
     }
   }
 
@@ -376,7 +459,7 @@ What would you like to explore next?`,
         <div className="p-3 sm:p-6 border-b border-border flex-shrink-0">
           <div className="flex items-start justify-between">
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-2xl font-bold text-foreground mb-1 truncate">Build Your Backend</h1>
+              <h1 className="text-lg sm:text-2xl font-bold text-foreground mb-1 truncate" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Build Your Backend</h1>
               <p className="text-muted-foreground text-xs sm:text-sm">Create a powerful backend in minutes with AI assistance</p>
             </div>
             {generatedData && (
@@ -477,7 +560,7 @@ What would you like to explore next?`,
         <div className="p-3 border-b border-border flex-shrink-0 pt-14">
           <div className="flex items-start justify-between">
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg font-bold text-foreground mb-1 truncate">Build Your Backend</h1>
+              <h1 className="text-lg font-bold text-foreground mb-1 truncate" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Build Your Backend</h1>
               <p className="text-muted-foreground text-xs">Create a powerful backend in minutes with AI assistance</p>
             </div>
             {generatedData && (
@@ -589,7 +672,13 @@ What would you like to explore next?`,
               {currentStep === 3 && generatedData && (
                 <StepThree data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
               )}
-              {(currentStep === 2 || currentStep === 3) && !generatedData && (
+              {currentStep === 4 && generatedData && (
+                <StepFour data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
+              )}
+              {currentStep === 5 && generatedData && (
+                <StepFive data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
+              )}
+              {(currentStep === 2 || currentStep === 3 || currentStep === 4 || currentStep === 5) && !generatedData && (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground mb-4 text-sm">No data found. Please start from step 1.</p>
                   <button 

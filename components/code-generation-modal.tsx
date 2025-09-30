@@ -60,6 +60,7 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [copiedFile, setCopiedFile] = useState<string | null>(null)
   
   // Form state
@@ -71,6 +72,7 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
   const handleGenerate = async () => {
     if (!currentProject) return
 
+    setError(null)
     setIsGenerating(true)
     try {
       const response = await fetch('/api/generate-code', {
@@ -92,8 +94,8 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
       if (data.success) {
         setGeneratedCode(data.data)
       } else {
+        setError(data.error || 'Code generation failed')
         console.error('Code generation failed:', data.error)
-        // You could show an error toast here
       }
     } catch (error) {
       console.error('Failed to generate code:', error)
@@ -158,7 +160,7 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
       if (!open) resetModal()
     }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Code className="w-5 h-5" />
@@ -172,6 +174,11 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
         {!generatedCode ? (
           // Configuration Form
           <div className="space-y-6 py-4">
+            {error && (
+              <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-md px-3 py-2">
+                {error}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Framework</label>
@@ -318,11 +325,11 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
                         </div>
                         <div className="p-3">
                           <p className="text-sm text-gray-600 mb-2">{file.description}</p>
-                          <ScrollArea className="h-32 w-full border rounded bg-gray-900 text-white">
-                            <pre className="p-3 text-xs">
+                          <div className="h-40 w-full border rounded bg-gray-900 text-white overflow-auto">
+                            <pre className="p-3 text-xs whitespace-pre min-w-max">
                               <code>{file.content}</code>
                             </pre>
-                          </ScrollArea>
+                          </div>
                         </div>
                       </div>
                     ))}

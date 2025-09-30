@@ -1,18 +1,25 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Settings, User, LogOut, Zap, Plus, Bell, Search, GitBranch, Star, Eye, MessageSquare, Database, Rocket } from "lucide-react"
-import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useAppContext } from "@/lib/app-context"
 import { DeploymentModal } from "./deployment-modal"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 
 export function Header() {
   const { state } = useAppContext()
   const { currentProject, projects } = state
   const pathname = usePathname()
+
+  // Ensure client-only state doesn’t affect the initial render (SSR vs first client render)
+  const [isClient, setIsClient] = useState(false)
+  useEffect(() => setIsClient(true), [])
   
   // Check if we're in onboarding mode
   const isOnboarding = pathname?.includes('/onboarding')
@@ -22,26 +29,27 @@ export function Header() {
       <div className="flex items-center justify-between">
         {/* Left side - Logo, Sidebar trigger, Project info */}
         <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-          <SidebarTrigger className={`text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 ${
-            isOnboarding ? 'hidden sm:flex' : ''
-          }`} />
-          
+          {/* Removed SidebarTrigger for simplified layout */}
           <div className={`flex items-center gap-2 sm:gap-3 min-w-0 flex-1 ${
             isOnboarding ? 'ml-10 sm:ml-0' : ''
           }`}>
-            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600" />
+            <div className="h-5 sm:h-6 bg-white rounded-lg flex items-center justify-center flex-shrink-0 px-2">
+              <Image 
+                src="/rhinom-logo.svg" 
+                alt="Rhinoback Logo" 
+                width={70} 
+                height={15} 
+                className="h-full w-auto object-contain"
+              />
             </div>
             <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">Rhinoback</h1>
               {/* Only show project name in dashboard, not in onboarding */}
               {!isOnboarding && (
                 <>
-                  <span className="text-gray-400 hidden sm:inline">/</span>
                   {currentProject ? (
-                    <span className="text-sm sm:text-lg font-semibold text-gray-900 truncate hidden sm:inline">{currentProject.name}</span>
+                    <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>{currentProject.name}</h1>
                   ) : (
-                    <span className="text-sm sm:text-lg text-gray-500 hidden sm:inline">New Project</span>
+                    <h1 className="text-base sm:text-lg text-gray-500" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>New Project</h1>
                   )}
                 </>
               )}
@@ -51,7 +59,7 @@ export function Header() {
 
           {/* Project status and stats - hidden on mobile */}
           <div className="hidden lg:flex items-center gap-2">
-            {currentProject && (
+            {isClient && currentProject && (
               <>
                 <Badge 
                   variant="secondary" 
@@ -96,7 +104,7 @@ export function Header() {
               </Button>
             </Link>
             
-            {currentProject && (
+            {isClient && currentProject && (
               <DeploymentModal>
                 <Button
                   size="sm"

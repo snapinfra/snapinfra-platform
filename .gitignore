@@ -1,7 +1,10 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+# Ignore node_modules at any depth
+node_modules/
+**/node_modules/
+
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -11,7 +14,17 @@
 
 # next.js
 /.next/
+.next/
 /out/
+
+# common build outputs at any depth
+build/
+**/build/
+dist/
+**/dist/
+.turbo/
+.cache/
+.pnpm-store/
 
 # production
 /build

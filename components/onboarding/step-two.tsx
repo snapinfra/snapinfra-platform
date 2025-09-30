@@ -146,7 +146,7 @@ export function StepTwo({ data, onComplete, onBack }: StepTwoProps) {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-2 flex-1">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Your Generated Database Schema</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Your Generated Database Schema</h1>
           <p className="text-sm text-muted-foreground">
             We've analyzed your requirements and created intelligent recommendations.
           </p>

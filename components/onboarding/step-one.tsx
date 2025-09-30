@@ -188,9 +188,41 @@ export function StepOne({ onComplete }: StepOneProps) {
       console.log('Security:', security)
       console.log('Scaling:', scaling)
 
+      // Generate project name from description
+      const generateProjectName = (description: string): string => {
+        const patterns = [
+          { regex: /social media|social network/i, name: 'Social Media App' },
+          { regex: /e-?commerce|online store|shop/i, name: 'E-commerce Platform' },
+          { regex: /blog|cms|content management/i, name: 'Blog CMS' },
+          { regex: /task|todo|project management/i, name: 'Task Manager' },
+          { regex: /chat|messaging/i, name: 'Chat App' },
+          { regex: /food|restaurant|delivery/i, name: 'Food Delivery App' },
+          { regex: /booking|reservation/i, name: 'Booking System' },
+          { regex: /inventory|warehouse/i, name: 'Inventory System' },
+          { regex: /learning|education|course/i, name: 'Learning Platform' },
+          { regex: /fitness|health|workout/i, name: 'Fitness App' },
+        ]
+        
+        for (const pattern of patterns) {
+          if (pattern.regex.test(description)) {
+            return pattern.name
+          }
+        }
+        
+        const words = description
+          .replace(/[^a-zA-Z0-9\s]/g, '')
+          .split(/\s+/)
+          .filter(word => word.length > 2)
+          .slice(0, 3)
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        
+        return words.length > 0 ? words.join(' ') + (words.length === 1 ? ' App' : '') : 'My Project'
+      }
+
       // Aggregate all results
       const completeResult = {
         ...backendResult,
+        projectName: generateProjectName(description.trim()),
         analysis: {
           success: true,
           useCase: dbRecs.useCase,
@@ -257,7 +289,7 @@ export function StepOne({ onComplete }: StepOneProps) {
   return (
     <div className="flex flex-col items-center justify-center space-y-8 py-8">
       <div className="text-center space-y-4 max-w-2xl">
-        <h1 className="text-3xl font-bold text-foreground text-balance">Describe Your Backend in Plain English</h1>
+        <h1 className="text-3xl font-bold text-foreground text-balance" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Describe Your Backend in Plain English</h1>
         <p className="text-base text-muted-foreground text-balance leading-6">
           Complete database schema and API endpoints generated for you.
         </p>

@@ -180,7 +180,7 @@ export function StepThree({ data, onComplete, onBack }: StepThreeProps) {
     <div className="w-full max-w-7xl mx-auto py-4 px-6 space-y-4">
       {/* Header */}
       <div className="text-left space-y-2">
-        <h1 className="text-2xl font-bold text-foreground">Interactive API Explorer</h1>
+        <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Interactive API Explorer</h1>
         <p className="text-sm text-muted-foreground max-w-3xl">
           Test and explore your {totalEndpoints} auto-generated API endpoints. Complete CRUD operations, authentication, file uploads, and custom business logic.
         </p>
