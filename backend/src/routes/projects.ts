@@ -7,26 +7,52 @@ import Joi from 'joi';
 const router = Router();
 
 // Validation schemas
+const fieldSchema = Joi.object({
+  id: Joi.string().required(),
+  name: Joi.string().required(),
+  type: Joi.string().required(),
+  isPrimary: Joi.boolean().default(false),
+  isRequired: Joi.boolean().default(false),
+  isUnique: Joi.boolean().default(false),
+  isForeignKey: Joi.boolean().default(false),
+  description: Joi.string().allow('').default(''),
+  defaultValue: Joi.any().optional(),
+  validation: Joi.array().optional(),
+  enumOptions: Joi.array().optional(),
+  hasIndex: Joi.boolean().optional(),
+  maxFileSize: Joi.number().optional(),
+  acceptedFileTypes: Joi.array().optional()
+});
+
 const createProjectSchema = Joi.object({
   name: Joi.string().required().min(1).max(100),
-  description: Joi.string().optional().max(500),
+  description: Joi.string().optional().allow('').max(500),
   schema: Joi.object({
     name: Joi.string().required(),
     tables: Joi.array().items(Joi.object({
       id: Joi.string().required(),
       name: Joi.string().required(),
-      fields: Joi.array().required(),
+      fields: Joi.array().items(fieldSchema).min(1).required(),
       indexes: Joi.array().default([])
-    })).required(),
+    })).min(1).required(),
     relationships: Joi.array().default([])
   }).required()
 });
 
 const updateProjectSchema = Joi.object({
   name: Joi.string().optional().min(1).max(100),
-  description: Joi.string().optional().max(500),
+  description: Joi.string().optional().allow('').max(500),
   status: Joi.string().optional().valid(...Object.values(ProjectStatus)),
-  schema: Joi.object().optional()
+  schema: Joi.object({
+    name: Joi.string().optional(),
+    tables: Joi.array().items(Joi.object({
+      id: Joi.string().required(),
+      name: Joi.string().required(),
+      fields: Joi.array().items(fieldSchema).min(1).required(),
+      indexes: Joi.array().default([])
+    })).optional(),
+    relationships: Joi.array().optional()
+  }).optional()
 });
 
 import { getCurrentUserId, devAuth } from '@/middleware/authMiddleware';
@@ -63,12 +89,22 @@ router.get('/', devAuth, asyncHandler(async (req: AuthenticatedRequest, res: Res
 
 // Create new project
 router.post('/', devAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const { error, value } = createProjectSchema.validate(req.body);
+  const { error, value } = createProjectSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    console.error('❌ Project validation failed:', error.details.map(d => ({
+      path: d.path.join('.'),
+      message: d.message,
+      type: d.type
+    })));
+    console.error('📦 Received payload:', JSON.stringify(req.body, null, 2));
     return res.status(400).json({
       success: false,
       error: 'Validation failed',
-      details: error.details.map(d => d.message),
+      details: error.details.map(d => ({
+        field: d.path.join('.'),
+        message: d.message,
+        type: d.type
+      })),
       timestamp: new Date().toISOString()
     });
   }

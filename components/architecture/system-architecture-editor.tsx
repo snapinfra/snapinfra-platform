@@ -207,19 +207,19 @@ export function SystemArchitectureEditor({
       type: edge.type || 'smoothstep',
       animated: true,
       style: {
-        stroke: '#6b7280',
+        stroke: '#107a4d',
         strokeWidth: 2,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 20,
         height: 20,
-        color: '#6b7280',
+        color: '#107a4d',
       },
       labelStyle: {
         fontSize: '12px',
-        fontWeight: 'bold',
-        color: '#374151',
+        fontWeight: '600',
+        color: '#1d1d1f',
       },
     }))
   }, [architecture.edges])
@@ -306,14 +306,14 @@ export function SystemArchitectureEditor({
       animated: true,
       label: newEdge.label,
       style: {
-        stroke: '#6b7280',
+        stroke: '#107a4d',
         strokeWidth: 2,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 20,
         height: 20,
-        color: '#6b7280',
+        color: '#107a4d',
       },
     }, eds))
   }, [setEdges, architecture, onArchitectureChange, readonly])
@@ -384,41 +384,41 @@ export function SystemArchitectureEditor({
   ]
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-[#fafafa]">
       {/* Toolbar */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">System Architecture</h3>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
+      <div className="flex-shrink-0 bg-white border-b border-[rgba(55,50,47,0.08)] px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h3 className="font-semibold text-[#1d1d1f] text-sm">System Architecture</h3>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="outline" className="text-xs h-6 px-2.5 border-[rgba(55,50,47,0.12)]">
                 {architecture.nodes.length} components
               </Badge>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs h-6 px-2.5 border-[rgba(55,50,47,0.12)]">
                 {architecture.edges.length} connections
               </Badge>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto">
+          <div className="flex items-center gap-1.5">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setShowConnections(!showConnections)}
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
+              className="h-8 px-3 text-xs hover:bg-[#107a4d]/5"
             >
-              {showConnections ? <Eye className="w-3 h-3 sm:w-4 sm:h-4" /> : <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" />}
-              <span className="hidden sm:inline">Connections</span>
+              {showConnections ? <Eye className="w-3.5 h-3.5 mr-1.5" /> : <EyeOff className="w-3.5 h-3.5 mr-1.5" />}
+              Connections
             </Button>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setShowMiniMap(!showMiniMap)}
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
+              className="h-8 px-3 text-xs hover:bg-[#107a4d]/5"
             >
-              <Grid className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Minimap</span>
+              <Grid className="w-3.5 h-3.5 mr-1.5" />
+              Minimap
             </Button>
 
             {!readonly && (
@@ -426,21 +426,21 @@ export function SystemArchitectureEditor({
                 <Button
                   onClick={() => setShowAddNodeDialog(true)}
                   size="sm"
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
+                  className="h-8 px-3 text-xs bg-[#107a4d] hover:bg-[#0d6340]"
                 >
-                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Add Node</span>
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />
+                  Add Node
                 </Button>
 
                 {onSave && (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     onClick={onSave}
                     size="sm"
-                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
+                    className="h-8 px-3 text-xs hover:bg-[#107a4d]/5"
                   >
-                    <Save className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Save</span>
+                    <Save className="w-3.5 h-3.5 mr-1.5" />
+                    Save
                   </Button>
                 )}
               </>
@@ -466,21 +466,21 @@ export function SystemArchitectureEditor({
           minZoom={0.1}
           maxZoom={2}
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-          className="bg-gray-50"
+          className="bg-[#fafafa]"
           nodesDraggable={!readonly}
           nodesConnectable={!readonly}
           elementsSelectable={!readonly}
         >
           <Background
             variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="#e5e7eb"
+            gap={16}
+            size={0.8}
+            color="#d1d5db"
           />
           
           <Controls 
             position="bottom-right"
-            className="bg-white border border-gray-200 rounded-md shadow-lg"
+            className="bg-white border border-[rgba(55,50,47,0.12)] rounded-lg shadow-md !m-4"
             showZoom
             showFitView
             showInteractive={false}
@@ -489,7 +489,7 @@ export function SystemArchitectureEditor({
           {showMiniMap && (
             <MiniMap
               position="bottom-left"
-              className="bg-white border border-gray-200 rounded-md shadow-lg"
+              className="bg-white border border-[rgba(55,50,47,0.12)] rounded-lg shadow-md !m-4"
               pannable
               zoomable
               nodeColor={(node) => {
@@ -516,19 +516,19 @@ export function SystemArchitectureEditor({
       </div>
 
       {/* Status Bar */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-3 sm:px-4 py-2 text-xs text-gray-500">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-          <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex-shrink-0 bg-white border-t border-[rgba(55,50,47,0.08)] px-4 py-2.5 text-xs text-[#605A57]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <span>
               {architecture.nodes.length} components, {showConnections ? architecture.edges.length : 0} connections
             </span>
-            <span className="text-gray-400 hidden sm:inline">|</span>
+            <span className="text-[rgba(55,50,47,0.2)] hidden sm:inline">|</span>
             <span className="hidden sm:inline">
               System Architecture Editor
             </span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <span>Drag components • Connect handles • Zoom with mouse wheel</span>
+          <div className="hidden md:flex items-center gap-2">
+            <span className="text-[#605A57]/70">Drag components • Connect handles • Zoom with wheel</span>
           </div>
         </div>
       </div>

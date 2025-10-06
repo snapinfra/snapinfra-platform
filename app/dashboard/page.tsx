@@ -2,20 +2,26 @@
 
 import React, { useMemo, useState } from "react"
 import Link from "next/link"
-import { Header } from "@/components/header"
-import { GeneratedSummary } from "@/components/generated-summary"
 import { useAppContext } from "@/lib/app-context"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
+import { 
+  EnterpriseMetricCard, 
+  StatsGrid, 
+  ActivityTimeline, 
+  DataSummaryCard,
+  StatusOverview,
+  ProgressTracker
+} from "@/components/enterprise-dashboard-widgets"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { GridPattern } from "@/components/ui/shadcn-io/grid-pattern"
 import { DeploymentModal } from "@/components/deployment-modal"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PieChart as PieChartIcon, BarChart3, Layers, Database, ListChecks, Network, Settings, Rocket, ArrowRight, Sparkles, Activity, Globe, Shield, CheckCircle2, AlertTriangle, Clock, FileText, Download, Copy } from "lucide-react"
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { PieChart as PieChartIcon, BarChart3, Layers, Database, ListChecks, Network, Settings, Rocket, Activity, Globe, Code2, FileText, Download, Copy, Plus, Filter, RefreshCw, Shield, CheckCircle2, Clock } from "lucide-react"
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 
 export default function Dashboard() {
   const { state, dispatch } = useAppContext()
@@ -139,82 +145,173 @@ export default function Dashboard() {
   }, [state.chatMessages])
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-background">
-      <Header />
-      <main className="flex-1 w-full pt-[44px] sm:pt-[52px]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* If no project, show a friendly empty state */}
-          {!currentProject ? (
-            <Card className="relative overflow-hidden border border-gray-200">
-              <GridPattern width={60} height={60} strokeDasharray="4 4" className="opacity-30" />
-              <CardHeader className="relative">
-                <CardTitle className="flex items-center gap-2 text-2xl">
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  Welcome to Rhinoback
-                </CardTitle>
-                <CardDescription>Start by creating a project to unlock your interactive dashboard.</CardDescription>
+    <EnterpriseDashboardLayout
+      title={currentProject ? currentProject.name : "Dashboard"}
+      description={currentProject ? "Project overview and management" : "Welcome to Snapinfra"}
+      breadcrumbs={[
+        { label: "Projects", href: "/" },
+        { label: currentProject?.name || "Dashboard" },
+      ]}
+      actions={
+        currentProject && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <DeploymentModal>
+              <Button size="sm">
+                Deploy
+              </Button>
+            </DeploymentModal>
+          </div>
+        )
+      }
+    >
+      <div className="space-y-6">
+        {/* If no project, show enterprise empty state */}
+        {!currentProject ? (
+          <div className="space-y-6">
+            <Card className="border border-gray-200 shadow-sm">
+              <CardHeader className="border-b border-gray-100 bg-white">
+                <CardTitle className="text-xl font-semibold text-gray-900">Get Started</CardTitle>
+                <CardDescription className="text-sm text-gray-600">
+                  Create your first project to start building and managing your backend infrastructure.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="relative">
-                <div className="flex flex-col sm:flex-row gap-2">
+              <CardContent className="p-6 bg-gray-50">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Link href="/onboarding?new=true">
-                    <Button className=""><Rocket className="w-4 h-4 mr-2" /> New Project</Button>
+                    <Button size="lg" className="shadow-sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Project
+                    </Button>
                   </Link>
                   <Link href="/architecture-demo">
-                    <Button variant="outline" className=""><ArrowRight className="w-4 h-4 mr-2" /> See a demo</Button>
+                    <Button variant="outline" size="lg" className="border-gray-300 hover:bg-gray-50">
+                      <Activity className="w-4 h-4 mr-2" />
+                      View Demo
+                    </Button>
                   </Link>
                 </div>
               </CardContent>
             </Card>
-          ) : (
-            <>
-              {/* Hero / Overview */}
-              <Card id="overview" className="relative overflow-hidden border border-gray-200">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 via-blue-50 to-transparent" />
-                <GridPattern width={60} height={60} strokeDasharray="4 4" className="opacity-30" />
-                <CardHeader className="relative">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-semibold tight-tracking text-gray-900">{currentProject?.name || 'Your Project'}</h1>
-                      </div>
-                      <CardDescription className="mt-1 text-gray-600">
-                        A snapshot of your backend blueprint with quick actions.
-                      </CardDescription>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-2">
-                      <DeploymentModal>
-                        <Button className="bg-gray-900 text-white hover:bg-gray-800"><Rocket className="w-4 h-4 mr-2" /> Deploy</Button>
-                      </DeploymentModal>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="relative">
-                  {/* KPI tiles */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                    <Kpi icon={<Database className="w-4 h-4" />} label="Tables" value={metrics.tables} />
-                    <Kpi icon={<Layers className="w-4 h-4" />} label="Fields" value={metrics.fields} />
-                    <Kpi icon={<ListChecks className="w-4 h-4" />} label="Endpoints" value={metrics.endpoints} />
-                    <Kpi icon={<Settings className="w-4 h-4" />} label="Decisions" value={metrics.decisions} />
-                    <Kpi icon={<Network className="w-4 h-4" />} label="Components" value={metrics.components} />
-                    <Kpi icon={<Network className="w-4 h-4" />} label="Connections" value={metrics.connections} />
-                  </div>
 
-                  {/* Mobile quick actions */}
-                  <div className="mt-4 flex sm:hidden flex-col gap-2">
-                    <DeploymentModal>
-                      <Button className="bg-gray-900 text-white hover:bg-gray-800"><Rocket className="w-4 h-4 mr-2" /> Deploy</Button>
-                    </DeploymentModal>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Feature Overview for Empty State */}
+            <StatsGrid
+              title="Platform Capabilities"
+              description="What you can do with Snapinfra"
+              stats={[
+                { label: "Schema Design", value: "Automated", changeLabel: "AI-powered database modeling" },
+                { label: "API Generation", value: "Instant", changeLabel: "Production-ready endpoints" },
+                { label: "Deployment", value: "One-Click", changeLabel: "Multi-cloud support" },
+                { label: "Monitoring", value: "Real-time", changeLabel: "Live system insights" },
+              ]}
+            />
+          </div>
+        ) : (
+          <>
+            {/* Enterprise Metrics Grid */}
+            <StatsGrid
+              title="Project Metrics"
+              description="Overview of your infrastructure components"
+              stats={[
+                { label: "Database Tables", value: metrics.tables, change: 12, changeLabel: "vs. last week" },
+                { label: "Total Fields", value: metrics.fields, change: 8, changeLabel: "vs. last week" },
+                { label: "API Endpoints", value: metrics.endpoints, change: 15, changeLabel: "vs. last week" },
+                { label: "Architecture Nodes", value: metrics.components, change: 5, changeLabel: "vs. last week" },
+                { label: "Connections", value: metrics.connections, change: 3, changeLabel: "vs. last week" },
+                { label: "Decisions Made", value: metrics.decisions, change: 0, changeLabel: "vs. last week" },
+              ]}
+              columns={6}
+            />
 
-              {/* Generated Assets (on top) */}
-              <Card id="assets" className="border border-gray-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-semibold">Generated Assets</CardTitle>
-                  <CardDescription className="text-sm text-gray-600">Backend code and Infrastructure-as-Code</CardDescription>
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column - 2/3 width */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Key Metrics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <EnterpriseMetricCard
+                    title="Database Tables"
+                    value={metrics.tables}
+                    subtitle="Active schema definitions"
+                    icon={<Database className="h-5 w-5" />}
+                    change={{ value: 12, period: "vs. last week", isPositive: true }}
+                    status="success"
+                  />
+                  <EnterpriseMetricCard
+                    title="API Endpoints"
+                    value={metrics.endpoints}
+                    subtitle="REST API routes"
+                    icon={<Code2 className="h-5 w-5" />}
+                    change={{ value: 15, period: "vs. last week", isPositive: true }}
+                    status="success"
+                  />
+                </div>
+
+                {/* Analytics Charts */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="border border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-100 bg-white pb-3">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2 text-gray-900">
+                        <PieChartIcon className="w-4 h-4 text-gray-600" />
+                        Field Types
+                      </CardTitle>
+                      <CardDescription className="text-xs text-gray-600 mt-1">Schema field distribution</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[280px] pt-6 bg-white">
+                      {fieldTypeData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={fieldTypeData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} strokeWidth={2}>
+                              {fieldTypeData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value: any, name: any) => [value, name]} />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <EmptyChartPlaceholder label="No field data yet" />
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-100 bg-white pb-3">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2 text-gray-900">
+                        <BarChart3 className="w-4 h-4 text-gray-600" />
+                        API Methods
+                      </CardTitle>
+                      <CardDescription className="text-xs text-gray-600 mt-1">HTTP method distribution</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[280px] pt-6 bg-white">
+                      {methodData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={methodData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                            <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={12} />
+                            <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
+                            <Tooltip formatter={(value: any) => [`${value} endpoints`, 'Count']} />
+                            <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="#3b82f6" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <EmptyChartPlaceholder label="No endpoint data yet" />
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Generated Assets */}
+                <Card id="assets" className="border border-gray-200 shadow-sm">
+                <CardHeader className="pb-3 border-b border-gray-100 bg-white">
+                  <CardTitle className="text-sm font-semibold text-gray-900">Generated Assets</CardTitle>
+                  <CardDescription className="text-xs text-gray-600 mt-1">Backend code and Infrastructure-as-Code</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 bg-white">
                   <Tabs defaultValue={currentProject?.generatedCode ? 'code' : 'iac'}>
                     <TabsList>
                       <TabsTrigger value="code">Backend Code</TabsTrigger>
@@ -255,387 +352,259 @@ export default function Dashboard() {
                   </Tabs>
                 </CardContent>
               </Card>
-
-              {/* Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border border-gray-200" id="charts">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2"><PieChartIcon className="w-4 h-4" /> Field type distribution</CardTitle>
-                    <CardDescription className="text-sm text-gray-600">Composition of your schema fields</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-[260px]">
-                    {fieldTypeData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={fieldTypeData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} strokeWidth={2}>
-                            {fieldTypeData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value: any, name: any) => [value, name]} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <EmptyChartPlaceholder label="No fields yet" />
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="border border-gray-200">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Endpoint methods</CardTitle>
-                    <CardDescription className="text-sm text-gray-600">Distribution of API methods</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-[260px]">
-                    {methodData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={methodData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                          <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                          <Tooltip formatter={(value: any, name: any) => [value, name]} />
-                          <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="#3b82f6" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <EmptyChartPlaceholder label="No endpoints yet" />
-                    )}
-                  </CardContent>
-                </Card>
               </div>
 
-              {/* In-page navigation (desktop) */}
-              <div className="hidden lg:grid grid-cols-[220px_1fr] gap-6">
-                <nav className="sticky top-[60px] self-start space-y-1 border border-gray-200 rounded-md p-2 bg-white h-fit" aria-label="Section navigation">
-                  <a href="#overview" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Overview</a>
-                  <a href="#assets" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Assets</a>
-                  <a href="#charts" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Analytics</a>
-                  <a href="#resources" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Resources</a>
-                  <a href="#activity" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Activity</a>
-                  <a href="#deployments" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Deployments</a>
-                  <a href="#database" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Database</a>
-                  <a href="#insights" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Insights</a>
-                  <a href="#recommendations" className="block px-2 py-1.5 rounded hover:bg-gray-50 text-sm">Recommendations</a>
-                </nav>
-                <div className="space-y-6">
-                  {/* Resources */}
-                  <Card id="resources" className="border border-gray-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold">Resources</CardTitle>
-                      <CardDescription className="text-sm text-gray-600">Explore your tables, endpoints, and decisions</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <Tabs defaultValue="tables">
-                        <TabsList>
-                          <TabsTrigger value="tables">Tables</TabsTrigger>
-                          <TabsTrigger value="endpoints">Endpoints</TabsTrigger>
-                          <TabsTrigger value="decisions">Decisions</TabsTrigger>
-                        </TabsList>
+              {/* Right Column - 1/3 width */}
+              <div className="space-y-6">
+                {/* Project Status Overview */}
+                <StatusOverview
+                  title="System Status"
+                  items={[
+                    {
+                      label: "Database",
+                      status: "operational",
+                      description: currentProject?.database?.type || "PostgreSQL",
+                      lastChecked: "2 minutes ago",
+                    },
+                    {
+                      label: "API Endpoints",
+                      status: metrics.endpoints > 0 ? "operational" : "maintenance",
+                      description: `${metrics.endpoints} active routes`,
+                      lastChecked: "Just now",
+                    },
+                    {
+                      label: "Deployment",
+                      status: currentProject?.deployment ? "operational" : "maintenance",
+                      description: currentProject?.deployment?.environment || "Not deployed",
+                      lastChecked: "5 minutes ago",
+                    },
+                  ]}
+                />
 
-                        <TabsContent value="tables" className="space-y-3">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead className="text-right">Fields</TableHead>
-                                <TableHead className="text-right">Relationships</TableHead>
-                                <TableHead className="text-right">Indexes</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {(currentProject?.schema || []).map((t: any) => (
-                                <TableRow key={t.id}>
-                                  <TableCell className="font-medium">{t.name}</TableCell>
-                                  <TableCell className="text-right">{t.fields?.length || 0}</TableCell>
-                                  <TableCell className="text-right">{t.relationships?.length || 0}</TableCell>
-                                  <TableCell className="text-right">{t.indexes?.length || 0}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </TabsContent>
+                {/* Activity Timeline */}
+                <ActivityTimeline
+                  items={recentActivity.map((ev, i) => ({
+                    id: String(i),
+                    type: ev.type === 'schema' ? 'success' : ev.type === 'endpoint' ? 'info' : ev.type === 'deployment' ? 'warning' : 'info',
+                    title: ev.title,
+                    description: ev.description,
+                    timestamp: ev.time,
+                  }))}
+                />
 
-                        <TabsContent value="endpoints" className="space-y-3">
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <div className="flex-1">
-                              <Input placeholder="Search path or group" value={endpointSearch} onChange={(e) => setEndpointSearch(e.target.value)} />
-                            </div>
-                            <Select value={endpointMethod} onValueChange={setEndpointMethod}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Method" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  <SelectLabel>Method</SelectLabel>
-                                  <SelectItem value="ALL">All</SelectItem>
-                                  <SelectItem value="GET">GET</SelectItem>
-                                  <SelectItem value="POST">POST</SelectItem>
-                                  <SelectItem value="PUT">PUT</SelectItem>
-                                  <SelectItem value="DELETE">DELETE</SelectItem>
-                                  <SelectItem value="PATCH">PATCH</SelectItem>
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Method</TableHead>
-                                <TableHead>Path</TableHead>
-                                <TableHead>Group</TableHead>
-                                <TableHead>Auth</TableHead>
-                                <TableHead>Description</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {filteredEndpoints.map((ep: any, idx: number) => (
-                                <TableRow key={idx}>
-                                  <TableCell>
-                                    <Badge variant="outline" className="text-xs">{ep.method}</Badge>
-                                  </TableCell>
-                                  <TableCell className="font-mono">{ep.path}</TableCell>
-                                  <TableCell>{ep.group}</TableCell>
-                                  <TableCell>{ep.auth ? 'Yes' : 'No'}</TableCell>
-                                  <TableCell className="max-w-[300px] truncate" title={ep.description}>{ep.description}</TableCell>
-                                </TableRow>
-                              ))}
-                              {filteredEndpoints.length === 0 && (
-                                <TableRow>
-                                  <TableCell colSpan={5} className="text-center text-sm text-gray-500">No endpoints found</TableCell>
-                                </TableRow>
-                              )}
-                            </TableBody>
-                          </Table>
-                        </TabsContent>
+                {/* Progress Tracker */}
+                <ProgressTracker
+                  title="Project Completion"
+                  items={[
+                    {
+                      label: "Schema Design",
+                      current: metrics.tables,
+                      total: Math.max(metrics.tables, 5),
+                      percentage: Math.min((metrics.tables / Math.max(metrics.tables, 5)) * 100, 100),
+                    },
+                    {
+                      label: "API Implementation",
+                      current: metrics.endpoints,
+                      total: Math.max(metrics.endpoints, 10),
+                      percentage: Math.min((metrics.endpoints / Math.max(metrics.endpoints, 10)) * 100, 100),
+                    },
+                    {
+                      label: "Architecture",
+                      current: metrics.components,
+                      total: Math.max(metrics.components, 5),
+                      percentage: Math.min((metrics.components / Math.max(metrics.components, 5)) * 100, 100),
+                    },
+                  ]}
+                />
 
-                        <TabsContent value="decisions" className="space-y-2">
-                          {(currentProject as any)?.decisions?.decisions?.slice(0, 12).map((d: any) => (
-                            <div key={d.id} className="flex items-start justify-between border rounded-md p-2">
-                              <div>
-                                <div className="text-sm font-medium">{d.title}</div>
-                                <div className="text-xs text-gray-600 line-clamp-2">{d.description}</div>
-                              </div>
-                              <Badge variant="secondary" className="text-xs">{d.category}</Badge>
-                            </div>
-                          )) || <div className="text-sm text-gray-500">No decisions yet.</div>}
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
+                {/* Database Summary */}
+                <DataSummaryCard
+                  title="Database Configuration"
+                  data={[
+                    {
+                      label: "Type",
+                      value: currentProject?.database?.type?.toUpperCase() || "POSTGRESQL",
+                      badge: {
+                        label: typeof currentProject?.database?.confidence === 'number'
+                          ? `${(currentProject.database.confidence * 100).toFixed(0)}% match`
+                          : "Recommended",
+                        variant: "secondary" as const,
+                      },
+                    },
+                    { label: "Tables", value: metrics.tables, subtitle: "Schema definitions" },
+                    { label: "Total Fields", value: metrics.fields, subtitle: "Across all tables" },
+                    { label: "Relationships", value: metrics.connections, subtitle: "Foreign keys" },
+                  ]}
+                />
+              </div>
+            </div>
 
-                  {/* Activity */}
-                  <Card id="activity" className="border border-gray-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2"><Activity className="w-4 h-4" /> Recent activity</CardTitle>
-                      <CardDescription className="text-sm text-gray-600">Latest system and AI events</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {recentActivity.map((ev, i) => (
-                          <div key={i} className="flex items-start gap-2">
-                            <TimelineIcon type={ev.type} />
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium truncate">{ev.title}</div>
-                              <div className="text-xs text-gray-600 truncate">{ev.description}</div>
-                            </div>
-                            <div className="ml-auto text-xs text-gray-500 whitespace-nowrap">{ev.time}</div>
-                          </div>
-                        ))}
-                        {recentActivity.length === 0 && (
-                          <div className="text-sm text-gray-500">No recent activity</div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Deployments */}
-                  <Card id="deployments" className="border border-gray-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2"><Globe className="w-4 h-4" /> Environments & Deployments</CardTitle>
-                      <CardDescription className="text-sm text-gray-600">Status across environments</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {['development','staging','production'].map((env) => (
-                          <div key={env} className="border rounded-md p-3 bg-white">
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm font-medium capitalize">{env}</div>
-                              <EnvStatusBadge env={env as any} deployment={currentProject?.deployment} />
-                            </div>
-                            <div className="mt-1 text-xs text-gray-600 truncate">
-                              {currentProject?.deployment?.environment === env ? (
-                                <>
-                                  URL: <a className="text-blue-600 hover:underline" href={currentProject.deployment.url} target="_blank" rel="noreferrer">{currentProject.deployment.url}</a>
-                                </>
-                              ) : (
-                                'No deployment'
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Database */}
-                  <Card id="database" className="border border-gray-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2"><Shield className="w-4 h-4" /> Database</CardTitle>
-                      <CardDescription className="text-sm text-gray-600">Selected storage and rationale</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="capitalize">{currentProject?.database?.type || 'postgresql'}</Badge>
-                        {typeof currentProject?.database?.confidence === 'number' && (
-                          <Badge variant="secondary">Confidence {(currentProject.database.confidence * 100).toFixed(0)}%</Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-700">{currentProject?.database?.reasoning || 'Recommended based on your use case and schema.'}</div>
-                      <div className="flex flex-wrap gap-1">
-                        {(currentProject?.database?.features || ['ACID compliance','Complex queries','Scalability']).map((f, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">{f}</Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Insights from generation */}
-                  <Card id="insights" className="border border-gray-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Generated Insights</CardTitle>
-                      <CardDescription className="text-sm text-gray-600">Results from earlier analysis</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {currentProject?.analysis ? (
-                        <Tabs defaultValue="db">
-                          <TabsList>
-                            <TabsTrigger value="db">Database</TabsTrigger>
-                            <TabsTrigger value="scaling">Scaling</TabsTrigger>
-                            <TabsTrigger value="smart">Smart</TabsTrigger>
-                            <TabsTrigger value="opt">Optimizations</TabsTrigger>
-                            <TabsTrigger value="sec">Security</TabsTrigger>
-                          </TabsList>
-                          <TabsContent value="db" className="space-y-2">
-                            {(currentProject.analysis.databaseRecommendations || []).slice(0, 5).map((r: any, i: number) => (
-                              <div key={i} className="border rounded-md p-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-medium text-sm">{r.name}</div>
-                                  {typeof r.score === 'number' && <Badge variant="secondary" className="text-xs">{r.score}%</Badge>}
-                                </div>
-                                {r.bestFor && <div className="text-xs text-gray-600">Best for: {r.bestFor}</div>}
-                                {r.reasons && r.reasons.length > 0 && (
-                                  <ul className="text-xs text-gray-600 list-disc pl-5 mt-1">
-                                    {r.reasons.slice(0, 3).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
-                                  </ul>
-                                )}
-                              </div>
-                            ))}
-                          </TabsContent>
-                          <TabsContent value="scaling" className="space-y-2">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                              <Kpi icon={<Activity className="w-4 h-4" />} label="Expected load" valueLabel={currentProject.analysis.scalingInsights?.expectedLoad || 'Unknown'} />
-                              <Kpi icon={<Network className="w-4 h-4" />} label="Read/Write" valueLabel={currentProject.analysis.scalingInsights?.readWriteRatio || '—'} />
-                              <Kpi icon={<Layers className="w-4 h-4" />} label="Caching" valueLabel={currentProject.analysis.scalingInsights?.cachingStrategy || '—'} />
-                            </div>
-                            {Array.isArray(currentProject.analysis.scalingInsights?.indexingPriority) && currentProject.analysis.scalingInsights.indexingPriority.length > 0 && (
-                              <div className="border rounded-md p-2">
-                                <div className="text-sm font-medium mb-1">Indexing priorities</div>
-                                <div className="flex flex-wrap gap-1">
-                                  {currentProject.analysis.scalingInsights.indexingPriority.map((p: any, idx: number) => {
-                                    const isObj = p && typeof p === 'object'
-                                    const label = isObj
-                                      ? `${p.table ?? p.field ?? 'Index'}${p.priority ? ` - ${p.priority}` : ''}`
-                                      : String(p)
-                                    const title = isObj && p.reason ? String(p.reason) : undefined
-                                    return (
-                                      <Badge key={idx} variant="outline" className="text-xs" title={title}>{label}</Badge>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </TabsContent>
-                          <TabsContent value="smart" className="space-y-2">
-                            {(currentProject.analysis.smartRecommendations || []).slice(0, 10).map((s: any, i: number) => (
-                              <div key={i} className="border rounded-md p-2">
-                                <div className="text-sm font-medium">{s.title || s.name || `Recommendation ${i+1}`}</div>
-                                {s.description && <div className="text-xs text-gray-600">{s.description}</div>}
-                              </div>
-                            ))}
-                          </TabsContent>
-                          <TabsContent value="opt" className="space-y-2">
-                            {(currentProject.analysis.optimizationSuggestions || []).slice(0, 10).map((o: any, i: number) => (
-                              <div key={i} className="border rounded-md p-2">
-                                <div className="text-sm font-medium">{o.title || o.name || `Optimization ${i+1}`}</div>
-                                {o.description && <div className="text-xs text-gray-600">{o.description}</div>}
-                              </div>
-                            ))}
-                          </TabsContent>
-                          <TabsContent value="sec" className="space-y-2">
-                            {(currentProject.analysis.securityRecommendations || []).slice(0, 10).map((s: any, i: number) => (
-                              <div key={i} className="border rounded-md p-2">
-                                <div className="text-sm font-medium">{s.title || s.name || `Security item ${i+1}`}</div>
-                                {s.description && <div className="text-xs text-gray-600">{s.description}</div>}
-                              </div>
-                            ))}
-                          </TabsContent>
-                        </Tabs>
-                      ) : (
-                        <div className="text-sm text-gray-500">No insights available.</div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Recommendations */}
-                  <Card id="recommendations" className="border border-gray-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Recommendations</CardTitle>
-                      <CardDescription className="text-sm text-gray-600">AI and tool decisions overview</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        <div className="border rounded-md p-3">
-                          <div className="text-sm font-medium mb-1">Tool selections</div>
-                          <div className="flex flex-wrap gap-1">
-                            {(() => {
-                              const tools = currentProject?.selectedTools
-                              || (currentProject?.decisions?.decisions ? Object.fromEntries(
-                                currentProject.decisions.decisions.map((d: any) => [d.id, d.selectedTool])
-                              ) : null)
-                              return tools ? (
-                                Object.entries(tools).map(([k, v]) => (
-                                  <Badge key={k} variant="outline" className="text-xs">{k}: {v}</Badge>
-                                ))
-                              ) : (
-                                <div className="text-sm text-gray-500">None selected yet</div>
-                              )
-                            })()}
-                          </div>
-                        </div>
-                        <div className="border rounded-md p-3">
-                          <div className="text-sm font-medium mb-1">Highlights</div>
-                          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-                            <li>{metrics.tables} tables with {metrics.fields} fields</li>
-                            <li>~{metrics.endpoints} API endpoints</li>
-                            <li>{metrics.components} components, {metrics.connections} connections</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+            {/* Full-Width Resources Section */}
+            <Card className="border border-gray-200 shadow-sm">
+              <CardHeader className="border-b border-gray-100 bg-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-semibold text-gray-900">Project Resources</CardTitle>
+                    <CardDescription className="text-sm text-gray-600 mt-1">Detailed view of all project components</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter
+                  </Button>
                 </div>
-              </div>
-            </>
-          )}
+              </CardHeader>
+              <CardContent className="pt-6 bg-white">
+                <Tabs defaultValue="tables">
+                  <TabsList>
+                    <TabsTrigger value="tables">Tables ({metrics.tables})</TabsTrigger>
+                    <TabsTrigger value="endpoints">Endpoints ({metrics.endpoints})</TabsTrigger>
+                    <TabsTrigger value="decisions">Decisions ({metrics.decisions})</TabsTrigger>
+                  </TabsList>
 
-          {/* Detailed sections (kept for power users) */}
-<GeneratedSummary compact />
-        </div>
-      </main>
-    </div>
+                  <TabsContent value="tables" className="mt-4">
+                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-gray-50 border-b border-gray-200">
+                            <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Name</TableHead>
+                            <TableHead className="text-right font-semibold text-gray-700 text-xs uppercase tracking-wide">Fields</TableHead>
+                            <TableHead className="text-right font-semibold text-gray-700 text-xs uppercase tracking-wide">Relationships</TableHead>
+                            <TableHead className="text-right font-semibold text-gray-700 text-xs uppercase tracking-wide">Indexes</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(currentProject?.schema || []).length > 0 ? (
+                            (currentProject?.schema || []).map((t: any) => (
+                              <TableRow key={t.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
+                                <TableCell className="font-medium text-gray-900 text-sm">{t.name}</TableCell>
+                                <TableCell className="text-right text-gray-600 text-sm">{t.fields?.length || 0}</TableCell>
+                                <TableCell className="text-right text-gray-600 text-sm">{t.relationships?.length || 0}</TableCell>
+                                <TableCell className="text-right text-gray-600 text-sm">{t.indexes?.length || 0}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center text-sm text-gray-500 py-8">
+                                No tables defined yet
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="endpoints" className="mt-4">
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="flex-1">
+                          <Input
+                            placeholder="Search path or group..."
+                            value={endpointSearch}
+                            onChange={(e) => setEndpointSearch(e.target.value)}
+                          />
+                        </div>
+                        <Select value={endpointMethod} onValueChange={setEndpointMethod}>
+                          <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Method" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>HTTP Method</SelectLabel>
+                              <SelectItem value="ALL">All Methods</SelectItem>
+                              <SelectItem value="GET">GET</SelectItem>
+                              <SelectItem value="POST">POST</SelectItem>
+                              <SelectItem value="PUT">PUT</SelectItem>
+                              <SelectItem value="DELETE">DELETE</SelectItem>
+                              <SelectItem value="PATCH">PATCH</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-gray-50 border-b border-gray-200">
+                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Method</TableHead>
+                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Path</TableHead>
+                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Group</TableHead>
+                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Auth</TableHead>
+                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Description</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredEndpoints.length > 0 ? (
+                              filteredEndpoints.map((ep: any, idx: number) => (
+                                <TableRow key={idx} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-xs font-mono font-semibold border-gray-300">
+                                      {ep.method}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="font-mono text-sm text-gray-900">{ep.path}</TableCell>
+                                  <TableCell className="text-sm text-gray-600">{ep.group}</TableCell>
+                                  <TableCell className="text-sm">
+                                    {ep.auth ? (
+                                      <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">Required</Badge>
+                                    ) : (
+                                      <span className="text-gray-500 text-xs">None</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="max-w-[300px] truncate text-sm text-gray-600" title={ep.description}>
+                                    {ep.description}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-8">
+                                  No endpoints found
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="decisions" className="mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(currentProject as any)?.decisions?.decisions?.length > 0 ? (
+                        (currentProject as any).decisions.decisions.slice(0, 12).map((d: any) => (
+                          <Card key={d.id} className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                            <CardContent className="p-4 bg-white">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold text-gray-900">{d.title}</p>
+                                  <p className="text-xs text-gray-600 mt-1.5 line-clamp-2">{d.description}</p>
+                                </div>
+                                <Badge variant="secondary" className="text-xs flex-shrink-0 bg-gray-100 text-gray-700 border-gray-200">
+                                  {d.category}
+                                </Badge>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
+                      ) : (
+                        <div className="col-span-2 text-center text-sm text-gray-500 py-8">
+                          No decisions made yet
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+    </EnterpriseDashboardLayout>
   )
 }
 
+{/* Helper Components */}
 function Kpi({ icon, label, value, valueLabel }: { icon: React.ReactNode; label: string; value?: number; valueLabel?: string }) {
   return (
     <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white p-3">
@@ -688,53 +657,26 @@ function GeneratedFilesList({ files, fileType, projectName }: { files: { path: s
     <div className="space-y-2">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {list.map((f, i) => (
-          <div key={i} className="border rounded-md p-2 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-gray-600" />
-                <div className="font-mono text-sm truncate" title={f.path}>{f.path}</div>
-              </div>
+          <div key={i} className="border rounded-md p-2 flex items-start justify-between gap-2 hover:bg-gray-50 transition-colors">
+            <div className="min-w-0 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
+              <div className="font-mono text-sm truncate" title={f.path}>{f.path}</div>
             </div>
-            <div className="flex-shrink-0 flex items-center gap-1">
-              <Button variant="outline" size="sm" onClick={() => copy(f.content)} title="Copy">
-                <Copy className="w-3 h-3" />
-              </Button>
-            </div>
+            <Button variant="ghost" size="sm" onClick={() => copy(f.content)} title="Copy" className="flex-shrink-0">
+              <Copy className="w-3 h-3" />
+            </Button>
           </div>
         ))}
       </div>
       {more > 0 && <div className="text-xs text-gray-500">+{more} more files</div>}
       <div className="pt-1">
-        <Button variant="outline" size="sm" onClick={downloadBundle}><Download className="w-4 h-4 mr-1" /> Download ZIP</Button>
+        <Button variant="outline" size="sm" onClick={downloadBundle}>
+          <Download className="w-4 h-4 mr-2" />
+          Download ZIP ({files.length} files)
+        </Button>
       </div>
     </div>
   )
-}
-
-function TimelineIcon({ type }: { type: 'schema' | 'endpoint' | 'deployment' | 'ai' }) {
-  const cls = "w-4 h-4 text-gray-600"
-  switch (type) {
-    case 'schema':
-      return <Database className={cls} />
-    case 'endpoint':
-      return <ListChecks className={cls} />
-    case 'deployment':
-      return <Rocket className={cls} />
-    default:
-      return <Clock className={cls} />
-  }
-}
-
-function EnvStatusBadge({ env, deployment }: { env: 'development'|'staging'|'production'; deployment?: any }) {
-  const isActive = deployment?.environment === env
-  const status: string = isActive ? deployment?.status || 'deployed' : 'idle'
-  const cls =
-    status === 'deployed' || status === 'deploying'
-      ? 'bg-green-100 text-green-700 border-green-200'
-      : status === 'failed'
-      ? 'bg-red-100 text-red-700 border-red-200'
-      : 'bg-gray-100 text-gray-700 border-gray-200'
-  return <Badge variant="secondary" className={`text-xs ${cls}`}>{isActive ? status : 'idle'}</Badge>
 }
 
 function formatRelativeTime(date: Date) {

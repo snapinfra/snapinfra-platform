@@ -74,30 +74,22 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
     {
       id: 'vercel',
       name: 'Vercel',
-      description: 'Deploy to Vercel with automatic HTTPS and global CDN',
-      icon: '▲',
-      color: 'bg-black text-white'
+      description: 'Deploy to Vercel with automatic HTTPS and global CDN'
     },
     {
       id: 'railway',
       name: 'Railway',
-      description: 'Deploy to Railway with built-in database hosting',
-      icon: '🚂',
-      color: 'bg-purple-600 text-white'
+      description: 'Deploy to Railway with built-in database hosting'
     },
     {
       id: 'render',
       name: 'Render',
-      description: 'Deploy to Render with automatic SSL and global CDN',
-      icon: '🎨',
-      color: 'bg-green-600 text-white'
+      description: 'Deploy to Render with automatic SSL and global CDN'
     },
     {
       id: 'heroku',
       name: 'Heroku',
-      description: 'Deploy to Heroku with add-on ecosystem',
-      icon: '⚡',
-      color: 'bg-purple-700 text-white'
+      description: 'Deploy to Heroku with add-on ecosystem'
     }
   ]
 
@@ -211,11 +203,10 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Rocket className="w-5 h-5" />
+          <DialogTitle className="text-xl font-semibold">
             Deploy to Cloud
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm text-gray-600">
             Deploy your backend to the cloud with one click. Choose your platform and configure deployment settings.
           </DialogDescription>
         </DialogHeader>
@@ -231,28 +222,25 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
               </TabsList>
               
               <TabsContent value="platform" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   {platforms.map((p) => (
                     <div
                       key={p.id}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
                         platform === p.id 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-gray-900 bg-gray-50 ring-1 ring-gray-900' 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                       onClick={() => setPlatform(p.id)}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${p.color}`}>
-                          {p.icon}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-sm text-gray-900">{p.name}</h4>
+                          {platform === p.id && (
+                            <div className="h-2 w-2 rounded-full bg-gray-900" />
+                          )}
                         </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-sm">{p.name}</h4>
-                          <p className="text-xs text-gray-600 mt-1">{p.description}</p>
-                        </div>
-                        {platform === p.id && (
-                          <CheckCircle2 className="w-5 h-5 text-blue-500" />
-                        )}
+                        <p className="text-xs text-gray-600 leading-relaxed">{p.description}</p>
                       </div>
                     </div>
                   ))}
@@ -277,9 +265,8 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
                   
                   <div className="space-y-2">
                     <Label>Selected Platform</Label>
-                    <div className="flex items-center gap-2 p-2 border rounded-md bg-gray-50">
-                      <span className="text-lg">{selectedPlatform?.icon}</span>
-                      <span className="font-medium text-sm">{selectedPlatform?.name}</span>
+                    <div className="flex items-center gap-2 p-2.5 border rounded-md bg-gray-50">
+                      <span className="font-medium text-sm text-gray-900">{selectedPlatform?.name}</span>
                     </div>
                   </div>
                 </div>
@@ -300,7 +287,6 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold text-sm">Environment Variables</h4>
                   <Button variant="outline" size="sm" onClick={addEnvVariable}>
-                    <Settings className="w-4 h-4 mr-2" />
                     Add Variable
                   </Button>
                 </div>
@@ -428,9 +414,8 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
               <Button 
                 onClick={handleDeploy} 
                 disabled={currentProject.schema.length === 0}
-                className="flex items-center gap-2"
+                className="bg-gray-900 hover:bg-gray-800"
               >
-                <Rocket className="w-4 h-4" />
                 Deploy to {selectedPlatform?.name}
               </Button>
             </div>

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
-import { ArrowRight, Zap, Database, Code, Shield, Rocket, CheckCircle, Brain, Gauge } from "lucide-react"
+import { ArrowRight, Zap, Database, Code, Shield, Rocket, CheckCircle, Brain, Gauge, Sparkles, ArrowUp } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 
 interface StepOneProps {
@@ -276,10 +276,10 @@ export function StepOne({ onComplete }: StepOneProps) {
   }
 
   const examples = [
-    "A social media platform with users, posts, comments, and likes",
-    "An e-commerce store with products, orders, customers, and inventory",
-    "A task management app with projects, tasks, teams, and deadlines",
-    "A blog platform with authors, articles, categories, and comments",
+    "Multi-tenant B2B SaaS with org hierarchies, RBAC, and usage billing",
+    "Enterprise API gateway with rate limiting, webhooks, and monitoring",
+    "Customer data platform with event streaming and GDPR compliance",
+    "Internal admin portal with workflow automation and audit trails",
   ]
 
   const completedStages = generationStages.filter(stage => stage.status === 'completed').length
@@ -287,133 +287,175 @@ export function StepOne({ onComplete }: StepOneProps) {
   const progressPercentage = (completedStages / totalStages) * 100
 
   return (
-    <div className="flex flex-col items-center justify-center space-y-8 py-8">
-      <div className="text-center space-y-4 max-w-2xl">
-        <h1 className="text-3xl font-bold text-foreground text-balance" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Describe Your Backend in Plain English</h1>
-        <p className="text-base text-muted-foreground text-balance leading-6">
-          Complete database schema and API endpoints generated for you.
-        </p>
+    <div className="flex flex-col items-center justify-center space-y-8 py-12">
+      {/* Step Title - Smaller and Cleaner */}
+      <div className="text-center space-y-3 max-w-[800px]">
+        <h1 className="text-[28px] sm:text-[32px] md:text-[36px] font-normal leading-[1.2] text-[#1d1d1f]">
+          Describe your backend requirements
+        </h1>
       </div>
 
-      <Card className="w-full max-w-2xl p-6 shadow-lg border-2 border-border/50">
-        <div className="space-y-4">
-          <Textarea
-            placeholder="Example: I want to build a social media app where users can create posts, follow each other, and like content..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="min-h-[100px] text-base resize-none border-0 focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/60"
-            disabled={isGenerating}
-          />
-          <div className="flex justify-end">
-            <Button
-              onClick={handleGenerate}
-              disabled={!description.trim() || isGenerating}
-              className="px-8 py-3 text-base"
-              size="lg"
-            >
-              {isGenerating ? (
-                <>
-                  <Zap className="mr-2 h-5 w-5 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  Generate Backend
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </>
-              )}
-            </Button>
+      {/* Enhanced Prompt Box with Better UX */}
+      <div className="w-full max-w-[800px]">
+        <div className="relative">
+          {/* Solid primary border */}
+          <div className="absolute inset-0 rounded-2xl p-[2px] bg-[#107a4d]">
+            <div className="w-full h-full rounded-2xl"></div>
           </div>
-        </div>
-      </Card>
-
-      {/* Progressive Loading Indicator */}
-      {isGenerating && (
-        <Card className="w-full max-w-2xl p-6 shadow-lg border border-border/50">
-          <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-semibold text-foreground">Generating Your Backend</h3>
-              <p className="text-sm text-muted-foreground">
-                {completedStages} of {totalStages} components completed
-              </p>
-              <Progress value={progressPercentage} className="h-2" />
+          
+          {/* Background glow effect */}
+          <div className="absolute -inset-2 bg-[#107a4d]/30 rounded-2xl blur-xl opacity-40"></div>
+          
+          {/* Main input container */}
+          <div className="relative rounded-2xl shadow-2xl transition-all duration-300 overflow-hidden" style={{ margin: '2px' }}>
+            {/* Semi-transparent dark background */}
+            <div className="absolute inset-0 bg-[#1d1d1f]/90 backdrop-blur-sm z-0"></div>
+            
+            {/* Input Area */}
+            <div className="flex items-start gap-3 p-5 relative z-10">
+              {/* Textarea */}
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={isGenerating}
+                placeholder="multi-tenant SaaS with usage-based billing. need RBAC, audit logs, and analytics dashboards."
+                className="flex-1 bg-transparent text-white placeholder-[rgba(255,255,255,0.4)] text-base resize-none outline-none min-h-[24px] overflow-hidden font-sans"
+                rows={1}
+                style={{
+                  height: 'auto',
+                  minHeight: '24px'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement
+                  target.style.height = 'auto'
+                  target.style.height = target.scrollHeight + 'px'
+                }}
+              />
+              
+              {/* Submit Button */}
+              <button
+                onClick={handleGenerate}
+                disabled={!description.trim() || isGenerating}
+                className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                  description.trim()
+                    ? 'bg-[#107a4d] hover:bg-[#0d6340] shadow-[0_2px_8px_rgba(16,122,77,0.4)] cursor-pointer hover:shadow-[0_4px_12px_rgba(16,122,77,0.5)] hover:scale-105'
+                    : 'bg-white/10 cursor-not-allowed'
+                }`}
+              >
+                {isGenerating ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <ArrowUp className={`w-5 h-5 ${
+                    description.trim() ? 'text-white' : 'text-white/30'
+                  }`} />
+                )}
+              </button>
             </div>
             
-            <div className="space-y-3">
-              {generationStages.map((stage) => {
-                const Icon = stage.icon
-                return (
-                  <div
-                    key={stage.id}
-                    className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-500 ${
-                      stage.status === 'completed'
-                        ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800/30'
-                        : stage.status === 'loading'
-                          ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800/30'
-                          : 'bg-muted/30 border-border/50'
-                    }`}
-                  >
-                    <div className="flex-shrink-0">
-                      {stage.status === 'completed' ? (
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                      ) : stage.status === 'loading' ? (
-                        <Icon className="h-5 w-5 text-blue-600 animate-pulse" />
-                      ) : (
-                        <Icon className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h4 className={`text-sm font-medium ${
-                          stage.status === 'completed'
-                            ? 'text-green-700 dark:text-green-300'
-                            : stage.status === 'loading'
-                              ? 'text-blue-700 dark:text-blue-300'
-                              : 'text-muted-foreground'
-                        }`}>
-                          {stage.title}
-                        </h4>
-                        {stage.status === 'loading' && (
-                          <div className="flex space-x-1">
-                            <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                            <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                            <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                          </div>
-                        )}
-                      </div>
-                      <p className={`text-xs mt-1 ${
-                        stage.status === 'completed'
-                          ? 'text-green-600 dark:text-green-400'
-                          : stage.status === 'loading'
-                            ? 'text-blue-600 dark:text-blue-400'
-                            : 'text-muted-foreground/70'
-                      }`}>
-                        {stage.description}
-                      </p>
-                    </div>
+            {/* Bottom Hints with Character Count */}
+            <div className="px-5 pb-3 flex items-center justify-between text-xs text-[rgba(255,255,255,0.5)] relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded border border-[rgba(255,255,255,0.3)] flex items-center justify-center">
+                    <span className="text-[8px]">⏎</span>
                   </div>
-                )
-              })}
+                  <span>to send</span>
+                </div>
+                <span className="text-[rgba(255,255,255,0.3)]">•</span>
+                <span>Shift + ⏎ for new line</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {description.length > 0 && (
+                  <span className={`transition-colors ${
+                    description.length < 50 
+                      ? 'text-[rgba(255,255,255,0.3)]' 
+                      : 'text-[rgba(255,255,255,0.5)]'
+                  }`}>
+                    {description.length} chars
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </Card>
-      )}
-
-      <div className="w-full max-w-2xl space-y-4">
-        <p className="text-sm text-muted-foreground text-center font-medium">Or try one of these examples:</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {examples.map((example, index) => (
-            <button
-              key={index}
-              onClick={() => setDescription(example)}
-              disabled={isGenerating}
-              className="p-4 text-left text-sm bg-card hover:bg-accent/50 border border-border rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-sm"
-            >
-              {example}
-            </button>
-          ))}
         </div>
       </div>
+
+      {/* Loading Indicator - Clean and Simple */}
+      {isGenerating && (
+        <div className="w-full max-w-[800px] mt-8">
+          <div className="bg-white rounded-2xl shadow-lg border border-[rgba(55,50,47,0.08)] p-8">
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="text-center space-y-2">
+                <div className="inline-flex items-center gap-2">
+                  <div className="relative flex items-center justify-center">
+                    <div className="absolute inset-0 bg-[#107a4d]/20 rounded-full animate-ping"></div>
+                    <div className="relative w-2 h-2 bg-[#107a4d] rounded-full"></div>
+                  </div>
+                  <span className="text-[#1d1d1f] text-base font-medium">Generating your enterprise backend...</span>
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <Progress value={progressPercentage} className="h-2 bg-muted" />
+                <p className="text-xs text-[#605A57] text-center">
+                  {completedStages} of {totalStages} components completed
+                </p>
+              </div>
+              
+              {/* Status List - Simple */}
+              <div className="space-y-2">
+                {generationStages.map((stage) => {
+                  const Icon = stage.icon
+                  return (
+                    <div
+                      key={stage.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+                        stage.status === 'completed'
+                          ? 'bg-[#107a4d]/5 text-[#107a4d]'
+                          : stage.status === 'loading'
+                            ? 'bg-[#107a4d]/10 text-[#107a4d]'
+                            : 'bg-transparent text-[#605A57] opacity-40'
+                      }`}
+                    >
+                      <div className="flex-shrink-0">
+                        {stage.status === 'completed' ? (
+                          <CheckCircle className="h-5 w-5" />
+                        ) : stage.status === 'loading' ? (
+                          <Icon className="h-5 w-5 animate-pulse" />
+                        ) : (
+                          <Icon className="h-5 w-5" />
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">{stage.title}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Examples - Clean Grid */}
+      {!isGenerating && (
+        <div className="w-full max-w-[800px] mt-6">
+          <p className="text-[#605A57] text-sm text-center mb-4">or try an example:</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {examples.map((example, index) => (
+              <button
+                key={index}
+                onClick={() => setDescription(example)}
+                disabled={isGenerating}
+                className="p-4 text-left text-sm bg-white hover:bg-[#107a4d]/5 border border-[rgba(55,50,47,0.08)] hover:border-[#107a4d]/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-[#37322F]"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

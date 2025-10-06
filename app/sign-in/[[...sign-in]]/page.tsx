@@ -2,6 +2,7 @@
 
 import { SignIn } from "@clerk/nextjs"
 import Link from "next/link"
+import Image from "next/image"
 import { ArrowLeft } from "lucide-react"
 
 export default function SignInPage() {
@@ -16,32 +17,28 @@ export default function SignInPage() {
           {/* Right vertical line */}
           <div className="w-[1px] h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-[rgba(55,50,47,0.12)] shadow-[1px_0px_0px_white] z-0"></div>
 
-          <div className="self-stretch pt-[9px] overflow-hidden flex flex-col justify-center items-center relative z-10 min-h-screen">
+          <div className="self-stretch overflow-hidden flex flex-col justify-center items-center relative z-10 min-h-screen">
             {/* Navigation */}
-            <div className="w-full h-12 sm:h-14 md:h-16 lg:h-[84px] absolute left-0 top-0 flex justify-center items-center z-20 px-6 sm:px-8 md:px-12 lg:px-0">
-              <div className="w-full h-0 absolute left-0 top-6 sm:top-7 md:top-8 lg:top-[42px] border-t border-[rgba(55,50,47,0.12)] shadow-[0px_1px_0px_white]"></div>
-
-              <div className="w-full max-w-[calc(100%-32px)] sm:max-w-[calc(100%-48px)] md:max-w-[calc(100%-64px)] lg:max-w-[700px] lg:w-[700px] h-10 sm:h-11 md:h-12 py-1.5 sm:py-2 px-3 sm:px-4 md:px-4 pr-2 sm:pr-3 bg-white/80 backdrop-blur-xl shadow-[0_2px_16px_rgba(0,0,0,0.08)] overflow-hidden rounded-[50px] flex justify-between items-center relative z-30 border border-black/5">
-                <Link href="/" className="flex justify-center items-center group">
-                  <div className="flex justify-start items-center gap-2">
-                    <ArrowLeft className="w-4 h-4 text-[rgba(49,45,43,0.80)] group-hover:text-[#37322F] transition-colors" />
-                    <div className="flex flex-col justify-center text-[#2F3037] text-sm sm:text-base md:text-lg lg:text-xl font-medium leading-5 font-sans">
-                      Snapinfra
-                    </div>
-                  </div>
-                </Link>
-                <Link href="/sign-up">
-                  <div className="px-2 sm:px-3 md:px-[14px] py-1 sm:py-[6px] bg-white/50 hover:bg-white/80 border border-[rgba(55,50,47,0.12)] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden rounded-full flex justify-center items-center cursor-pointer transition-all duration-200">
-                    <div className="flex flex-col justify-center text-[#37322F] text-xs md:text-[13px] font-semibold leading-5 font-sans">
+            <nav className="w-full h-14 fixed top-0 left-0 right-0 bg-white border-b border-[rgba(55,50,47,0.08)] z-50">
+              <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+                <div className="flex items-center">
+                  <Link href="/" className="flex items-center">
+                    <Image src="/snapinfra-logo.svg" alt="Snapinfra" width={100} height={24} className="h-6 w-auto" />
+                  </Link>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <Link href="/sign-up">
+                    <button className="px-5 py-2 bg-[#107a4d] hover:bg-[#0d6340] text-white text-sm font-medium font-sans shadow-sm transition-all duration-200">
                       Sign up
-                    </div>
-                  </div>
-                </Link>
+                    </button>
+                  </Link>
+                </div>
               </div>
-            </div>
+            </nav>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col justify-center items-center w-full px-4 pt-20 pb-12">
+            <div className="flex-1 flex flex-col justify-center items-center w-full px-4 pt-24 pb-12">
               <div className="w-full max-w-[480px] flex flex-col items-center gap-8">
                 {/* Header Section */}
                 <div className="w-full flex flex-col items-center gap-4 text-center">
@@ -57,8 +54,8 @@ export default function SignInPage() {
 
                 {/* Sign In Card */}
                 <div className="w-full relative">
-                  {/* Subtle gradient border */}
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[rgba(0,119,237,0.1)] via-[rgba(138,43,226,0.1)] to-[rgba(236,72,153,0.1)] p-[1px]">
+                  {/* Subtle border */}
+                  <div className="absolute inset-0 rounded-2xl bg-[rgba(16,122,77,0.1)] p-[1px]">
                     <div className="w-full h-full rounded-2xl bg-white"></div>
                   </div>
                   
@@ -78,22 +75,22 @@ export default function SignInPage() {
                             dividerLine: "bg-[rgba(55,50,47,0.12)]",
                             dividerText: "text-[#605A57] font-sans text-sm",
                             formButtonPrimary: 
-                              "bg-gradient-to-r from-[#0071E3] to-[#0077ED] hover:from-[#0077ED] hover:to-[#0088FF] text-white font-sans font-semibold shadow-[0_2px_8px_rgba(0,119,237,0.3)] hover:shadow-[0_4px_12px_rgba(0,119,237,0.4)] transition-all duration-200 normal-case",
+                              "bg-[#107a4d] hover:bg-[#0d6340] text-white font-sans font-semibold shadow-[0_2px_8px_rgba(16,122,77,0.3)] hover:shadow-[0_4px_12px_rgba(16,122,77,0.4)] transition-all duration-200 normal-case",
                             formFieldLabel: "text-[#37322F] font-sans font-medium text-sm",
                             formFieldInput: 
-                              "border-[rgba(55,50,47,0.12)] bg-white focus:border-[#0077ED] focus:ring-[#0077ED]/20 text-[#37322F] font-sans placeholder:text-[#605A57]/50 rounded-lg transition-all duration-200",
-                            footerActionLink: "text-[#0077ED] hover:text-[#0088FF] font-sans font-medium transition-colors duration-200",
+                              "border-[rgba(55,50,47,0.12)] bg-white focus:border-[#107a4d] focus:ring-[#107a4d]/20 text-[#37322F] font-sans placeholder:text-[#605A57]/50 rounded-lg transition-all duration-200",
+                            footerActionLink: "text-[#107a4d] hover:text-[#0d6340] font-sans font-medium transition-colors duration-200",
                             formFieldInputShowPasswordButton: "text-[#605A57] hover:text-[#37322F]",
                             identityPreviewText: "text-[#37322F] font-sans",
-                            identityPreviewEditButton: "text-[#0077ED] hover:text-[#0088FF]",
-                            formResendCodeLink: "text-[#0077ED] hover:text-[#0088FF] font-sans font-medium",
-                            otpCodeFieldInput: "border-[rgba(55,50,47,0.12)] focus:border-[#0077ED] focus:ring-[#0077ED]/20 text-[#37322F]",
+                            identityPreviewEditButton: "text-[#107a4d] hover:text-[#0d6340]",
+                            formResendCodeLink: "text-[#107a4d] hover:text-[#0d6340] font-sans font-medium",
+                            otpCodeFieldInput: "border-[rgba(55,50,47,0.12)] focus:border-[#107a4d] focus:ring-[#107a4d]/20 text-[#37322F]",
                           }
                         }}
                         routing="path"
                         path="/sign-in"
                         signUpUrl="/sign-up"
-                        afterSignInUrl="/onboarding"
+                        afterSignInUrl="/auth-callback"
                       />
                     </div>
                   </div>
@@ -102,11 +99,11 @@ export default function SignInPage() {
                 {/* Bottom text */}
                 <div className="text-center text-[#605A57] text-xs sm:text-sm font-normal font-sans">
                   By continuing, you agree to Snapinfra's{" "}
-                  <Link href="/terms" className="text-[#0077ED] hover:text-[#0088FF] underline transition-colors">
+                  <Link href="/terms" className="text-[#107a4d] hover:text-[#0d6340] underline transition-colors">
                     Terms of Service
                   </Link>
                   {" "}and{" "}
-                  <Link href="/privacy" className="text-[#0077ED] hover:text-[#0088FF] underline transition-colors">
+                  <Link href="/privacy" className="text-[#107a4d] hover:text-[#0d6340] underline transition-colors">
                     Privacy Policy
                   </Link>
                 </div>

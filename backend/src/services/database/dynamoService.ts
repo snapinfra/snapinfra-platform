@@ -96,6 +96,10 @@ export class DynamoService {
     userId: string, 
     projectData: Omit<Project, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'deployments'>
   ): Promise<Project> {
+    console.log('🔵 Creating project for userId:', userId);
+    console.log('📦 Project data:', JSON.stringify(projectData, null, 2).substring(0, 500));
+    console.log('📋 Table name:', TABLES.PROJECTS);
+    
     const project: Project = {
       id: uuidv4(),
       userId,
@@ -111,8 +115,19 @@ export class DynamoService {
       Item: project
     });
 
-    await docClient.send(command);
-    return project;
+    try {
+      await docClient.send(command);
+      console.log('✅ Project created successfully:', project.id);
+      return project;
+    } catch (error: any) {
+      console.error('❌ DynamoDB PutCommand failed:');
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Error stack:', error.stack);
+      console.error('Full error:', JSON.stringify(error, null, 2));
+      throw error;
+    }
   }
 
   static async getProjectById(projectId: string, userId: string): Promise<Project | null> {

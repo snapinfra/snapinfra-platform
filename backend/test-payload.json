@@ -1,0 +1,37 @@
+{
+  "name": "Test Project",
+  "description": "Test Description",
+  "schema": {
+    "name": "Test Schema",
+    "tables": [
+      {
+        "id": "table_test_1",
+        "name": "users",
+        "fields": [
+          {
+            "id": "field_test_1",
+            "name": "id",
+            "type": "uuid",
+            "isPrimary": true,
+            "isRequired": true,
+            "isUnique": true,
+            "isForeignKey": false,
+            "description": "Primary key"
+          },
+          {
+            "id": "field_test_2",
+            "name": "email",
+            "type": "varchar",
+            "isPrimary": false,
+            "isRequired": true,
+            "isUnique": true,
+            "isForeignKey": false,
+            "description": "User email"
+          }
+        ],
+        "indexes": []
+      }
+    ],
+    "relationships": []
+  }
+}

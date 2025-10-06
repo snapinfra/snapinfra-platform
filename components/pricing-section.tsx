@@ -45,14 +45,14 @@ export default function PricingSection() {
 
           {/* Title */}
           <div className="self-stretch text-center flex justify-center flex-col text-[#49423D] text-3xl md:text-5xl font-normal leading-tight md:leading-[60px] font-serif">
-            Pricing That Makes Sense
+            Simple, transparent pricing
           </div>
 
           {/* Description */}
           <div className="self-stretch text-center text-[#605A57] text-base font-normal leading-7 font-sans">
-            No gotchas. No hidden fees. Cancel anytime.
+            Start free. Scale as you grow. No hidden fees.
             <br />
-            Start free and scale when you're ready.
+            Own your code, own your infrastructure.
           </div>
         </div>
       </div>

@@ -1,5 +1,22 @@
 import { ArchitectureNode, ArchitectureEdge, SystemArchitecture, DatabaseSchemaToArchitecture, ApiEndpointsToArchitecture } from '@/lib/types/architecture'
 
+// Layout configuration for better spacing
+const LAYOUT = {
+  horizontalSpacing: 350,
+  verticalSpacing: 250,
+  layerWidth: 300,
+  startX: 100,
+  startY: 100,
+}
+
+// Helper function to calculate positions in a hierarchical layout
+function calculateLayeredPosition(layer: number, indexInLayer: number, totalInLayer: number) {
+  const x = LAYOUT.startX + (layer * LAYOUT.horizontalSpacing)
+  const centerOffset = (totalInLayer - 1) * LAYOUT.verticalSpacing / 2
+  const y = LAYOUT.startY + (indexInLayer * LAYOUT.verticalSpacing) - centerOffset
+  return { x, y: Math.max(y, LAYOUT.startY) }
+}
+
 export function generateArchitectureFromData(
   schemaData: DatabaseSchemaToArchitecture,
   apiData: ApiEndpointsToArchitecture,
@@ -7,35 +24,56 @@ export function generateArchitectureFromData(
 ): SystemArchitecture {
   const nodes: ArchitectureNode[] = []
   const edges: ArchitectureEdge[] = []
+  
+  // Track nodes by layer for better organization
+  const layers: { [key: number]: ArchitectureNode[] } = {}
 
-  // Create frontend node
-  nodes.push({
+  // LAYER 0: CDN and Frontend (Entry points)
+  const layer0: ArchitectureNode[] = []
+  
+  // CDN
+  layer0.push({
+    id: 'cdn-1',
+    type: 'cdn',
+    position: { x: 0, y: 0 }, // Will be recalculated
+    data: {
+      name: 'CDN',
+      description: 'Global content delivery',
+      color: '#0891B2',
+      metadata: {
+        technology: 'CloudFlare/CloudFront',
+      }
+    }
+  })
+  
+  // Frontend
+  layer0.push({
     id: 'frontend-1',
     type: 'frontend',
-    position: { x: 100, y: 50 },
+    position: { x: 0, y: 0 },
     data: {
       name: `${projectName} Frontend`,
       description: 'React/Next.js Application',
       color: '#3B82F6',
       metadata: {
         technology: 'React/Next.js',
-        port: 3000
       }
     }
   })
-
-  // Create API Gateway for enterprise-grade architecture
-  nodes.push({
+  
+  // LAYER 1: API Gateway and Load Balancer
+  const layer1: ArchitectureNode[] = []
+  
+  layer1.push({
     id: 'api-gateway-1',
     type: 'api-gateway',
-    position: { x: 300, y: 100 },
+    position: { x: 0, y: 0 },
     data: {
       name: 'API Gateway',
-      description: 'Centralized API management, rate limiting, and routing',
+      description: 'API management',
       color: '#059669',
       metadata: {
-        technology: 'Kong/AWS API Gateway',
-        features: ['Rate Limiting', 'Authentication', 'Request Routing', 'Analytics']
+        technology: 'Kong/AWS Gateway',
       }
     }
   })

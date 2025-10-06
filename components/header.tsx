@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { Settings, User, LogOut, Zap, Plus, Bell, Search, GitBranch, Star, Eye, MessageSquare, Database, Rocket } from "lucide-react"
+import { Settings, User, LogOut, Zap, Plus, Bell, Search, GitBranch, Star, Eye, MessageSquare, Database } from "lucide-react"
 import { useAppContext } from "@/lib/app-context"
 import { DeploymentModal } from "./deployment-modal"
 import Link from "next/link"
@@ -25,42 +25,23 @@ export function Header() {
   const isOnboarding = pathname?.includes('/onboarding')
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-sm px-3 sm:px-4 py-2 shadow-sm">
-      <div className="flex items-center justify-between">
-        {/* Left side - Logo, Sidebar trigger, Project info */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-          {/* Removed SidebarTrigger for simplified layout */}
-          <div className={`flex items-center gap-2 sm:gap-3 min-w-0 flex-1 ${
-            isOnboarding ? 'ml-10 sm:ml-0' : ''
-          }`}>
-            <div className="h-5 sm:h-6 bg-white rounded-lg flex items-center justify-center flex-shrink-0 px-2">
-              <Image 
-                src="/rhinom-logo.svg" 
-                alt="Snapinfra Logo" 
-                width={70} 
-                height={15} 
-                className="h-full w-auto object-contain"
-              />
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-              {/* Only show project name in dashboard, not in onboarding */}
-              {!isOnboarding && isClient && (
-                <>
-                  {currentProject ? (
-                    <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }} suppressHydrationWarning>{currentProject.name}</h1>
-                  ) : (
-                    <h1 className="text-base sm:text-lg text-gray-500" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }} suppressHydrationWarning>New Project</h1>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-          
-
-          {/* Project status and stats - hidden on mobile */}
-          <div className="hidden lg:flex items-center gap-2">
-            {isClient && currentProject && (
+    <nav className="w-full h-14 fixed top-0 left-0 right-0 bg-white border-b border-[rgba(55,50,47,0.08)] z-50">
+      <div className="h-full px-6 flex items-center justify-between">
+        {/* Left side - Logo */}
+        <div className="flex items-center">
+          <Link href="/" className="flex items-center">
+            <Image src="/snapinfra-logo.svg" alt="Snapinfra" width={100} height={24} className="h-6 w-auto" />
+          </Link>
+        </div>
+        
+        {/* Right side - Nav Links and Auth Buttons */}
+        <div className="flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6">
+            {!isOnboarding && isClient && currentProject && (
               <>
+                <span className="text-[#37322F] text-sm font-medium font-sans">
+                  {currentProject.name}
+                </span>
                 <Badge 
                   variant="secondary" 
                   className={`text-xs ${
@@ -72,91 +53,65 @@ export function Header() {
                 >
                   {currentProject.status}
                 </Badge>
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <GitBranch className="w-3 h-3" />
-                  <span>{currentProject.schema?.length || 0} tables</span>
-                </div>
               </>
             )}
-            <Badge variant="outline" className="text-xs text-gray-600 border-gray-300">
-              Beta
-            </Badge>
           </div>
-        </div>
-
-        {/* Right side - Actions and user menu */}
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          {/* Notifications - hidden on mobile */}
-          <Button variant="ghost" size="sm" className="hidden sm:flex h-8 w-8 sm:h-9 sm:w-9 p-0 text-gray-600 hover:bg-gray-100">
-            <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
-          </Button>
-
-          {/* Actions */}
-          <div className="flex items-center gap-1">
+          
+          <div className="flex items-center gap-3">
             <Link href="/onboarding?new=true">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 sm:h-9 bg-white border-gray-300 text-gray-700 hover:bg-gray-50 px-2 sm:px-3"
-              >
-                <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                <span className="hidden sm:inline">New Project</span>
-              </Button>
+              <button className="px-4 py-2 bg-[#1d1d1f] hover:bg-[#2d2d2f] text-white text-sm font-medium font-sans transition-colors">
+                New Project
+              </button>
             </Link>
-            
             {isClient && currentProject && (
               <DeploymentModal>
-                <Button
-                  size="sm"
-                  className="h-8 sm:h-9 bg-gray-900 hover:bg-gray-800 text-white px-2 sm:px-3"
-                >
-                  <Rocket className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Deploy</span>
-                </Button>
+                <button className="px-5 py-2 bg-[#107a4d] hover:bg-[#0d6340] text-white text-sm font-medium font-sans shadow-sm transition-all duration-200">
+                  Deploy
+                </button>
               </DeploymentModal>
             )}
+            {isClient && !currentProject && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="relative h-9 w-9 rounded-full hover:bg-gray-100"
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
+                      <AvatarFallback className="bg-gray-100 text-gray-700 text-sm">MM</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <div className="px-3 py-2 border-b">
+                    <p className="text-sm font-medium">Manoj Maheshwar</p>
+                    <p className="text-xs text-gray-500">manoj@Snapinfra.com</p>
+                  </div>
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Your profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Star className="mr-2 h-4 w-4" />
+                    <span>Your projects</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
-
-          {/* User menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-gray-100"
-              >
-                <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-                  <AvatarFallback className="bg-gray-100 text-gray-700 text-xs sm:text-sm">MM</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <div className="px-3 py-2 border-b">
-                <p className="text-sm font-medium">Manoj Maheshwar</p>
-                <p className="text-xs text-gray-500">manoj@Snapinfra.com</p>
-              </div>
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Your profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Star className="mr-2 h-4 w-4" />
-                <span>Your projects</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
-    </header>
+    </nav>
   )
 }

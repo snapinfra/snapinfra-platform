@@ -3,6 +3,10 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { SQSClient } from '@aws-sdk/client-sqs';
 import { SNSClient } from '@aws-sdk/client-sns';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import * as dotenv from 'dotenv';
+
+// Load environment variables FIRST before any configuration
+dotenv.config();
 
 // AWS Region configuration
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
@@ -41,6 +45,17 @@ export const TABLES = {
   SCHEMAS: process.env.DYNAMODB_SCHEMAS_TABLE || 'snapinfra-schemas',
   DEPLOYMENTS: process.env.DYNAMODB_DEPLOYMENTS_TABLE || 'snapinfra-deployments'
 };
+
+// Log AWS configuration on startup
+console.log('📍 AWS Configuration:');
+console.log('  Region:', AWS_REGION);
+console.log('  Access Key ID:', process.env.AWS_ACCESS_KEY_ID ? '✓ Set' : '✗ Not set');
+console.log('  Secret Access Key:', process.env.AWS_SECRET_ACCESS_KEY ? '✓ Set' : '✗ Not set');
+console.log('  DynamoDB Tables:');
+console.log('    Projects:', TABLES.PROJECTS);
+console.log('    Users:', TABLES.USERS);
+console.log('    Schemas:', TABLES.SCHEMAS);
+console.log('    Deployments:', TABLES.DEPLOYMENTS);
 
 // S3 Configuration
 export const S3_CONFIG = {

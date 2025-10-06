@@ -8,7 +8,15 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        'dm-serif': ['DM Serif Display', 'serif'],
+        'sans': ['var(--font-geist-mono)', 'monospace'],
+        'serif': ['var(--font-tasa-orbiter)', 'sans-serif'],
+      },
+      letterSpacing: {
+        'header': '-0.04em',
+      },
+      fontSize: {
+        'hero': '4.5rem',
+        'heading': '3rem',
       },
     },
   },

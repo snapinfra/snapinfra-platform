@@ -72,8 +72,8 @@
 }
 
 @theme inline {
-  /* switching to Inter and Instrument Serif */
-  --font-sans: var(--font-inter);
+  /* switching to TASA Orbiter */
+  --font-sans: var(--font-tasa-orbiter);
   --font-serif: var(--font-instrument-serif);
   --color-background: var(--background);
   --color-foreground: var(--foreground);

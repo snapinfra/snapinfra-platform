@@ -18,6 +18,7 @@ export function StepTwo({ data, onComplete, onBack }: StepTwoProps) {
   const [showRelationships, setShowRelationships] = useState(true)
   const [editingTable, setEditingTable] = useState<string | null>(null)
   const [selectedDatabase, setSelectedDatabase] = useState(data.database)
+  const [expandedSection, setExpandedSection] = useState<string | null>('database')
 
   const getFieldIcon = (field: any) => {
     if (field.primary) return <Key className="h-3 w-3 text-amber-600" />
@@ -142,465 +143,616 @@ export function StepTwo({ data, onComplete, onBack }: StepTwoProps) {
   const complexity = analysis.useCase?.complexity || 'simple'
 
   return (
-    <div className="w-full max-w-7xl mx-auto py-6 px-6 space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="space-y-2 flex-1">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Your Generated Database Schema</h1>
-          <p className="text-sm text-muted-foreground">
-            We've analyzed your requirements and created intelligent recommendations.
-          </p>
+    <div className="w-full max-w-7xl mx-auto py-6 px-6 space-y-12">
+      {/* Hero Title with Animated Stats */}
+      <div className="text-center space-y-4 max-w-[900px] mx-auto mb-2">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#107a4d]/10 text-[#107a4d] text-xs font-medium mb-2">
+          <Check className="w-3 h-3" />
+          Schema Generated
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Badge variant={complexity === 'complex' ? 'destructive' : complexity === 'medium' ? 'default' : 'secondary'}>
-            {complexity.charAt(0).toUpperCase() + complexity.slice(1)} Project
-          </Badge>
-          <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
-            <Star className="w-3 h-3 mr-1" />
-            AI Optimized
-          </Badge>
+        <h1 className="text-[28px] sm:text-[32px] md:text-[36px] font-normal leading-[1.2] text-[#1d1d1f]">
+          Your enterprise database architecture
+        </h1>
+        <div className="flex items-center justify-center gap-6 text-sm text-[#605A57]">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#107a4d] animate-pulse"></div>
+            <span>{data.schemas.length} tables</span>
+          </div>
+          <div className="w-1 h-1 rounded-full bg-[#605A57]/30"></div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#107a4d] animate-pulse" style={{ animationDelay: '150ms' }}></div>
+            <span>{relationships.length} relationships</span>
+          </div>
+          <div className="w-1 h-1 rounded-full bg-[#605A57]/30"></div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#107a4d] animate-pulse" style={{ animationDelay: '300ms' }}></div>
+            <span>{data.schemas.reduce((acc: number, schema: any) => acc + schema.fields.length, 0)} fields</span>
+          </div>
         </div>
       </div>
 
-      {/* Top Section: Database Recommendations, Schema Stats, Scaling Strategy */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Database Recommendations */}
-        <Card className="p-5">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <Database className="h-5 w-5 text-gray-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold">Database Recommendations</h3>
-                <p className="text-xs text-muted-foreground">{dbRecommendations.length} options</p>
-              </div>
+      {/* Subtle Divider */}
+      <div className="max-w-[1000px] mx-auto">
+        <div className="h-px bg-gradient-to-r from-transparent via-[#107a4d]/20 to-transparent"></div>
+      </div>
+
+      {/* Key Stats - Superior Interactive Cards */}
+      <div className="grid grid-cols-3 gap-6 max-w-[900px] mx-auto">
+        {/* Recommended Database */}
+        <button
+          onClick={() => setExpandedSection(expandedSection === 'database' ? null : 'database')}
+          className={`group relative p-6 rounded-xl transition-all duration-300 overflow-hidden ${
+            expandedSection === 'database'
+              ? 'bg-gradient-to-br from-[#e8f5f0] to-[#d4ede4] shadow-xl shadow-[#107a4d]/15 scale-[1.02] border-2 border-[#107a4d]/30'
+              : 'bg-white border-2 border-[rgba(55,50,47,0.08)] hover:border-[#107a4d]/30 hover:shadow-lg'
+          }`}
+        >
+          {/* Subtle pattern overlay */}
+          <div className={`absolute inset-0 opacity-[0.03] ${
+            expandedSection === 'database' ? 'bg-[radial-gradient(circle_at_30%_50%,_#107a4d_1px,_transparent_1px)] bg-[length:20px_20px]' : ''
+          }`}></div>
+          
+          <div className="relative">
+            <div className="flex items-center justify-center mb-3">
+              <Database className={`w-6 h-6 ${expandedSection === 'database' ? 'text-[#107a4d]' : 'text-[#107a4d]'}`} />
             </div>
-            <div className="space-y-3">
-              {dbRecommendations.slice(0, 2).map((db: any, index: number) => (
+            <div className={`text-2xl font-bold mb-2 ${expandedSection === 'database' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'}`}>
+              {dbRecommendations[0]?.name || 'PostgreSQL'}
+            </div>
+            <div className={`text-xs mb-2 ${expandedSection === 'database' ? 'text-[#605A57]' : 'text-[#605A57]'}`}>
+              Recommended Database
+            </div>
+            {/* Progress indicator */}
+            <div className="mt-3">
+              <div className={`h-1.5 rounded-full overflow-hidden ${expandedSection === 'database' ? 'bg-[#107a4d]/15' : 'bg-[#107a4d]/10'}`}>
                 <div 
-                  key={index}
-                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedDatabase === db.name 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-transparent hover:border-border hover:bg-muted/50'
-                  }`}
-                  onClick={() => setSelectedDatabase(db.name)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Database className="h-5 w-5 text-primary" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-sm">{db.name}</h4>
-                        {index === 0 && <Badge variant="secondary" className="text-xs">Recommended</Badge>}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Progress value={db.score} className="w-12 h-1.5" />
-                        <span className="text-xs font-medium">{db.score}%</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">{db.bestFor}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  className={`h-full rounded-full transition-all duration-1000 ${expandedSection === 'database' ? 'bg-[#107a4d]' : 'bg-[#107a4d]'}`}
+                  style={{ width: `${dbRecommendations[0]?.score || 95}%` }}
+                ></div>
+              </div>
+              <div className={`text-[10px] font-semibold mt-1 ${expandedSection === 'database' ? 'text-[#107a4d]' : 'text-[#107a4d]'}`}>
+                {dbRecommendations[0]?.score || 95}% compatibility
+              </div>
             </div>
           </div>
-        </Card>
+        </button>
         
-        {/* Schema Statistics */}
-        <Card className="p-5">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <BarChart className="h-5 w-5 text-gray-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold">Schema Stats</h3>
-                <p className="text-xs text-muted-foreground">Database overview</p>
-              </div>
+        {/* Complexity */}
+        <button
+          onClick={() => setExpandedSection(expandedSection === 'complexity' ? null : 'complexity')}
+          className={`group relative p-6 rounded-xl transition-all duration-300 overflow-hidden ${
+            expandedSection === 'complexity'
+              ? 'bg-gradient-to-br from-[#e8f5f0] to-[#d4ede4] shadow-xl shadow-[#107a4d]/15 scale-[1.02] border-2 border-[#107a4d]/30'
+              : 'bg-white border-2 border-[rgba(55,50,47,0.08)] hover:border-[#107a4d]/30 hover:shadow-lg'
+          }`}
+        >
+          <div className={`absolute inset-0 opacity-[0.03] ${
+            expandedSection === 'complexity' ? 'bg-[radial-gradient(circle_at_30%_50%,_#107a4d_1px,_transparent_1px)] bg-[length:20px_20px]' : ''
+          }`}></div>
+          
+          <div className="relative">
+            <div className="flex items-center justify-center mb-3">
+              <Layers className={`w-6 h-6 ${expandedSection === 'complexity' ? 'text-[#107a4d]' : 'text-[#107a4d]'}`} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-center p-2 bg-muted/20 rounded">
-                <div className="text-lg font-bold text-foreground">{data.schemas.length}</div>
-                <div className="text-xs text-muted-foreground">Tables</div>
-              </div>
-              <div className="text-center p-2 bg-muted/20 rounded">
-                <div className="text-lg font-bold text-foreground">{relationships.length}</div>
-                <div className="text-xs text-muted-foreground">Relations</div>
-              </div>
-              <div className="text-center p-2 bg-muted/20 rounded">
-                <div className="text-lg font-bold text-foreground">
-                  {data.schemas.reduce((acc: number, schema: any) => acc + schema.fields.length, 0)}
-                </div>
-                <div className="text-xs text-muted-foreground">Fields</div>
-              </div>
-              <div className="text-center p-2 bg-muted/20 rounded">
-                <div className="text-lg font-bold text-foreground">
-                  {data.schemas.reduce((acc: number, schema: any) => acc + (schema.indexes?.length || 0), 0)}
-                </div>
-                <div className="text-xs text-muted-foreground">Indexes</div>
-              </div>
+            <div className={`text-2xl font-bold capitalize mb-2 ${expandedSection === 'complexity' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'}`}>
+              {complexity}
             </div>
-            <div className="pt-2 border-t">
-              <div className="text-xs text-muted-foreground mb-1">Enterprise Features:</div>
-              <div className="flex gap-1 flex-wrap">
-                <Badge variant="outline" className="text-[10px] px-1">
-                  {data.schemas.filter((s: any) => s.triggers?.length > 0).length} Triggers
-                </Badge>
-                <Badge variant="outline" className="text-[10px] px-1">
-                  {data.schemas.filter((s: any) => s.partitioning).length} Partitioned
-                </Badge>
-              </div>
+            <div className={`text-xs ${expandedSection === 'complexity' ? 'text-[#605A57]' : 'text-[#605A57]'}`}>
+              Project Complexity
+            </div>
+            <div className={`mt-3 flex items-center gap-1 text-[10px] font-semibold ${
+              expandedSection === 'complexity' ? 'text-[#107a4d]' : 'text-[#107a4d]'
+            }`}>
+              <span>{data.schemas.length} tables</span>
+              <span className="opacity-50">•</span>
+              <span>{relationships.length} relations</span>
             </div>
           </div>
-        </Card>
+        </button>
         
-        {/* Scaling Strategy */}
-        <Card className="p-5">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-gray-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold">Scaling Strategy</h3>
-                <p className="text-xs text-muted-foreground">Performance planning</p>
-              </div>
+        {/* Expected Load */}
+        <button
+          onClick={() => setExpandedSection(expandedSection === 'load' ? null : 'load')}
+          className={`group relative p-6 rounded-xl transition-all duration-300 overflow-hidden ${
+            expandedSection === 'load'
+              ? 'bg-gradient-to-br from-[#e8f5f0] to-[#d4ede4] shadow-xl shadow-[#107a4d]/15 scale-[1.02] border-2 border-[#107a4d]/30'
+              : 'bg-white border-2 border-[rgba(55,50,47,0.08)] hover:border-[#107a4d]/30 hover:shadow-lg'
+          }`}
+        >
+          <div className={`absolute inset-0 opacity-[0.03] ${
+            expandedSection === 'load' ? 'bg-[radial-gradient(circle_at_30%_50%,_#107a4d_1px,_transparent_1px)] bg-[length:20px_20px]' : ''
+          }`}></div>
+          
+          <div className="relative">
+            <div className="flex items-center justify-center mb-3">
+              <TrendingUp className={`w-6 h-6 ${expandedSection === 'load' ? 'text-[#107a4d]' : 'text-[#107a4d]'}`} />
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Expected Load</span>
-                <Badge variant={scalingInsights.expectedLoad === 'High' ? 'destructive' : 'default'} className="text-xs">
-                  {scalingInsights.expectedLoad || 'Medium'}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Read/Write Ratio</span>
-                <Badge variant="outline" className="text-xs">{scalingInsights.readWriteRatio || '70:30'}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Caching Strategy</span>
-                <Badge variant="secondary" className="text-xs">{scalingInsights.cachingStrategy || 'Application-level'}</Badge>
-              </div>
+            <div className={`text-2xl font-bold mb-2 ${expandedSection === 'load' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'}`}>
+              {scalingInsights.expectedLoad || 'Medium'}
             </div>
-            <div className="pt-3 border-t">
-              <h4 className="text-sm font-medium mb-2">Key Considerations</h4>
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                  <div className="w-1 h-1 bg-blue-500 rounded-full" />
-                  <span>Horizontal scaling for high load</span>
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                  <div className="w-1 h-1 bg-green-500 rounded-full" />
-                  <span>Read replicas for read-heavy workloads</span>
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                  <div className="w-1 h-1 bg-orange-500 rounded-full" />
-                  <span>Connection pooling optimization</span>
-                </div>
-              </div>
+            <div className={`text-xs ${expandedSection === 'load' ? 'text-[#605A57]' : 'text-[#605A57]'}`}>
+              Expected Load
+            </div>
+            <div className={`mt-3 text-[10px] font-semibold ${
+              expandedSection === 'load' ? 'text-[#107a4d]' : 'text-[#107a4d]'
+            }`}>
+              {scalingInsights.readWriteRatio || '70:30'} read/write
             </div>
           </div>
-        </Card>
+        </button>
       </div>
       
-      {/* Middle Section: Full Width Database Schema */}
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Table className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Database Schema</h3>
-                <p className="text-xs text-muted-foreground">{data.schemas.length} tables • {relationships.length} relationships</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant={showRelationships ? "default" : "outline"} 
-                size="sm" 
-                onClick={() => setShowRelationships(!showRelationships)}
-              >
-                {showRelationships ? <Eye className="mr-2 h-4 w-4" /> : <EyeOff className="mr-2 h-4 w-4" />}
-                Relationships
-              </Button>
-            </div>
-          </div>
-          
-          {/* Schema Visualization */}
-          <div className="max-h-[700px] overflow-y-auto pr-2">
-            <div className="relative">
-              {/* Connection Lines SVG Overlay */}
-              {showRelationships && relationships.length > 0 && (
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" style={{ minHeight: Math.ceil(data.schemas.length / 3) * 280 + 'px' }}>
-                  <defs>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                     refX="9" refY="3.5" orient="auto">
-                      <polygon points="0 0, 10 3.5, 0 7" className="fill-blue-500" />
-                    </marker>
-                  </defs>
-                  {relationships.map((rel, i) => {
-                    const fromIndex = data.schemas.findIndex((s: any) => s.name === rel.from)
-                    const toIndex = data.schemas.findIndex((s: any) => s.name === rel.to)
-                    
-                    if (fromIndex === -1 || toIndex === -1) return null
-                    
-                    const colsPerRow = Math.min(3, Math.ceil(Math.sqrt(data.schemas.length)))
-                    const fromRow = Math.floor(fromIndex / colsPerRow)
-                    const fromCol = fromIndex % colsPerRow
-                    const toRow = Math.floor(toIndex / colsPerRow)
-                    const toCol = toIndex % colsPerRow
-                    
-                    const cardWidth = 280
-                    const cardHeight = 250
-                    const gapX = 24
-                    const gapY = 24
-                    
-                    const x1 = fromCol * (cardWidth + gapX) + cardWidth / 2
-                    const y1 = fromRow * (cardHeight + gapY) + cardHeight / 2
-                    const x2 = toCol * (cardWidth + gapX) + cardWidth / 2
-                    const y2 = toRow * (cardHeight + gapY) + cardHeight / 2
-                    
-                    return (
-                      <g key={i}>
-                        <line
-                          x1={x1} y1={y1}
-                          x2={x2} y2={y2}
-                          stroke="rgb(59 130 246)" 
-                          strokeWidth="2"
-                          strokeDasharray="4,4"
-                          markerEnd="url(#arrowhead)"
-                          className="opacity-70"
-                        />
-                        <text
-                          x={(x1 + x2) / 2}
-                          y={(y1 + y2) / 2 - 8}
-                          className="fill-blue-600 text-xs font-medium"
-                          textAnchor="middle"
-                          style={{ fontSize: '10px' }}
-                        >
-                          {rel.field}
-                        </text>
-                      </g>
-                    )
-                  })}
-                </svg>
-              )}
-              
-              {/* Table Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-20">
-                {data.schemas.map((schema: any, index: number) => (
-                  <Card 
-                    key={index} 
-                    className={`p-4 transition-all duration-200 cursor-pointer border-2 ${
-                      selectedTable === schema.name 
-                        ? 'border-primary shadow-lg transform scale-[1.02]' 
-                        : 'border-transparent hover:border-border hover:shadow-md'
-                    }`}
-                    onClick={() => setSelectedTable(selectedTable === schema.name ? null : schema.name)}
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-primary/10 rounded">
-                            <Table className="h-4 w-4 text-primary" />
-                          </div>
-                          <h4 className="font-semibold capitalize">{schema.name}</h4>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Badge variant="outline" className="text-xs">
-                            {schema.fields.length} fields
-                          </Badge>
-                          {schema.indexes && schema.indexes.length > 0 && (
-                            <Badge variant="secondary" className="text-xs">
-                              {schema.indexes.length} idx
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {schema.fields.map((field: any, fieldIndex: number) => (
-                          <div 
-                            key={fieldIndex} 
-                            className="flex items-start gap-2 text-sm p-2 rounded transition-colors hover:bg-muted/50"
-                          >
-                            {getFieldIcon(field)}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium">{field.name}</span>
-                                <Badge variant="secondary" className={`text-xs ${getFieldTypeColor(field.type)}`}>
-                                  {field.type}{field.length ? `(${field.length})` : ''}
-                                </Badge>
-                              </div>
-                              {field.comment && (
-                                <p className="text-xs text-muted-foreground mb-1">{field.comment}</p>
-                              )}
-                              <div className="flex items-center gap-1 flex-wrap">
-                                {field.primary && <Badge variant="outline" className="text-xs">PK</Badge>}
-                                {field.foreign && <Badge variant="outline" className="text-xs">FK</Badge>}
-                                {field.unique && <Badge variant="outline" className="text-xs">UQ</Badge>}
-                                {field.nullable === false && <Badge variant="outline" className="text-xs">NOT NULL</Badge>}
-                                {field.default && <Badge variant="secondary" className="text-xs">DEFAULT</Badge>}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+      {/* Subtle Divider */}
+      <div className="max-w-[1000px] mx-auto">
+        <div className="h-px bg-gradient-to-r from-transparent via-[#107a4d]/20 to-transparent"></div>
+      </div>
+
+      {/* Schema Tables - Superior Grid */}
+      <div className="max-w-[1000px] mx-auto">
+        <div className="mb-8 text-center space-y-2">
+          <h2 className="text-base font-semibold text-[#1d1d1f]">Database Tables</h2>
+          <p className="text-xs text-[#605A57]">Click any table to explore all fields</p>
+        </div>
+        
+        {/* Table Cards - Interactive Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {data.schemas.map((schema: any, index: number) => (
+            <button 
+              key={index} 
+              onClick={() => setSelectedTable(selectedTable === schema.name ? null : schema.name)}
+              className={`group relative p-5 rounded-xl transition-all duration-300 text-left overflow-hidden ${
+                selectedTable === schema.name
+                  ? 'bg-gradient-to-br from-[#e8f5f0] to-[#d4ede4] shadow-xl shadow-[#107a4d]/10 scale-[1.02] border-2 border-[#107a4d]/30'
+                  : 'bg-white border-2 border-[rgba(55,50,47,0.08)] hover:border-[#107a4d]/30 hover:shadow-lg hover:scale-[1.01]'
+              }`}
+            >
+              {/* Subtle pattern overlay */}
+              <div className={`absolute inset-0 opacity-[0.03] ${
+                selectedTable === schema.name ? 'bg-[radial-gradient(circle_at_30%_50%,_#107a4d_1px,_transparent_1px)] bg-[length:15px_15px]' : ''
+              }`}></div>
+              <div className="space-y-2 relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1.5 rounded-lg ${
+                      selectedTable === schema.name ? 'bg-[#107a4d]/15' : 'bg-[#107a4d]/10'
+                    }`}>
+                      <Table className={`w-3.5 h-3.5 ${
+                        selectedTable === schema.name ? 'text-[#107a4d]' : 'text-[#107a4d]'
+                      }`} />
                     </div>
-                  </Card>
+                    <h4 className={`font-semibold text-sm capitalize ${
+                      selectedTable === schema.name ? 'text-[#107a4d]' : 'text-[#1d1d1f]'
+                    }`}>
+                      {schema.name}
+                    </h4>
+                  </div>
+                  <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${
+                    selectedTable === schema.name ? 'bg-[#107a4d]/15 text-[#107a4d]' : 'bg-[#107a4d]/10 text-[#107a4d]'
+                  }`}>
+                    {schema.fields.length} fields
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  {(selectedTable === schema.name ? schema.fields : schema.fields.slice(0, 3)).map((field: any, fieldIndex: number) => (
+                    <div 
+                      key={fieldIndex} 
+                      className="flex items-center gap-2 text-xs py-1"
+                    >
+                      <div>
+                        {getFieldIcon(field)}
+                      </div>
+                      <span className="flex-1 text-[#37322F]">
+                        {field.name}
+                      </span>
+                      <span className="text-[#605A57]">
+                        {field.type}
+                      </span>
+                    </div>
+                  ))}
+                  {schema.fields.length > 3 && selectedTable !== schema.name && (
+                    <div className="text-xs text-[#605A57] pt-1 font-medium">+{schema.fields.length - 3} more fields</div>
+                  )}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Subtle Divider */}
+      <div className="max-w-[1000px] mx-auto">
+        <div className="h-px bg-gradient-to-r from-transparent via-[#107a4d]/20 to-transparent"></div>
+      </div>
+
+      {/* Architecture Insights - Enterprise Focus */}
+      <div className="max-w-[1000px] mx-auto mt-16">
+        <div className="mb-8 text-center space-y-2">
+          <h2 className="text-base font-semibold text-[#1d1d1f]">Architecture Insights</h2>
+          <p className="text-xs text-[#605A57]">Click any card to view detailed insights</p>
+        </div>
+        
+        <div className="space-y-5">
+        {/* Database Recommendation Details - Conditionally shown */}
+        {expandedSection === 'database' && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="bg-white border border-[#107a4d]/20 rounded-lg p-6 shadow-lg">
+          <h3 className="text-sm font-semibold text-[#1d1d1f] mb-4">Database Selection</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs text-[#605A57] mb-2">Recommended: <span className="font-semibold text-[#1d1d1f]">{dbRecommendations[0]?.name || 'PostgreSQL'}</span></p>
+              <p className="text-xs text-[#605A57] leading-relaxed">{dbRecommendations[0]?.bestFor || 'Excellent for complex relational data with ACID compliance'}</p>
+              <div className="mt-3 space-y-1">
+                {(dbRecommendations[0]?.pros || ['ACID compliance', 'Advanced indexing', 'JSON support']).slice(0, 3).map((pro: string, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-[#605A57]">
+                    <Check className="w-3 h-3 text-[#107a4d]" />
+                    <span>{pro}</span>
+                  </div>
                 ))}
               </div>
             </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-1">Read/Write Pattern</p>
+                <p className="text-sm text-[#1d1d1f] font-medium">{scalingInsights.readWriteRatio || '70:30'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-1">Caching Strategy</p>
+                <p className="text-sm text-[#1d1d1f] font-medium">{scalingInsights.cachingStrategy || 'Application-level'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-1">Scaling Approach</p>
+                <p className="text-sm text-[#1d1d1f] font-medium">Horizontal with read replicas</p>
+              </div>
+            </div>
           </div>
         </div>
-      </Card>
-      
-      {/* Bottom Section: Smart Recommendations, Security, Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Smart Recommendations */}
-        <Card className="p-5">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <Lightbulb className="h-5 w-5 text-gray-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold">Smart Recommendations</h3>
-                <p className="text-xs text-muted-foreground">{smartRecs.length} suggestions</p>
-              </div>
-            </div>
-            <div className="max-h-[250px] overflow-y-auto pr-2">
-              <div className="space-y-2">
-                {smartRecs.slice(0, 3).map((r: any, i: number) => {
-                  const Icon = getRecommendationIcon(r.type)
-                  return (
-                    <div key={i} className="p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start gap-2">
-                        <Icon className="h-3 w-3 text-gray-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-1">
-                            <h4 className="font-medium text-xs truncate">{r.title}</h4>
-                            <Badge variant="outline" className="text-xs text-[10px] px-1">{r.priority}</Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{r.description}</p>
-                          <Badge variant="secondary" className="text-[10px] px-1 mt-1">{r.type}</Badge>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </Card>
-            
-        {/* Security Overview */}
-        <Card className="p-5">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <Shield className="h-5 w-5 text-gray-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold">Security</h3>
-                <p className="text-xs text-muted-foreground">{securityRecs.length} recommendations</p>
-              </div>
-            </div>
-            <div className="max-h-[250px] overflow-y-auto pr-2">
-              <div className="space-y-2">
-                {securityRecs.slice(0, 3).map((rec: any, index: number) => {
-                  const Icon = getSecurityIcon(rec.category)
-                  return (
-                    <div key={index} className="p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start gap-2">
-                        <Icon className="h-3 w-3 text-gray-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-1">
-                            <h4 className="font-medium text-xs truncate">{rec.title}</h4>
-                            <Badge 
-                              variant={rec.priority === 'High' ? 'destructive' : rec.priority === 'Medium' ? 'default' : 'secondary'} 
-                              className="text-[10px] px-1"
-                            >
-                              {rec.priority}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{rec.description}</p>
-                          <Badge variant="outline" className="text-[10px] px-1 mt-1">{rec.category}</Badge>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </Card>
-        
-        {/* Performance Optimizations */}
-        <Card className="p-5">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <Zap className="h-5 w-5 text-gray-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold">Performance</h3>
-                <p className="text-xs text-muted-foreground">{optimizations.length} recommendations</p>
-              </div>
-            </div>
-            <div className="max-h-[250px] overflow-y-auto pr-2">
-              <div className="space-y-2">
-                {optimizations.slice(0, 3).map((opt: any, index: number) => {
-                  const Icon = getOptimizationIcon(opt.type)
-                  return (
-                    <div key={index} className="p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start gap-2">
-                        <Icon className="h-3 w-3 text-gray-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-1">
-                            <h4 className="font-medium text-xs truncate">{opt.title}</h4>
-                            <Badge variant={opt.impact === 'High' ? 'default' : 'secondary'} className="text-[10px] px-1">{opt.impact}</Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{opt.description}</p>
-                          <Badge variant="outline" className="text-[10px] px-1 mt-1">{opt.type}</Badge>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-      
-      {/* Requirements Summary */}
-      <Card className="p-6 bg-gradient-to-r from-muted/30 to-muted/10">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-muted/50 rounded-lg">
-              <Lightbulb className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold text-foreground">Original Requirements</h3>
-          </div>
-          <p className="text-muted-foreground leading-relaxed italic pl-11">
-            "{data.description}"
-          </p>
         </div>
-      </Card>
+        )}
 
-      {/* Action Buttons */}
-      <div className="flex justify-between items-center pt-4">
-        <Button variant="outline" onClick={onBack} size="lg">
-          <ArrowLeft className="mr-2 h-4 w-4" />
+        {/* Complexity Analysis Details - Conditionally shown */}
+        {expandedSection === 'complexity' && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="bg-white border border-[#107a4d]/20 rounded-lg p-6 shadow-lg">
+          <h3 className="text-sm font-semibold text-[#1d1d1f] mb-4">Complexity Analysis</h3>
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-[#605A57] mb-2">Your project is classified as <span className="font-semibold text-[#1d1d1f] capitalize">{complexity}</span> complexity</p>
+              <div className="space-y-2 mt-3">
+                <div className="flex items-center gap-2 text-xs text-[#605A57]">
+                  <Check className="w-3 h-3 text-[#107a4d]" />
+                  <span>{data.schemas.length} interconnected tables</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-[#605A57]">
+                  <Check className="w-3 h-3 text-[#107a4d]" />
+                  <span>{relationships.length} foreign key relationships</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-[#605A57]">
+                  <Check className="w-3 h-3 text-[#107a4d]" />
+                  <span>Enterprise-grade schema design</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+        )}
+
+        {/* Scaling Strategy - Conditionally shown */}
+        {expandedSection === 'load' && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="bg-white border border-[#107a4d]/20 rounded-lg p-6 shadow-lg">
+          <h3 className="text-sm font-semibold text-[#1d1d1f] mb-4">Scaling Strategy for {scalingInsights.expectedLoad} Load</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-2">Read/Write Pattern</p>
+              <p className="text-sm text-[#1d1d1f] font-medium mb-2">{scalingInsights.readWriteRatio || '70:30'}</p>
+              <p className="text-xs text-[#605A57]">Optimized for read-heavy workloads with caching</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-2">Caching Strategy</p>
+              <p className="text-sm text-[#1d1d1f] font-medium mb-2">{scalingInsights.cachingStrategy || 'Application-level'}</p>
+              <p className="text-xs text-[#605A57]">Redis recommended for session and query caching</p>
+            </div>
+          </div>
+        </div>
+        </div>
+        )}
+
+        {/* Key Relationships - Now Interactive */}
+        {relationships.length > 0 && (
+          <button 
+            onClick={() => setExpandedSection(expandedSection === 'relationships' ? null : 'relationships')}
+            className={`w-full text-left rounded-lg p-6 transition-all duration-300 ${
+              expandedSection === 'relationships'
+                ? 'bg-gradient-to-br from-[#e8f5f0] to-[#d4ede4] shadow-xl border-2 border-[#107a4d]/30'
+                : 'bg-white border-2 border-[rgba(55,50,47,0.08)] hover:border-[#107a4d]/30 hover:shadow-lg'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  expandedSection === 'relationships' ? 'bg-[#107a4d]/15' : 'bg-[#107a4d]/10'
+                }`}>
+                  <Link className={`w-4 h-4 ${
+                    expandedSection === 'relationships' ? 'text-[#107a4d]' : 'text-[#107a4d]'
+                  }`} />
+                </div>
+                <h3 className={`text-sm font-semibold ${
+                  expandedSection === 'relationships' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'
+                }`}>
+                  Key Relationships ({relationships.length})
+                </h3>
+              </div>
+              <div className={`text-xs font-medium px-3 py-1 rounded-full ${
+                expandedSection === 'relationships' ? 'bg-[#107a4d]/15 text-[#107a4d]' : 'bg-[#107a4d]/10 text-[#107a4d]'
+              }`}>
+                {expandedSection === 'relationships' ? 'Click to collapse' : 'Click to expand'}
+              </div>
+            </div>
+            
+            {expandedSection === 'relationships' ? (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                {relationships.map((rel, i) => (
+                  <div key={i} className="flex items-center gap-3 text-xs py-2 border-b border-[#107a4d]/10 last:border-0">
+                    <span className="text-[#1d1d1f] font-medium">{rel.from}</span>
+                    <ArrowRight className="w-3 h-3 text-[#605A57]" />
+                    <span className="text-[#605A57]">{rel.field}</span>
+                    <ArrowRight className="w-3 h-3 text-[#605A57]" />
+                    <span className="text-[#1d1d1f] font-medium">{rel.to}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {relationships.slice(0, 3).map((rel, i) => (
+                  <div key={i} className="flex items-center gap-3 text-xs py-2 border-b border-[rgba(55,50,47,0.04)] last:border-0">
+                    <span className="text-[#37322F] font-medium">{rel.from}</span>
+                    <ArrowRight className="w-3 h-3 text-[#605A57]" />
+                    <span className="text-[#605A57]">{rel.field}</span>
+                    <ArrowRight className="w-3 h-3 text-[#605A57]" />
+                    <span className="text-[#37322F] font-medium">{rel.to}</span>
+                  </div>
+                ))}
+                {relationships.length > 3 && (
+                  <p className="text-xs text-[#605A57] pt-2">+{relationships.length - 3} more relationships</p>
+                )}
+              </div>
+            )}
+          </button>
+        )}
+
+        {/* Critical Recommendations - Now Interactive */}
+        {(smartRecs.length > 0 || securityRecs.length > 0 || optimizations.length > 0) && (
+          <button
+            onClick={() => setExpandedSection(expandedSection === 'recommendations' ? null : 'recommendations')}
+            className={`w-full text-left rounded-lg p-6 transition-all duration-300 ${
+              expandedSection === 'recommendations'
+                ? 'bg-gradient-to-br from-[#e8f5f0] to-[#d4ede4] shadow-xl border-2 border-[#107a4d]/30'
+                : 'bg-white border-2 border-[rgba(55,50,47,0.08)] hover:border-[#107a4d]/30 hover:shadow-lg'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  expandedSection === 'recommendations' ? 'bg-[#107a4d]/15' : 'bg-[#107a4d]/10'
+                }`}>
+                  <AlertTriangle className={`w-4 h-4 ${
+                    expandedSection === 'recommendations' ? 'text-[#107a4d]' : 'text-[#107a4d]'
+                  }`} />
+                </div>
+                <h3 className={`text-sm font-semibold ${
+                  expandedSection === 'recommendations' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'
+                }`}>
+                  Critical Recommendations
+                </h3>
+              </div>
+              <div className={`text-xs font-medium px-3 py-1 rounded-full ${
+                expandedSection === 'recommendations' ? 'bg-[#107a4d]/15 text-[#107a4d]' : 'bg-[#107a4d]/10 text-[#107a4d]'
+              }`}>
+                {expandedSection === 'recommendations' ? 'Click to collapse' : 'Click to expand'}
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {expandedSection === 'recommendations' ? (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  {/* ALL High Priority Security */}
+                  {securityRecs.filter((r: any) => r.priority === 'High').map((rec: any, i: number) => (
+                    <div key={`sec-${i}`} className="flex items-start gap-3 p-3 bg-white/60 border border-[#107a4d]/20 rounded-lg">
+                      <Shield className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-[#1d1d1f]">{rec.title}</p>
+                          <Badge variant="destructive" className="text-[10px]">High Priority</Badge>
+                        </div>
+                        <p className="text-xs text-[#605A57] leading-relaxed">{rec.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* ALL High Impact Performance */}
+                  {optimizations.filter((o: any) => o.impact === 'High').map((opt: any, i: number) => (
+                    <div key={`opt-${i}`} className="flex items-start gap-3 p-3 bg-white/60 border border-[#107a4d]/20 rounded-lg">
+                      <Zap className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-[#1d1d1f]">{opt.title}</p>
+                          <Badge variant="default" className="text-[10px]">High Impact</Badge>
+                        </div>
+                        <p className="text-xs text-[#605A57] leading-relaxed">{opt.description}</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* ALL Architecture Recommendations */}
+                  {smartRecs.filter((r: any) => r.priority === 'high' || r.priority === 'medium').map((rec: any, i: number) => (
+                    <div key={`smart-${i}`} className="flex items-start gap-3 p-3 bg-white/60 border border-[#107a4d]/20 rounded-lg">
+                      <Lightbulb className="w-4 h-4 text-[#107a4d] mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-[#1d1d1f]">{rec.title}</p>
+                          <Badge variant="secondary" className="text-[10px]">{rec.type}</Badge>
+                        </div>
+                        <p className="text-xs text-[#605A57] leading-relaxed">{rec.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Preview: First 2 High Priority Security */}
+                  {securityRecs.filter((r: any) => r.priority === 'High').slice(0, 1).map((rec: any, i: number) => (
+                    <div key={`sec-${i}`} className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900 rounded-lg">
+                      <Shield className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-[#1d1d1f]">{rec.title}</p>
+                          <Badge variant="destructive" className="text-[10px]">High Priority</Badge>
+                        </div>
+                        <p className="text-xs text-[#605A57] leading-relaxed">{rec.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Preview: First High Impact Performance */}
+                  {optimizations.filter((o: any) => o.impact === 'High').slice(0, 1).map((opt: any, i: number) => (
+                    <div key={`opt-${i}`} className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-lg">
+                      <Zap className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-[#1d1d1f]">{opt.title}</p>
+                          <Badge variant="default" className="text-[10px]">High Impact</Badge>
+                        </div>
+                        <p className="text-xs text-[#605A57] leading-relaxed">{opt.description}</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Show count of remaining items */}
+                  {(securityRecs.filter((r: any) => r.priority === 'High').length + 
+                    optimizations.filter((o: any) => o.impact === 'High').length + 
+                    smartRecs.filter((r: any) => r.priority === 'high' || r.priority === 'medium').length) > 2 && (
+                    <p className="text-xs text-[#605A57] pt-2">
+                      +{securityRecs.filter((r: any) => r.priority === 'High').length + 
+                        optimizations.filter((o: any) => o.impact === 'High').length + 
+                        smartRecs.filter((r: any) => r.priority === 'high' || r.priority === 'medium').length - 2} more recommendations
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </button>
+        )}
+
+        {/* Indexing Strategy - Now Interactive */}
+        <button
+          onClick={() => setExpandedSection(expandedSection === 'indexing' ? null : 'indexing')}
+          className={`w-full text-left rounded-lg p-6 transition-all duration-300 ${
+            expandedSection === 'indexing'
+              ? 'bg-gradient-to-br from-[#e8f5f0] to-[#d4ede4] shadow-xl border-2 border-[#107a4d]/30'
+              : 'bg-white border-2 border-[rgba(55,50,47,0.08)] hover:border-[#107a4d]/30 hover:shadow-lg'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${
+                expandedSection === 'indexing' ? 'bg-[#107a4d]/15' : 'bg-[#107a4d]/10'
+              }`}>
+                <Zap className={`w-4 h-4 ${
+                  expandedSection === 'indexing' ? 'text-[#107a4d]' : 'text-[#107a4d]'
+                }`} />
+              </div>
+              <h3 className={`text-sm font-semibold ${
+                expandedSection === 'indexing' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'
+              }`}>
+                Indexing & Performance
+              </h3>
+            </div>
+            <div className={`text-xs font-medium px-3 py-1 rounded-full ${
+              expandedSection === 'indexing' ? 'bg-[#107a4d]/15 text-[#107a4d]' : 'bg-[#107a4d]/10 text-[#107a4d]'
+            }`}>
+              {expandedSection === 'indexing' ? 'Click to collapse' : 'Click to expand'}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className={`text-[10px] uppercase tracking-wide mb-2 ${
+                expandedSection === 'indexing' ? 'text-[#605A57]' : 'text-[#605A57]'
+              }`}>Total Indexes</p>
+              <p className={`text-2xl font-bold ${
+                expandedSection === 'indexing' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'
+              }`}>{data.schemas.reduce((acc: number, schema: any) => acc + (schema.indexes?.length || 0), 0)}</p>
+            </div>
+            <div>
+              <p className={`text-[10px] uppercase tracking-wide mb-2 ${
+                expandedSection === 'indexing' ? 'text-[#605A57]' : 'text-[#605A57]'
+              }`}>Primary Keys</p>
+              <p className={`text-2xl font-bold ${
+                expandedSection === 'indexing' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'
+              }`}>{data.schemas.length}</p>
+            </div>
+            <div>
+              <p className={`text-[10px] uppercase tracking-wide mb-2 ${
+                expandedSection === 'indexing' ? 'text-[#605A57]' : 'text-[#605A57]'
+              }`}>Foreign Keys</p>
+              <p className={`text-2xl font-bold ${
+                expandedSection === 'indexing' ? 'text-[#107a4d]' : 'text-[#1d1d1f]'
+              }`}>{relationships.length}</p>
+            </div>
+          </div>
+          
+          {expandedSection === 'indexing' && (
+            <div className="mt-4 pt-4 border-t border-[#107a4d]/20 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-3">
+                <p className="text-xs text-[#605A57] leading-relaxed">
+                  Auto-indexed on primary keys, foreign keys, and frequently queried fields. Consider composite indexes for multi-column lookups.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                  <div className="bg-white/60 border border-[#107a4d]/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Check className="w-3 h-3 text-[#107a4d]" />
+                      <p className="text-xs font-semibold text-[#1d1d1f]">Optimized Queries</p>
+                    </div>
+                    <p className="text-xs text-[#605A57]">B-tree indexes on all primary and foreign keys for fast lookups</p>
+                  </div>
+                  <div className="bg-white/60 border border-[#107a4d]/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Check className="w-3 h-3 text-[#107a4d]" />
+                      <p className="text-xs font-semibold text-[#1d1d1f]">Composite Indexes</p>
+                    </div>
+                    <p className="text-xs text-[#605A57]">Multi-column indexes recommended for complex WHERE clauses</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </button>
+        </div>
+      </div>
+
+      {/* Subtle Divider */}
+      <div className="max-w-[1000px] mx-auto">
+        <div className="h-px bg-gradient-to-r from-transparent via-[#107a4d]/20 to-transparent"></div>
+      </div>
+
+      {/* Action Buttons - Clean and Centered */}
+      <div className="flex justify-center items-center gap-4 pt-16 max-w-[800px] mx-auto">
+        <button
+          onClick={onBack}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
+        >
+          <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-1" />
           Back
-        </Button>
-        <Button onClick={onComplete} size="lg" className="bg-primary hover:bg-primary/90">
-          Continue to API Endpoints
-          <ArrowRight className="ml-2 h-4 w-4" />
+        </button>
+        <Button 
+          onClick={onComplete} 
+          size="lg" 
+          className="px-8 py-6 bg-gradient-to-r from-primary to-primary/80 hover:shadow-xl transition-all hover:scale-105 text-base font-semibold"
+        >
+          Proceed to API Testing
+          <ArrowRight className="ml-2 h-5 w-5" />
         </Button>
       </div>
     </div>

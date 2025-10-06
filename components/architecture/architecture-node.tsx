@@ -150,8 +150,8 @@ function ArchitectureNodeComponent({ data, selected, type }: NodeProps<Architect
 
   return (
     <Card
-      className={`w-48 sm:w-56 shadow-lg transition-all duration-200 bg-white border-2 ${
-        selected ? 'ring-2 ring-blue-500 border-blue-300' : 'border-gray-200 hover:border-gray-300'
+      className={`w-56 sm:w-64 shadow-md hover:shadow-xl transition-all duration-200 bg-white border ${
+        selected ? 'ring-2 ring-[#107a4d] border-[#107a4d]' : 'border-[rgba(55,50,47,0.12)] hover:border-[rgba(55,50,47,0.2)]'
       }`}
       style={{
         borderTopColor: nodeColor,
@@ -162,42 +162,42 @@ function ArchitectureNodeComponent({ data, selected, type }: NodeProps<Architect
       <Handle
         type="target"
         position={Position.Top}
-        className="w-3 h-3 border-2 border-white"
+        className="w-3 h-3 border-2 border-white shadow-sm"
         style={{ backgroundColor: nodeColor }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="w-3 h-3 border-2 border-white"
+        className="w-3 h-3 border-2 border-white shadow-sm"
         style={{ backgroundColor: nodeColor }}
       />
       <Handle
         type="target"
         position={Position.Left}
-        className="w-3 h-3 border-2 border-white"
+        className="w-3 h-3 border-2 border-white shadow-sm"
         style={{ backgroundColor: nodeColor }}
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="w-3 h-3 border-2 border-white"
+        className="w-3 h-3 border-2 border-white shadow-sm"
         style={{ backgroundColor: nodeColor }}
       />
 
       <CardHeader className="pb-3 bg-white rounded-t-lg">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <div 
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
+              className="w-9 h-9 rounded-md flex items-center justify-center text-white shadow-sm"
               style={{ backgroundColor: nodeColor }}
             >
-              <IconComponent className="w-4 h-4" />
+              <IconComponent className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm truncate">{data.name}</h4>
+              <h4 className="font-semibold text-sm text-[#1d1d1f] truncate">{data.name}</h4>
               <Badge 
                 variant="outline" 
-                className="text-xs mt-1"
+                className="text-[10px] mt-1 h-4 px-1.5 border-[rgba(55,50,47,0.12)]"
                 style={{ borderColor: nodeColor, color: nodeColor }}
               >
                 {getNodeTypeLabel(type as string)}
@@ -238,42 +238,42 @@ function ArchitectureNodeComponent({ data, selected, type }: NodeProps<Architect
 
       <CardContent className="p-3 pt-0">
         <div className="space-y-2">
-          <p className="text-xs text-gray-600 truncate">{data.description}</p>
+          <p className="text-sm text-gray-600 truncate">{data.description}</p>
           
           {data.metadata && (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {data.metadata.technology && (
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Tech:</span>
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs h-5">
                     {data.metadata.technology}
                   </Badge>
                 </div>
               )}
               
               {data.metadata.port && (
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Port:</span>
                   <span className="font-mono">{data.metadata.port}</span>
                 </div>
               )}
               
               {data.metadata.tables && (
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Tables:</span>
                   <span className="font-medium">{data.metadata.tables}</span>
                 </div>
               )}
               
               {data.metadata.endpoints && Array.isArray(data.metadata.endpoints) && (
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Endpoints:</span>
                   <span className="font-medium">{data.metadata.endpoints.length}</span>
                 </div>
               )}
               
               {data.metadata.external && (
-                <Badge variant="outline" className="text-xs w-full justify-center">
+                <Badge variant="outline" className="text-xs w-full justify-center h-5">
                   External Service
                 </Badge>
               )}

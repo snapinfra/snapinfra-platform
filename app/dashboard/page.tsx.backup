@@ -1,0 +1,815 @@
+"use client"
+
+import React, { useMemo, useState } from "react"
+import Link from "next/link"
+import { useAppContext } from "@/lib/app-context"
+import { DashboardLayout } from "@/components/dashboard-layout"
+import { MetricCard, QuickStatsGrid, ActivityFeed, ProgressStats, StatusBadge, TimelineWidget } from "@/components/dashboard-widgets"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { DeploymentModal } from "@/components/deployment-modal"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { PieChart as PieChartIcon, BarChart3, Layers, Database, ListChecks, Network, Settings, Rocket, Sparkles, Activity, Globe, Shield, Code2, FolderKanban, FileText, Download, Copy, TrendingUp, Users, Zap, CheckCircle2 } from "lucide-react"
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+
+export default function Dashboard() {
+  const { state, dispatch } = useAppContext()
+  const { currentProject } = state
+
+  async function retryGenerate(kind: 'code'|'iac') {
+    if (!currentProject) return
+    try {
+      if (kind === 'code') {
+        const resp = await fetch('/api/generate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: currentProject, framework: 'express', language: 'typescript', includeAuth: false, includeTests: false })
+        })
+        const data = await resp.json()
+        if (data?.success) {
+          dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode: data.data } as any })
+        } else {
+          dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode: { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'Code generation failed' } } as any })
+        }
+      } else {
+        const resp = await fetch('/api/generate-iac', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: currentProject, options: { targets: ['terraform','aws-cdk','docker-compose'], cloud: 'aws', environment: 'development' } })
+        })
+        const data = await resp.json()
+        if (data?.success) {
+          dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC: data.data } as any })
+        } else {
+          dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC: { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'IaC generation failed' } } as any })
+        }
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Request failed'
+      if (kind === 'code') {
+        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode: { files: [], instructions: '', dependencies: [], success: false, error: msg } } as any })
+      } else {
+        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC: { files: [], instructions: '', dependencies: [], success: false, error: msg } } as any })
+      }
+    }
+  }
+
+  const metrics = useMemo(() => {
+    const tables = currentProject?.schema?.length || 0
+    const fields = currentProject?.schema?.reduce((acc: number, t: any) => acc + (t.fields?.length || 0), 0) || 0
+    const endpoints = currentProject?.endpoints?.length ?? (tables > 0 ? tables * 4 : 0)
+    const decisions = (currentProject as any)?.decisions?.decisions?.length || 0
+    const components = (currentProject as any)?.architecture?.nodes?.length || 0
+    const connections = (currentProject as any)?.architecture?.edges?.length || 0
+    return { tables, fields, endpoints, decisions, components, connections }
+  }, [currentProject])
+
+  const fieldTypeData = useMemo(() => {
+    if (!currentProject?.schema) return [] as { name: string; value: number; fill: string }[]
+    const counts = new Map<string, number>()
+    currentProject.schema.forEach((tbl: any) => {
+      tbl.fields?.forEach((f: any) => {
+        const key = typeof f.type === 'string' && f.type.trim() ? f.type : 'Other'
+        counts.set(key, (counts.get(key) || 0) + 1)
+      })
+    })
+    const palette = ["#e11d48", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#a855f7", "#f43f5e"]
+    const entries = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+    const top = entries.slice(0, 5)
+    const restTotal = entries.slice(5).reduce((acc, [, v]) => acc + v, 0)
+    const data = top.map(([name, value], i) => ({ name, value, fill: palette[i % palette.length] }))
+    if (restTotal > 0) data.push({ name: 'Other', value: restTotal, fill: palette[data.length % palette.length] })
+    return data
+  }, [currentProject])
+
+  const methodData = useMemo(() => {
+    const approx = metrics.endpoints
+    const methodCounts = new Map<string, number>()
+    if (currentProject?.endpoints?.length) {
+      currentProject.endpoints.forEach((ep: any) => {
+        const m = (ep.method || 'GET').toUpperCase()
+        methodCounts.set(m, (methodCounts.get(m) || 0) + 1)
+      })
+    } else if (approx > 0) {
+      // Heuristic distribution
+      methodCounts.set('GET', Math.round(approx * 0.5))
+      methodCounts.set('POST', Math.round(approx * 0.3))
+      methodCounts.set('PUT', Math.round(approx * 0.1))
+      methodCounts.set('DELETE', approx - (methodCounts.get('GET')! + methodCounts.get('POST')! + methodCounts.get('PUT')!))
+    }
+    return Array.from(methodCounts.entries()).map(([name, value]) => ({ name, value }))
+  }, [currentProject, metrics.endpoints])
+
+  // Endpoint filters
+  const [endpointSearch, setEndpointSearch] = useState("")
+  const [endpointMethod, setEndpointMethod] = useState("ALL")
+  const filteredEndpoints = useMemo(() => {
+    const list: any[] = currentProject?.endpoints || []
+    return list.filter((ep) => {
+      const matchesMethod = endpointMethod === 'ALL' || (ep.method || '').toUpperCase() === endpointMethod
+      const q = endpointSearch.trim().toLowerCase()
+      const matchesQuery = !q || ep.path?.toLowerCase().includes(q) || ep.group?.toLowerCase().includes(q)
+      return matchesMethod && matchesQuery
+    })
+  }, [currentProject, endpointMethod, endpointSearch])
+
+  // Recent activity from chat
+  const recentActivity = useMemo(() => {
+    const msgs: any[] = state.chatMessages || []
+    const last = msgs.slice(-8).reverse()
+    return last.map((m) => {
+      const action = m?.metadata?.action
+      let type: 'schema' | 'endpoint' | 'deployment' | 'ai' = 'ai'
+      if (action === 'schema_update') type = 'schema'
+      else if (action === 'endpoint_create') type = 'endpoint'
+      else if (action === 'deployment') type = 'deployment'
+      return {
+        type,
+        title: m.type === 'user' ? 'User input' : action === 'schema_update' ? 'Schema updated' : action === 'endpoint_create' ? 'Endpoints generated' : action === 'deployment' ? 'Deployment' : 'AI response',
+        description: (m.content || '').replace(/\n/g, ' ').slice(0, 140),
+        time: formatRelativeTime(new Date(m.timestamp)),
+      }
+    })
+  }, [state.chatMessages])
+
+  return (
+    <DashboardLayout
+      title={currentProject ? currentProject.name : "Dashboard"}
+      description={currentProject ? "Manage and monitor your backend infrastructure" : "Welcome to Snapinfra"}
+      actions={
+        currentProject && (
+          <DeploymentModal>
+            <Button size="sm">
+              <Rocket className="h-4 w-4 mr-2" />
+              Deploy
+            </Button>
+          </DeploymentModal>
+        )
+      }
+    >
+      <div className="space-y-6">
+        {!currentProject ? (
+          <Card className="relative overflow-hidden">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Sparkles className="w-6 h-6 text-purple-600" />
+                Welcome to Snapinfra
+              </CardTitle>
+              <CardDescription>Start by creating a project to unlock your enterprise dashboard.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link href="/onboarding?new=true">
+                  <Button size="lg">
+                    <Rocket className="w-4 h-4 mr-2" />
+                    Create New Project
+                  </Button>
+                </Link>
+                <Link href="/architecture-demo">
+                  <Button variant="outline" size="lg">
+                    <Activity className="w-4 h-4 mr-2" />
+                    View Demo
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Quick Stats Overview */}
+            <QuickStatsGrid
+              stats={[
+                {
+                  label: "Total Tables",
+                  value: metrics.tables,
+                  change: { value: 12, trend: 'up' },
+                  icon: <Database className="h-5 w-5 text-blue-600" />,
+                },
+                {
+                  label: "API Endpoints",
+                  value: metrics.endpoints,
+                  change: { value: 8, trend: 'up' },
+                  icon: <Code2 className="h-5 w-5 text-green-600" />,
+                },
+                {
+                  label: "Components",
+                  value: metrics.components,
+                  change: { value: 5, trend: 'up' },
+                  icon: <Network className="h-5 w-5 text-purple-600" />,
+                },
+                {
+                  label: "Deployments",
+                  value: currentProject?.deployment ? 1 : 0,
+                  change: { value: 0, trend: 'neutral' },
+                  icon: <Rocket className="h-5 w-5 text-orange-600" />,
+                },
+              ]}
+            />
+
+            {/* Main Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column - Charts & Analytics */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Project Health Card */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Activity className="h-5 w-5 text-green-600" />
+                          Project Health
+                        </CardTitle>
+                        <CardDescription>Real-time system status</CardDescription>
+                      </div>
+                      <StatusBadge status="online" label="All Systems Operational" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ProgressStats
+                      title=""
+                      stats={[
+                        { label: "Schema Completeness", value: metrics.tables, max: metrics.tables + 2 },
+                        { label: "API Coverage", value: metrics.endpoints, max: metrics.endpoints + 5 },
+                        { label: "Architecture Design", value: metrics.components, max: metrics.components + 3 },
+                      ]}
+                      className="border-0 shadow-none p-0"
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Analytics Charts */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <PieChartIcon className="w-4 h-4" />
+                        Field Types
+                      </CardTitle>
+                      <CardDescription>Schema field distribution</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[280px]">
+                      {fieldTypeData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={fieldTypeData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} strokeWidth={2}>
+                              {fieldTypeData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value: any, name: any) => [value, name]} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-gray-500">
+                          No field data yet
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4" />
+                        API Methods
+                      </CardTitle>
+                      <CardDescription>Endpoint method distribution</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[280px]">
+                      {methodData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={methodData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                            <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                            <Tooltip formatter={(value: any, name: any) => [value, name]} />
+                            <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="#3b82f6" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-gray-500">
+                          No endpoint data yet
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Resources Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold">Project Resources</CardTitle>
+                    <CardDescription>Tables, endpoints, and decisions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Tabs defaultValue="tables">
+                      <TabsList className="w-full">
+                        <TabsTrigger value="tables" className="flex-1">Tables</TabsTrigger>
+                        <TabsTrigger value="endpoints" className="flex-1">Endpoints</TabsTrigger>
+                        <TabsTrigger value="decisions" className="flex-1">Decisions</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="tables" className="space-y-3 mt-4">
+                        {(currentProject?.schema || []).length > 0 ? (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead className="text-right">Fields</TableHead>
+                                <TableHead className="text-right">Relations</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {(currentProject?.schema || []).slice(0, 10).map((t: any) => (
+                                <TableRow key={t.id}>
+                                  <TableCell className="font-medium">{t.name}</TableCell>
+                                  <TableCell className="text-right">{t.fields?.length || 0}</TableCell>
+                                  <TableCell className="text-right">{t.relationships?.length || 0}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        ) : (
+                          <p className="text-sm text-gray-500 text-center py-8">No tables defined yet</p>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="endpoints" className="space-y-3 mt-4">
+                        {currentProject?.endpoints?.length > 0 ? (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Method</TableHead>
+                                <TableHead>Path</TableHead>
+                                <TableHead>Group</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {currentProject.endpoints.slice(0, 10).map((ep: any, idx: number) => (
+                                <TableRow key={idx}>
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-xs">{ep.method}</Badge>
+                                  </TableCell>
+                                  <TableCell className="font-mono text-sm">{ep.path}</TableCell>
+                                  <TableCell className="text-sm">{ep.group}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        ) : (
+                          <p className="text-sm text-gray-500 text-center py-8">No endpoints defined yet</p>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="decisions" className="space-y-2 mt-4">
+                        {(currentProject as any)?.decisions?.decisions?.length > 0 ? (
+                          (currentProject as any).decisions.decisions.slice(0, 8).map((d: any) => (
+                            <div key={d.id} className="flex items-start justify-between border rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium truncate">{d.title}</div>
+                                <div className="text-xs text-gray-600 line-clamp-2 mt-1">{d.description}</div>
+                              </div>
+                              <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">{d.category}</Badge>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500 text-center py-8">No decisions made yet</p>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Right Column - Activity & Status */}
+              <div className="space-y-6">
+                {/* Activity Feed */}
+                <ActivityFeed
+                  items={recentActivity.map((ev, i) => ({
+                    id: String(i),
+                    type: ev.type === 'schema' ? 'success' : ev.type === 'endpoint' ? 'info' : ev.type === 'deployment' ? 'warning' : 'info',
+                    title: ev.title,
+                    description: ev.description,
+                    timestamp: ev.time,
+                  }))}
+                />
+
+                {/* Deployment Status */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      Deployment Status
+                    </CardTitle>
+                    <CardDescription>Environment overview</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {['production', 'staging', 'development'].map((env) => (
+                      <div key={env} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <div className="text-sm font-medium capitalize">{env}</div>
+                          <div className="text-xs text-gray-600 mt-0.5">
+                            {currentProject?.deployment?.environment === env
+                              ? 'Active deployment'
+                              : 'No deployment'}
+                          </div>
+                        </div>
+                        <StatusBadge
+                          status={currentProject?.deployment?.environment === env ? 'online' : 'idle'}
+                        />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Database Info */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Database
+                    </CardTitle>
+                    <CardDescription>Selected storage solution</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="capitalize">
+                        {currentProject?.database?.type || 'postgresql'}
+                      </Badge>
+                      {typeof currentProject?.database?.confidence === 'number' && (
+                        <Badge variant="secondary">
+                          {(currentProject.database.confidence * 100).toFixed(0)}% match
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700">
+                      {currentProject?.database?.reasoning || 'Optimized for your use case'}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Generated Code Section */}
+            {(currentProject?.generatedCode?.files?.length || currentProject?.generatedIaC?.files?.length) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Code2 className="w-5 h-5" />
+                    Generated Assets
+                  </CardTitle>
+                  <CardDescription>Backend code and infrastructure templates</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue={currentProject?.generatedCode?.files?.length ? 'code' : 'iac'}>
+                    <TabsList>
+                      <TabsTrigger value="code">Backend Code</TabsTrigger>
+                      <TabsTrigger value="iac">Infrastructure</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="code" className="mt-4">
+                      {currentProject?.generatedCode?.files?.length ? (
+                        <GeneratedFilesList
+                          files={currentProject.generatedCode.files}
+                          fileType="code"
+                          projectName={currentProject.name}
+                        />
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-sm text-gray-500">No code generated yet</p>
+                          <Button variant="outline" size="sm" className="mt-3" onClick={() => retryGenerate('code')}>
+                            Generate Code
+                          </Button>
+                        </div>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="iac" className="mt-4">
+                      {currentProject?.generatedIaC?.files?.length ? (
+                        <GeneratedFilesList
+                          files={currentProject.generatedIaC.files}
+                          fileType="iac"
+                          projectName={currentProject.name}
+                        />
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-sm text-gray-500">No infrastructure code generated yet</p>
+                          <Button variant="outline" size="sm" className="mt-3" onClick={() => retryGenerate('iac')}>
+                            Generate IaC
+                          </Button>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+      </div>
+    </DashboardLayout>
+  )
+}
+
+{/* Helper Components */}
+function GeneratedFilesList({ files, fileType, projectName }: { files: { path: string; content: string }[]; fileType: 'code'|'iac'; projectName: string }) {
+  const max = 8
+  const list = files.slice(0, max)
+  const more = files.length - list.length
+
+  const copy = async (content: string) => {
+    try { await navigator.clipboard.writeText(content) } catch {}
+  }
+  const downloadBundle = async () => {
+    const { default: JSZip } = await import('jszip')
+    const zip = new JSZip()
+    for (const f of files) {
+      const path = String(f.path || '').replace(/^\/+/, '')
+      zip.file(path, f.content ?? '')
+    }
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${projectName}-${fileType}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {list.map((f, i) => (
+          <div key={i} className="border rounded-lg p-3 flex items-start justify-between gap-2 hover:bg-gray-50 transition-colors">
+            <div className="min-w-0 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
+              <div className="font-mono text-xs truncate" title={f.path}>{f.path}</div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => copy(f.content)} className="flex-shrink-0 h-7 w-7 p-0">
+              <Copy className="w-3 h-3" />
+            </Button>
+          </div>
+        ))}
+      </div>
+      {more > 0 && <p className="text-xs text-gray-500">+{more} more files</p>}
+      <Button variant="outline" size="sm" onClick={downloadBundle}>
+        <Download className="w-4 h-4 mr-2" />
+        Download All ({files.length} files)
+      </Button>
+    </div>
+  )
+}
+
+function formatRelativeTime(date: Date) {
+  const now = new Date().getTime()
+  const diff = Math.max(0, Math.floor((now - date.getTime()) / 1000))
+  if (diff < 60) return `${diff}s ago`
+  const m = Math.floor(diff / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  return `${d}d ago`
+}
+                            <TabsTrigger value="db">Database</TabsTrigger>
+                            <TabsTrigger value="scaling">Scaling</TabsTrigger>
+                            <TabsTrigger value="smart">Smart</TabsTrigger>
+                            <TabsTrigger value="opt">Optimizations</TabsTrigger>
+                            <TabsTrigger value="sec">Security</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="db" className="space-y-2">
+                            {(currentProject.analysis.databaseRecommendations || []).slice(0, 5).map((r: any, i: number) => (
+                              <div key={i} className="border rounded-md p-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="font-medium text-sm">{r.name}</div>
+                                  {typeof r.score === 'number' && <Badge variant="secondary" className="text-xs">{r.score}%</Badge>}
+                                </div>
+                                {r.bestFor && <div className="text-xs text-gray-600">Best for: {r.bestFor}</div>}
+                                {r.reasons && r.reasons.length > 0 && (
+                                  <ul className="text-xs text-gray-600 list-disc pl-5 mt-1">
+                                    {r.reasons.slice(0, 3).map((x: string, idx: number) => <li key={idx}>{x}</li>)}
+                                  </ul>
+                                )}
+                              </div>
+                            ))}
+                          </TabsContent>
+                          <TabsContent value="scaling" className="space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <Kpi icon={<Activity className="w-4 h-4" />} label="Expected load" valueLabel={currentProject.analysis.scalingInsights?.expectedLoad || 'Unknown'} />
+                              <Kpi icon={<Network className="w-4 h-4" />} label="Read/Write" valueLabel={currentProject.analysis.scalingInsights?.readWriteRatio || '—'} />
+                              <Kpi icon={<Layers className="w-4 h-4" />} label="Caching" valueLabel={currentProject.analysis.scalingInsights?.cachingStrategy || '—'} />
+                            </div>
+                            {Array.isArray(currentProject.analysis.scalingInsights?.indexingPriority) && currentProject.analysis.scalingInsights.indexingPriority.length > 0 && (
+                              <div className="border rounded-md p-2">
+                                <div className="text-sm font-medium mb-1">Indexing priorities</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {currentProject.analysis.scalingInsights.indexingPriority.map((p: any, idx: number) => {
+                                    const isObj = p && typeof p === 'object'
+                                    const label = isObj
+                                      ? `${p.table ?? p.field ?? 'Index'}${p.priority ? ` - ${p.priority}` : ''}`
+                                      : String(p)
+                                    const title = isObj && p.reason ? String(p.reason) : undefined
+                                    return (
+                                      <Badge key={idx} variant="outline" className="text-xs" title={title}>{label}</Badge>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </TabsContent>
+                          <TabsContent value="smart" className="space-y-2">
+                            {(currentProject.analysis.smartRecommendations || []).slice(0, 10).map((s: any, i: number) => (
+                              <div key={i} className="border rounded-md p-2">
+                                <div className="text-sm font-medium">{s.title || s.name || `Recommendation ${i+1}`}</div>
+                                {s.description && <div className="text-xs text-gray-600">{s.description}</div>}
+                              </div>
+                            ))}
+                          </TabsContent>
+                          <TabsContent value="opt" className="space-y-2">
+                            {(currentProject.analysis.optimizationSuggestions || []).slice(0, 10).map((o: any, i: number) => (
+                              <div key={i} className="border rounded-md p-2">
+                                <div className="text-sm font-medium">{o.title || o.name || `Optimization ${i+1}`}</div>
+                                {o.description && <div className="text-xs text-gray-600">{o.description}</div>}
+                              </div>
+                            ))}
+                          </TabsContent>
+                          <TabsContent value="sec" className="space-y-2">
+                            {(currentProject.analysis.securityRecommendations || []).slice(0, 10).map((s: any, i: number) => (
+                              <div key={i} className="border rounded-md p-2">
+                                <div className="text-sm font-medium">{s.title || s.name || `Security item ${i+1}`}</div>
+                                {s.description && <div className="text-xs text-gray-600">{s.description}</div>}
+                              </div>
+                            ))}
+                          </TabsContent>
+                        </Tabs>
+                      ) : (
+                        <div className="text-sm text-gray-500">No insights available.</div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Recommendations */}
+                  <Card id="recommendations" className="border border-gray-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Recommendations</CardTitle>
+                      <CardDescription className="text-sm text-gray-600">AI and tool decisions overview</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div className="border rounded-md p-3">
+                          <div className="text-sm font-medium mb-1">Tool selections</div>
+                          <div className="flex flex-wrap gap-1">
+                            {(() => {
+                              const tools = currentProject?.selectedTools
+                              || (currentProject?.decisions?.decisions ? Object.fromEntries(
+                                currentProject.decisions.decisions.map((d: any) => [d.id, d.selectedTool])
+                              ) : null)
+                              return tools ? (
+                                Object.entries(tools).map(([k, v]) => (
+                                  <Badge key={k} variant="outline" className="text-xs">{k}: {v}</Badge>
+                                ))
+                              ) : (
+                                <div className="text-sm text-gray-500">None selected yet</div>
+                              )
+                            })()}
+                          </div>
+                        </div>
+                        <div className="border rounded-md p-3">
+                          <div className="text-sm font-medium mb-1">Highlights</div>
+                          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                            <li>{metrics.tables} tables with {metrics.fields} fields</li>
+                            <li>~{metrics.endpoints} API endpoints</li>
+                            <li>{metrics.components} components, {metrics.connections} connections</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Detailed sections (kept for power users) */}
+<GeneratedSummary compact />
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function Kpi({ icon, label, value, valueLabel }: { icon: React.ReactNode; label: string; value?: number; valueLabel?: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white p-3">
+      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-100 text-gray-700">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm text-gray-500">{label}</div>
+        <div className="text-lg font-semibold text-gray-900">{valueLabel ?? value}</div>
+      </div>
+    </div>
+  )
+}
+
+function EmptyChartPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="h-full w-full flex items-center justify-center text-sm text-gray-500">
+      {label}
+    </div>
+  )
+}
+
+function GeneratedFilesList({ files, fileType, projectName }: { files: { path: string; content: string }[]; fileType: 'code'|'iac'; projectName: string }) {
+  const max = 8
+  const list = files.slice(0, max)
+  const more = files.length - list.length
+
+  const copy = async (content: string) => {
+    try { await navigator.clipboard.writeText(content) } catch {}
+  }
+  const downloadBundle = async () => {
+    const { default: JSZip } = await import('jszip')
+    const zip = new JSZip()
+    for (const f of files) {
+      const path = String(f.path || '').replace(/^\/+/, '')
+      zip.file(path, f.content ?? '')
+    }
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${projectName}-${fileType}.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {list.map((f, i) => (
+          <div key={i} className="border rounded-md p-2 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-600" />
+                <div className="font-mono text-sm truncate" title={f.path}>{f.path}</div>
+              </div>
+            </div>
+            <div className="flex-shrink-0 flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={() => copy(f.content)} title="Copy">
+                <Copy className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {more > 0 && <div className="text-xs text-gray-500">+{more} more files</div>}
+      <div className="pt-1">
+        <Button variant="outline" size="sm" onClick={downloadBundle}><Download className="w-4 h-4 mr-1" /> Download ZIP</Button>
+      </div>
+    </div>
+  )
+}
+
+function TimelineIcon({ type }: { type: 'schema' | 'endpoint' | 'deployment' | 'ai' }) {
+  const cls = "w-4 h-4 text-gray-600"
+  switch (type) {
+    case 'schema':
+      return <Database className={cls} />
+    case 'endpoint':
+      return <ListChecks className={cls} />
+    case 'deployment':
+      return <Rocket className={cls} />
+    default:
+      return <Clock className={cls} />
+  }
+}
+
+function EnvStatusBadge({ env, deployment }: { env: 'development'|'staging'|'production'; deployment?: any }) {
+  const isActive = deployment?.environment === env
+  const status: string = isActive ? deployment?.status || 'deployed' : 'idle'
+  const cls =
+    status === 'deployed' || status === 'deploying'
+      ? 'bg-green-100 text-green-700 border-green-200'
+      : status === 'failed'
+      ? 'bg-red-100 text-red-700 border-red-200'
+      : 'bg-gray-100 text-gray-700 border-gray-200'
+  return <Badge variant="secondary" className={`text-xs ${cls}`}>{isActive ? status : 'idle'}</Badge>
+}
+
+function formatRelativeTime(date: Date) {
+  const now = new Date().getTime()
+  const diff = Math.max(0, Math.floor((now - date.getTime()) / 1000))
+  if (diff < 60) return `${diff}s ago`
+  const m = Math.floor(diff / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  return `${d}d ago`
+}

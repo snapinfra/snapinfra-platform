@@ -14,6 +14,8 @@ import { GridPattern } from "@/components/ui/shadcn-io/grid-pattern"
 import { useAppContext } from "@/lib/app-context"
 import type { Project, TableSchema, ChatMessage } from "@/lib/app-context"
 import { createProject as createProjectAPI, isBackendAvailable } from "@/lib/api-client"
+import Image from "next/image"
+import Link from "next/link"
 
 interface GeneratedData {
   projectName?: string
@@ -30,7 +32,6 @@ export function OnboardingFlow() {
   const [generatedData, setGeneratedData] = useState<GeneratedData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isNewProject, setIsNewProject] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false) // Collapsed by default on mobile
   const router = useRouter()
   const searchParams = useSearchParams()
   const { state, dispatch } = useAppContext()
@@ -103,18 +104,6 @@ export function OnboardingFlow() {
     setIsLoading(false)
   }, [searchParams, router, isNewProject])
   
-  // Add keyboard navigation support
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Close sidebar with Escape key on mobile
-      if (event.key === 'Escape' && isSidebarOpen) {
-        setIsSidebarOpen(false)
-      }
-    }
-    
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isSidebarOpen])
 
   // Function to update step in both state and URL
   const updateStep = (step: number) => {
@@ -431,36 +420,36 @@ What would you like to explore next?`,
   const stepDetails = [
     {
       number: 1,
-      title: "Describe Your Vision",
-      description: "Tell us about your backend requirements in plain English",
+      title: "Requirements",
+      description: "Define backend requirements",
       icon: Sparkles,
       status: currentStep > 1 ? "completed" : currentStep === 1 ? "active" : "upcoming",
     },
     {
       number: 2,
-      title: "Review Database Schema",
-      description: "Fine-tune your generated database schema and analysis",
+      title: "Database Schema",
+      description: "Review generated schema",
       icon: Database,
       status: currentStep > 2 ? "completed" : currentStep === 2 ? "active" : "upcoming",
     },
     {
       number: 3,
-      title: "Test API Endpoints",
-      description: "Explore and test your auto-generated API endpoints",
+      title: "API Endpoints",
+      description: "Explore API endpoints",
       icon: Rocket,
       status: currentStep > 3 ? "completed" : currentStep === 3 ? "active" : "upcoming",
     },
     {
       number: 4,
-      title: "System Architecture",
-      description: "Visualize and customize your system architecture",
+      title: "Architecture",
+      description: "System architecture",
       icon: Network,
       status: currentStep > 4 ? "completed" : currentStep === 4 ? "active" : "upcoming",
     },
     {
       number: 5,
-      title: "Tool Selection",
-      description: "Choose tools and finalize system decisions",
+      title: "Configuration",
+      description: "Finalize configuration",
       icon: Settings,
       status: currentStep === 5 ? "active" : "upcoming",
     },
@@ -478,15 +467,10 @@ What would you like to explore next?`,
       // Save tool decisions from Step 5 before project creation
       const updatedData = { ...generatedData, decisions: data.decisions, selectedTools: data.selectedTools }
       saveData(updatedData)
-      // Close sidebar on mobile when step is completed
-      setIsSidebarOpen(false)
       // Create project and initiate chat conversation when completing step 5 using the latest updated data
       createProjectAndChat(updatedData)
       return
     }
-
-    // Close sidebar on mobile when step is completed
-    setIsSidebarOpen(false)
 
     if (currentStep < totalSteps) {
       updateStep(currentStep + 1)
@@ -495,8 +479,6 @@ What would you like to explore next?`,
 
   const handleBack = () => {
     if (currentStep > 1) {
-      // Close sidebar on mobile when going back
-      setIsSidebarOpen(false)
       updateStep(currentStep - 1)
     }
   }
@@ -511,261 +493,95 @@ What would you like to explore next?`,
         className="opacity-30"
       />
       
-      {/* Mobile Menu Button - matches header SidebarTrigger */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="fixed top-2 left-3 z-50 h-8 w-8 p-0 sm:hidden text-gray-600 hover:bg-gray-100 hover:text-gray-900 rounded-md"
-      >
-        {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </Button>
-      
-      {/* Mobile Backdrop */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-30 sm:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-      
-      {/* Desktop Sidebar - Original positioning */}
-      <div className="hidden sm:block fixed left-0 top-12 bottom-0 w-80 lg:w-80 md:w-72 bg-background border-r border-border z-20">
-        <div className="p-3 sm:p-6 border-b border-border flex-shrink-0">
-          <div className="flex items-start justify-between">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-2xl font-bold text-foreground mb-1 truncate" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Build Your Backend</h1>
-              <p className="text-muted-foreground text-xs sm:text-sm">Create a powerful backend in minutes with AI assistance</p>
+      {/* Top Bar with Logo, Project Indicator and Progress */}
+      <div className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-b border-[rgba(55,50,47,0.08)]">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+          {/* Left: Logo and New Project Indicator */}
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center">
+              <Image src="/snapinfra-logo.svg" alt="Snapinfra" width={100} height={24} className="h-6 w-auto" />
+            </Link>
+            <div className="h-4 w-px bg-[rgba(55,50,47,0.2)]"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#107a4d] animate-pulse"></div>
+              <span className="text-sm text-[#37322F] font-medium">New Project</span>
             </div>
-            {generatedData && (
-              <button
-                onClick={() => {
-                  localStorage.removeItem('onboarding-data')
-                  setGeneratedData(null)
-                  updateStep(1)
-                }}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded border border-border hover:border-destructive flex-shrink-0 ml-2"
-                title="Clear progress and start over"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="p-3 sm:p-6 border-b border-border flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-xs sm:text-sm font-medium text-foreground">
-              Step {currentStep} of {totalSteps}
-            </div>
-            <div className="text-xs text-muted-foreground">{Math.round(progress)}% Complete</div>
-          </div>
-          <Progress value={progress} className="h-2 sm:h-3 bg-muted" />
-        </div>
-
-        <div className="flex-1 overflow-y-auto hide-scrollbar">
-          <div className="p-3 sm:p-6">
-            <div className="space-y-3 sm:space-y-4">
-              {stepDetails.map((step) => {
-                const Icon = step.icon
-                return (
-                  <div
-                    key={step.number}
-                    className={`flex items-start space-x-2 sm:space-x-3 p-3 sm:p-4 rounded-lg border transition-all duration-200 ${
-                      step.status === "active"
-                        ? "bg-primary/5 border-primary/20 shadow-sm"
-                        : step.status === "completed"
-                          ? "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800/30 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-950/30"
-                          : "bg-muted/30 border-border/50"
-                    }`}
-                    onClick={() => {
-                      // Allow navigation to completed steps or step 1
-                      if (step.status === "completed" || step.number === 1) {
-                        updateStep(step.number)
-                      }
-                    }}
-                  >
-                    <div
-                      className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 ${
-                        step.status === "active"
-                          ? "bg-primary text-primary-foreground"
-                          : step.status === "completed"
-                            ? "bg-blue-600 text-white"
-                            : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {step.status === "completed" ? "✓" : <Icon className="w-3 h-3 sm:w-4 sm:h-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3
-                        className={`font-medium text-xs sm:text-sm ${
-                          step.status === "active"
-                            ? "text-foreground"
-                            : step.status === "completed"
-                              ? "text-blue-700 dark:text-blue-300"
-                              : "text-muted-foreground"
-                        }`}
-                      >
-                        {step.title}
-                      </h3>
-                      <p
-                        className={`text-xs mt-1 leading-tight hidden sm:block ${
-                          step.status === "active"
-                            ? "text-muted-foreground"
-                            : step.status === "completed"
-                              ? "text-blue-600 dark:text-blue-400"
-                              : "text-muted-foreground/70"
-                        }`}
-                      >
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Mobile Sidebar - Collapsible */}
-      <div className={`sm:hidden fixed left-0 top-0 bottom-0 w-80 bg-background border-r border-border flex flex-col z-40 transform transition-transform duration-300 ease-in-out ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <div className="p-3 border-b border-border flex-shrink-0 pt-14">
-          <div className="flex items-start justify-between">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg font-bold text-foreground mb-1 truncate" style={{ fontFamily: 'Instrument Serif, serif', letterSpacing: '0.025em' }}>Build Your Backend</h1>
-              <p className="text-muted-foreground text-xs">Create a powerful backend in minutes with AI assistance</p>
-            </div>
-            {generatedData && (
-              <button
-                onClick={() => {
-                  localStorage.removeItem('onboarding-data')
-                  setGeneratedData(null)
-                  updateStep(1)
-                }}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded border border-border hover:border-destructive flex-shrink-0 ml-2"
-                title="Clear progress and start over"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="p-3 border-b border-border flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-medium text-foreground">
-              Step {currentStep} of {totalSteps}
-            </div>
-            <div className="text-xs text-muted-foreground">{Math.round(progress)}% Complete</div>
-          </div>
-          <Progress value={progress} className="h-2 bg-muted" />
-        </div>
-
-        <div className="flex-1 overflow-y-auto hide-scrollbar">
-          <div className="p-3">
-            <div className="space-y-3">
-              {stepDetails.map((step) => {
-                const Icon = step.icon
-                return (
-                  <div
-                    key={step.number}
-                    className={`flex items-start space-x-2 p-3 rounded-lg border transition-all duration-200 ${
-                      step.status === "active"
-                        ? "bg-primary/5 border-primary/20 shadow-sm"
-                        : step.status === "completed"
-                          ? "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800/30 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-950/30"
-                          : "bg-muted/30 border-border/50"
-                    }`}
-                    onClick={() => {
-                      // Allow navigation to completed steps or step 1
-                      if (step.status === "completed" || step.number === 1) {
-                        // Close sidebar on mobile when navigating
-                        setIsSidebarOpen(false)
-                        updateStep(step.number)
-                      }
-                    }}
-                  >
-                    <div
-                      className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-medium flex-shrink-0 ${
-                        step.status === "active"
-                          ? "bg-primary text-primary-foreground"
-                          : step.status === "completed"
-                            ? "bg-blue-600 text-white"
-                            : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {step.status === "completed" ? "✓" : <Icon className="w-3 h-3" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3
-                        className={`font-medium text-xs ${
-                          step.status === "active"
-                            ? "text-foreground"
-                            : step.status === "completed"
-                              ? "text-blue-700 dark:text-blue-300"
-                              : "text-muted-foreground"
-                        }`}
-                      >
-                        {step.title}
-                      </h3>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="sm:ml-80 md:ml-72 lg:ml-80 min-h-screen flex items-center justify-center p-3 sm:p-6 pt-16 sm:pt-16 relative z-10">
-        <div className="w-full max-w-4xl mx-auto">
-          {/* Mobile Step Indicator */}
-          <div className="sm:hidden mb-4 p-3 bg-background border border-border rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-medium text-foreground">
-                Step {currentStep} of {totalSteps}
-              </div>
-              <div className="text-xs text-muted-foreground">{Math.round(progress)}% Complete</div>
-            </div>
-            <Progress value={progress} className="h-2 bg-muted" />
           </div>
           
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <>
-              {currentStep === 1 && <StepOne onComplete={handleStepComplete} />}
-              {currentStep === 2 && generatedData && (
-                <StepTwo data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
-              )}
-              {currentStep === 3 && generatedData && (
-                <StepThree data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
-              )}
-              {currentStep === 4 && generatedData && (
-                <StepFour data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
-              )}
-              {currentStep === 5 && generatedData && (
-                <StepFive data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
-              )}
-              {(currentStep === 2 || currentStep === 3 || currentStep === 4 || currentStep === 5) && !generatedData && (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground mb-4 text-sm">No data found. Please start from step 1.</p>
-                  <button 
-                    onClick={() => updateStep(1)}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm"
-                  >
-                    Go to Step 1
-                  </button>
+          {/* Center: Progress Dots */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+            {[1, 2, 3, 4, 5].map((step) => (
+              <div
+                key={step}
+                className={`transition-all duration-300 rounded-full ${
+                  step < currentStep
+                    ? 'w-2 h-2 bg-[#107a4d]'
+                    : step === currentStep
+                      ? 'w-8 h-2 bg-[#107a4d]'
+                      : 'w-2 h-2 bg-[rgba(55,50,47,0.2)]'
+                }`}
+              />
+            ))}
+          </div>
+          
+          {/* Right: Start Over Button - Always visible */}
+          <button
+            onClick={() => {
+              localStorage.removeItem('onboarding-data')
+              setGeneratedData(null)
+              updateStep(1)
+            }}
+            className="text-xs text-[#605A57] hover:text-destructive transition-colors px-3 py-1.5 rounded-lg border border-[rgba(55,50,47,0.08)] hover:border-destructive"
+          >
+            Start Over
+          </button>
+        </div>
+      </div>
+      
+      {/* Main Content - Full Screen Magic */}
+      <div className="min-h-screen flex items-center justify-center px-6 pt-24 pb-20 relative z-10">
+        <div className="w-full">
+          {/* Magical transition wrapper */}
+          <div 
+            key={currentStep}
+            className="animate-in fade-in slide-in-from-bottom-4 duration-700"
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border border-primary/20"></div>
                 </div>
-              )}
-            </>
-          )}
+              </div>
+            ) : (
+              <>
+                {currentStep === 1 && <StepOne onComplete={handleStepComplete} />}
+                {currentStep === 2 && generatedData && (
+                  <StepTwo data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
+                )}
+                {currentStep === 3 && generatedData && (
+                  <StepThree data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
+                )}
+                {currentStep === 4 && generatedData && (
+                  <StepFour data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
+                )}
+                {currentStep === 5 && generatedData && (
+                  <StepFive data={generatedData} onComplete={handleStepComplete} onBack={handleBack} />
+                )}
+                {(currentStep === 2 || currentStep === 3 || currentStep === 4 || currentStep === 5) && !generatedData && (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground mb-4 text-sm">Let's start building your backend.</p>
+                    <button 
+                      onClick={() => updateStep(1)}
+                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all hover:scale-105 text-sm font-medium shadow-lg shadow-primary/25"
+                    >
+                      Begin
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
