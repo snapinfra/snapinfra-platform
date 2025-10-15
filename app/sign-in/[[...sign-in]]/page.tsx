@@ -1,11 +1,23 @@
 "use client"
 
-import { SignIn } from "@clerk/nextjs"
+import { SignIn, useUser } from "@clerk/nextjs"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowLeft } from "lucide-react"
+import { useState, useEffect } from "react"
 
 export default function SignInPage() {
+  const { isLoaded } = useUser()
+  const [showClerk, setShowClerk] = useState(false)
+
+  useEffect(() => {
+    if (isLoaded) {
+      // Small delay to ensure smooth transition
+      const timer = setTimeout(() => setShowClerk(true), 300)
+      return () => clearTimeout(timer)
+    }
+  }, [isLoaded])
+
   return (
     <div className="w-full min-h-screen relative bg-gradient-to-br from-[#fafaf9] via-[#f5f3f0] to-[#ede9e3] overflow-x-hidden flex flex-col justify-start items-center">
       <div className="relative flex flex-col justify-start items-center w-full">
@@ -52,47 +64,85 @@ export default function SignInPage() {
                   </div>
                 </div>
 
-                {/* Sign In Card */}
-                <div className="w-full relative">
-                  {/* Subtle border */}
-                  <div className="absolute inset-0 rounded-2xl bg-[rgba(0,91,227,0.1)] p-[1px]">
-                    <div className="w-full h-full rounded-2xl bg-white"></div>
-                  </div>
-                  
-                  {/* Card Content */}
-                  <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] border border-[rgba(55,50,47,0.08)] overflow-hidden">
-                    <div className="p-6 sm:p-8">
-                      <SignIn 
-                        appearance={{
-                          elements: {
-                            rootBox: "w-full",
-                            card: "bg-transparent shadow-none w-full",
-                            headerTitle: "hidden",
-                            headerSubtitle: "hidden",
-                            socialButtonsBlockButton: 
-                              "border-[rgba(55,50,47,0.12)] bg-white hover:bg-[#fafafa] hover:border-[rgba(55,50,47,0.18)] text-[#37322F] font-sans font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-200",
-                            socialButtonsBlockButtonText: "font-sans font-medium text-[#37322F]",
-                            dividerLine: "bg-[rgba(55,50,47,0.12)]",
-                            dividerText: "text-[#605A57] font-sans text-sm",
-                            formButtonPrimary: 
-                              "bg-[#005BE3] hover:bg-[#004BC9] text-white font-sans font-semibold shadow-[0_2px_8px_rgba(0,91,227,0.3)] hover:shadow-[0_4px_12px_rgba(0,91,227,0.4)] transition-all duration-200 normal-case",
-                            formFieldLabel: "text-[#37322F] font-sans font-medium text-sm",
-                            formFieldInput: 
-                              "border-[rgba(55,50,47,0.12)] bg-white focus:border-[#005BE3] focus:ring-[#005BE3]/20 text-[#37322F] font-sans placeholder:text-[#605A57]/50 rounded-lg transition-all duration-200",
-                            footerActionLink: "text-[#005BE3] hover:text-[#004BC9] font-sans font-medium transition-colors duration-200",
-                            formFieldInputShowPasswordButton: "text-[#605A57] hover:text-[#37322F]",
-                            identityPreviewText: "text-[#37322F] font-sans",
-                            identityPreviewEditButton: "text-[#005BE3] hover:text-[#004BC9]",
-                            formResendCodeLink: "text-[#005BE3] hover:text-[#004BC9] font-sans font-medium",
-                            otpCodeFieldInput: "border-[rgba(55,50,47,0.12)] focus:border-[#005BE3] focus:ring-[#005BE3]/20 text-[#37322F]",
-                          }
-                        }}
-                        routing="path"
-                        path="/sign-in"
-                        signUpUrl="/sign-up"
-                        afterSignInUrl="/auth-callback"
-                      />
-                    </div>
+                {/* Sign In Section */}
+                <div className="w-full" style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div className="w-full" style={{ maxWidth: '28rem' }}>
+                      {showClerk ? (
+                        <div className="animate-in fade-in duration-500" style={{ display: 'flex', justifyContent: 'center' }}>
+                          <SignIn 
+                            appearance={{
+                              elements: {
+                                rootBox: "w-full",
+                                card: "bg-transparent shadow-none w-full border-0",
+                                headerTitle: "hidden",
+                                headerSubtitle: "hidden",
+                                socialButtonsBlockButton: 
+                                  "border-[rgba(55,50,47,0.12)] bg-white hover:bg-[#fafafa] hover:border-[rgba(55,50,47,0.18)] text-[#37322F] font-sans font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-200",
+                                socialButtonsBlockButtonText: "font-sans font-medium text-[#37322F]",
+                                dividerLine: "bg-[rgba(55,50,47,0.12)]",
+                                dividerText: "text-[#605A57] font-sans text-sm",
+                                formButtonPrimary: 
+                                  "bg-[#005BE3] hover:bg-[#004BC9] text-white font-sans font-semibold shadow-[0_2px_8px_rgba(0,91,227,0.3)] hover:shadow-[0_4px_12px_rgba(0,91,227,0.4)] transition-all duration-200 normal-case",
+                                formFieldLabel: "text-[#37322F] font-sans font-medium text-sm",
+                                formFieldInput: 
+                                  "border-[rgba(55,50,47,0.12)] bg-white focus:border-[#005BE3] focus:ring-[#005BE3]/20 text-[#37322F] font-sans placeholder:text-[#605A57]/50 rounded-lg transition-all duration-200",
+                                footerActionLink: "text-[#005BE3] hover:text-[#004BC9] font-sans font-medium transition-colors duration-200",
+                                formFieldInputShowPasswordButton: "text-[#605A57] hover:text-[#37322F]",
+                                identityPreviewText: "text-[#37322F] font-sans",
+                                identityPreviewEditButton: "text-[#005BE3] hover:text-[#004BC9]",
+                                formResendCodeLink: "text-[#005BE3] hover:text-[#004BC9] font-sans font-medium",
+                                otpCodeFieldInput: "border-[rgba(55,50,47,0.12)] focus:border-[#005BE3] focus:ring-[#005BE3]/20 text-[#37322F]",
+                              }
+                            }}
+                            routing="path"
+                            path="/sign-in"
+                            signUpUrl="/sign-up"
+                            afterSignInUrl="/auth-callback"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full min-h-[400px] flex flex-col items-center justify-center space-y-6">
+                          {/* Loading spinner */}
+                          <div className="relative">
+                            <div className="w-12 h-12 border-4 border-[rgba(55,50,47,0.1)] border-t-[#005BE3] rounded-full animate-spin"></div>
+                          </div>
+                          
+                          {/* Loading text */}
+                          <div className="text-center space-y-2">
+                            <p className="text-[#37322F] font-medium font-sans">Setting up your sign in</p>
+                            <p className="text-[#605A57] text-sm font-sans">This will only take a moment...</p>
+                          </div>
+                          
+                          {/* Skeleton forms */}
+                          <div className="w-full max-w-sm space-y-4 mt-8">
+                            {/* Social buttons skeleton */}
+                            <div className="space-y-3">
+                              <div className="h-10 bg-[rgba(55,50,47,0.06)] rounded-lg animate-pulse"></div>
+                              <div className="h-10 bg-[rgba(55,50,47,0.06)] rounded-lg animate-pulse"></div>
+                            </div>
+                            
+                            {/* Divider */}
+                            <div className="flex items-center my-6">
+                              <div className="flex-1 h-px bg-[rgba(55,50,47,0.12)]"></div>
+                              <span className="px-4 text-sm text-[#605A57] font-sans">or</span>
+                              <div className="flex-1 h-px bg-[rgba(55,50,47,0.12)]"></div>
+                            </div>
+                            
+                            {/* Form fields skeleton */}
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <div className="h-4 w-20 bg-[rgba(55,50,47,0.06)] rounded animate-pulse"></div>
+                                <div className="h-10 bg-[rgba(55,50,47,0.06)] rounded-lg animate-pulse"></div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="h-4 w-16 bg-[rgba(55,50,47,0.06)] rounded animate-pulse"></div>
+                                <div className="h-10 bg-[rgba(55,50,47,0.06)] rounded-lg animate-pulse"></div>
+                              </div>
+                              <div className="h-10 bg-[#005BE3]/20 rounded-lg animate-pulse"></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                   </div>
                 </div>
 

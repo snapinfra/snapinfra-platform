@@ -18,14 +18,19 @@ export default function AuthCallbackPage() {
       return
     }
 
-    // User is signed in, check if they have projects
-    const projects = loadProjects()
-    
-    if (projects && projects.length > 0) {
-      // User has existing projects, redirect to dashboard
-      router.push('/dashboard')
+    // User is signed in, check if they have projects (client-side only)
+    if (typeof window !== 'undefined') {
+      const projects = loadProjects()
+      
+      if (projects && projects.length > 0) {
+        // User has existing projects, redirect to dashboard
+        router.push('/dashboard')
+      } else {
+        // First time user, redirect to onboarding
+        router.push('/onboarding')
+      }
     } else {
-      // First time user, redirect to onboarding
+      // Fallback for server-side rendering
       router.push('/onboarding')
     }
   }, [isLoaded, isSignedIn, router])
