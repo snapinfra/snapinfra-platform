@@ -4,10 +4,12 @@ import Link from "next/link"
 import Image from "next/image"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Database, Code2, Lock, Boxes, Server, Zap, Check, ArrowUp, Sparkles } from "lucide-react"
 import { Instrument_Serif } from 'next/font/google'
 import { FlickeringGrid } from '@/components/ui/shadcn-io/flickering-grid'
+import { loadProjects, hasCompletedOnboarding } from '@/lib/storage'
 
 const instrumentSerif = Instrument_Serif({ 
   subsets: ['latin'], 
@@ -280,6 +282,41 @@ export default function LandingPage() {
   const [activeCard, setActiveCard] = useState(0)
   const [progress, setProgress] = useState(0)
   const mountedRef = useRef(true)
+  const router = useRouter()
+  const { isLoaded, isSignedIn, user } = useUser()
+
+  // Auto-redirect existing users to dashboard
+  useEffect(() => {
+    if (!isLoaded) return
+    
+    if (isSignedIn) {
+      // Check if user has projects or has completed onboarding
+      const projects = loadProjects()
+      const hasProjects = projects && projects.length > 0
+      const hasOnboarded = hasCompletedOnboarding()
+      
+      if (hasProjects || hasOnboarded) {
+        // Existing user with projects or completed onboarding - go to dashboard
+        router.push('/dashboard')
+      } else {
+        // Signed in but no projects and hasn't onboarded - check if newly created
+        const userCreatedAt = new Date(user?.createdAt || 0)
+        const now = new Date()
+        const timeDiff = now.getTime() - userCreatedAt.getTime()
+        const isNewUser = timeDiff < 10000 // Less than 10 seconds ago
+        
+        if (isNewUser) {
+          // Very new user - let them see landing page for a moment, then redirect to onboarding
+          setTimeout(() => {
+            router.push('/onboarding')
+          }, 2000) // 2 second delay to see the landing page
+        } else {
+          // Returning user without projects - probably should onboard
+          router.push('/onboarding')
+        }
+      }
+    }
+  }, [isLoaded, isSignedIn, user, router])
 
 
   useEffect(() => {

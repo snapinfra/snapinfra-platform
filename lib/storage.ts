@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   CURRENT_PROJECT: 'snapinfra_current_project',
   CHAT_HISTORY: 'snapinfra_chat_history',
   USER_PREFERENCES: 'snapinfra_user_preferences',
+  HAS_ONBOARDED: 'snapinfra_has_onboarded',
 } as const
 
 // Project storage
@@ -121,6 +122,24 @@ export function loadUserPreferences(): {
   } catch (error) {
     console.warn('Failed to load user preferences from localStorage:', error)
     return {}
+  }
+}
+
+// Onboarding completion tracking
+export function markOnboardingComplete() {
+  try {
+    localStorage.setItem(STORAGE_KEYS.HAS_ONBOARDED, 'true')
+  } catch (error) {
+    console.warn('Failed to mark onboarding complete:', error)
+  }
+}
+
+export function hasCompletedOnboarding(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.HAS_ONBOARDED) === 'true'
+  } catch (error) {
+    console.warn('Failed to check onboarding status:', error)
+    return false
   }
 }
 

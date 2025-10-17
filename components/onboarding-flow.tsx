@@ -14,6 +14,7 @@ import { GridPattern } from "@/components/ui/shadcn-io/grid-pattern"
 import { useAppContext } from "@/lib/app-context"
 import type { Project, TableSchema, ChatMessage } from "@/lib/app-context"
 import { createProject as createProjectAPI, isBackendAvailable } from "@/lib/api-client"
+import { markOnboardingComplete } from "@/lib/storage"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -405,13 +406,15 @@ What would you like to explore next?`,
       dispatch({ type: 'ADD_CHAT_MESSAGE', payload: userMessage })
       dispatch({ type: 'ADD_CHAT_MESSAGE', payload: aiMessage })
       
-      // Clear onboarding data and navigate to dashboard
+      // Mark onboarding as complete and clear data
+      markOnboardingComplete()
       localStorage.removeItem('onboarding-data')
       router.push('/dashboard')
       
     } catch (error) {
       console.error('Failed to create project and chat:', error)
-      // Navigate to dashboard anyway
+      // Navigate to dashboard anyway and mark onboarding complete
+      markOnboardingComplete()
       localStorage.removeItem('onboarding-data')
       router.push('/dashboard')
     }
