@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useAppContext } from "@/lib/app-context"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -109,25 +110,27 @@ export default function DeploymentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Deployments</h1>
-            <p className="text-gray-600 mt-1">Manage your application deployments across cloud providers</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2">
-              <Settings className="w-4 h-4" />
-              Configure
-            </Button>
-            <Button className="gap-2">
-              <Rocket className="w-4 h-4" />
-              New Deployment
-            </Button>
-          </div>
+    <EnterpriseDashboardLayout
+      title="Deployments"
+      description="Manage your application deployments across cloud providers"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Deployments" },
+      ]}
+      actions={
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="gap-2">
+            <Settings className="w-4 h-4" />
+            Configure
+          </Button>
+          <Button className="gap-2">
+            <Rocket className="w-4 h-4" />
+            New Deployment
+          </Button>
         </div>
+      }
+    >
+      <div className="space-y-8">
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -457,6 +460,6 @@ export default function DeploymentsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }

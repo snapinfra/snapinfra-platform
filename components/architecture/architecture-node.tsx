@@ -89,7 +89,7 @@ const iconComponents = {
 }
 
 function ArchitectureNodeComponent({ data, selected, type }: NodeProps<ArchitectureNodeData>) {
-  const IconComponent = iconComponents[getNodeTypeIcon(type as ArchitectureNode['type']) as keyof typeof iconComponents]
+  const IconComponent = iconComponents[getNodeTypeIcon(type as ArchitectureNode['type']) as keyof typeof iconComponents] || Box
   const nodeColor = data.color || getNodeTypeColor(type as ArchitectureNode['type'])
 
   const handleMenuAction = (action: string, e: React.MouseEvent) => {

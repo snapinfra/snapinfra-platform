@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useAppContext } from "@/lib/app-context"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -120,35 +121,37 @@ export default function ArchitecturePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">System Architecture</h1>
-            <p className="text-gray-600 mt-1">Visualize and manage your system components</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={selectedEnvironment} onValueChange={setSelectedEnvironment}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="development">Development</SelectItem>
-                <SelectItem value="staging">Staging</SelectItem>
-                <SelectItem value="production">Production</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Export
-            </Button>
-            <Button className="gap-2">
-              <Edit3 className="w-4 h-4" />
-              Edit Architecture
-            </Button>
-          </div>
+    <EnterpriseDashboardLayout
+      title="System Architecture"
+      description="Visualize and manage your system components"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Architecture" },
+      ]}
+      actions={
+        <div className="flex items-center gap-3">
+          <Select value={selectedEnvironment} onValueChange={setSelectedEnvironment}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="development">Development</SelectItem>
+              <SelectItem value="staging">Staging</SelectItem>
+              <SelectItem value="production">Production</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" className="gap-2">
+            <Download className="w-4 h-4" />
+            Export
+          </Button>
+          <Button className="gap-2">
+            <Edit3 className="w-4 h-4" />
+            Edit Architecture
+          </Button>
         </div>
+      }
+    >
+      <div className="space-y-8">
 
         {/* Architecture Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -377,6 +380,6 @@ export default function ArchitecturePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }

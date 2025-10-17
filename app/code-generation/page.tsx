@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useAppContext } from "@/lib/app-context"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -219,38 +220,40 @@ export default function CodeGenerationPage() {
   const selectedFrameworkData = frameworks.find(f => f.id === selectedFramework)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Code Generation</h1>
-            <p className="text-gray-600 mt-1">Generate production-ready backend code from your schema</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2">
-              <Eye className="w-4 h-4" />
-              Preview
-            </Button>
-            <Button 
-              onClick={handleGenerate} 
-              disabled={isGenerating} 
-              className="gap-2"
-            >
-              {isGenerating ? (
-                <>
-                  <Clock className="w-4 h-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Rocket className="w-4 h-4" />
-                  Generate Code
-                </>
-              )}
-            </Button>
-          </div>
+    <EnterpriseDashboardLayout
+      title="Code Generation"
+      description="Generate production-ready backend code from your schema"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Code Generation" },
+      ]}
+      actions={
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="gap-2">
+            <Eye className="w-4 h-4" />
+            Preview
+          </Button>
+          <Button 
+            onClick={handleGenerate} 
+            disabled={isGenerating} 
+            className="gap-2"
+          >
+            {isGenerating ? (
+              <>
+                <Clock className="w-4 h-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Rocket className="w-4 h-4" />
+                Generate Code
+              </>
+            )}
+          </Button>
         </div>
+      }
+    >
+      <div className="space-y-8">
 
         {/* Generation Progress */}
         {isGenerating && (
@@ -561,6 +564,6 @@ export default function CodeGenerationPage() {
           </div>
         )}
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }

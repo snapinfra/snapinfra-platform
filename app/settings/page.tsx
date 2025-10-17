@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useUser } from "@clerk/nextjs"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -40,15 +41,15 @@ export default function SettingsPage() {
   const [autoSave, setAutoSave] = useState(true)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Settings</h1>
-            <p className="text-gray-600 mt-1">Manage your account and application preferences</p>
-          </div>
-        </div>
+    <EnterpriseDashboardLayout
+      title="Settings"
+      description="Manage your account and application preferences"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Settings" },
+      ]}
+    >
+      <div className="space-y-8">
 
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-6">
@@ -435,6 +436,6 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }

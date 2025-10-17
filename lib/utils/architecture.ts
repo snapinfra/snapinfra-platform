@@ -747,7 +747,7 @@ export function getNodeTypeIcon(type: ArchitectureNode['type']): string {
     'secrets-manager': 'Key',
     'backup-storage': 'HardDrive',
     'analytics': 'BarChart3',
-    'ml-service': 'Brain',
+    'ml-service': 'Zap',
     'notification-service': 'Bell',
     'scheduler': 'Clock',
     'workflow-engine': 'GitMerge',
@@ -755,10 +755,10 @@ export function getNodeTypeIcon(type: ArchitectureNode['type']): string {
     'vpn': 'Lock',
     'firewall': 'Shield',
     'dns': 'Globe',
-    'certificate-manager': 'Certificate',
-    'artifact-repository': 'Package2',
+    'certificate-manager': 'Key',
+    'artifact-repository': 'Package',
     'ci-cd': 'GitPullRequest',
-    'testing-service': 'TestTube'
+    'testing-service': 'Activity'
   }
   return icons[type] || 'Box'
 }
