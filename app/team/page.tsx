@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useUser } from "@clerk/nextjs"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -194,22 +195,21 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Team Management</h1>
-            <p className="text-gray-600 mt-1">Manage team members, roles, and permissions</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2">
-              <Settings className="w-4 h-4" />
-              Team Settings
-            </Button>
-          </div>
-        </div>
-
+    <EnterpriseDashboardLayout
+      title="Team Management"
+      description="Manage team members, permissions, and collaboration"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Team" },
+      ]}
+      actions={
+        <Button className="gap-2">
+          <UserPlus className="w-4 h-4" />
+          Invite Member
+        </Button>
+      }
+    >
+      <div className="space-y-8">
         {/* Team Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
@@ -467,6 +467,6 @@ export default function TeamPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }

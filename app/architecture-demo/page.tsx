@@ -1,10 +1,13 @@
 "use client"
 
 import { ReactFlowProvider } from '@xyflow/react'
+import { EnterpriseDashboardLayout } from '@/components/enterprise-dashboard-layout'
 import { SystemArchitectureEditor } from '@/components/architecture/system-architecture-editor'
 import { generateArchitectureFromData } from '@/lib/utils/architecture'
 import { SystemArchitecture } from '@/lib/types/architecture'
+import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
+import { Save } from 'lucide-react'
 
 // Sample data to test the architecture generation
 const sampleData = {
@@ -151,16 +154,22 @@ export default function ArchitectureDemoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold mb-2">System Architecture Demo</h1>
-          <p className="text-muted-foreground">
-            Interactive system architecture editor with sample data
-          </p>
-        </div>
-        
-        <div className="h-[800px] border rounded-lg overflow-hidden">
+    <EnterpriseDashboardLayout
+      title="System Architecture Demo"
+      description="Interactive system architecture editor with sample data"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Architecture Demo" },
+      ]}
+      actions={
+        <Button onClick={handleSave} className="gap-2">
+          <Save className="w-4 h-4" />
+          Save Architecture
+        </Button>
+      }
+    >
+      <div className="space-y-6">
+        <div className="h-[600px] border rounded-lg overflow-hidden">
           <ReactFlowProvider>
             <SystemArchitectureEditor
               architecture={architecture}
@@ -170,9 +179,9 @@ export default function ArchitectureDemoPage() {
           </ReactFlowProvider>
         </div>
         
-        <div className="mt-8 p-4 bg-muted rounded-lg">
+        <div className="p-4 bg-gray-50 rounded-lg">
           <h2 className="font-semibold mb-2">Demo Features</h2>
-          <ul className="text-sm space-y-1 text-muted-foreground">
+          <ul className="text-sm space-y-1 text-gray-600">
             <li>• Drag and drop components to reposition them</li>
             <li>• Click the dropdown menu on any component to edit, duplicate, or delete</li>
             <li>• Use the "Add Node" button to add new architecture components</li>
@@ -182,6 +191,6 @@ export default function ArchitectureDemoPage() {
           </ul>
         </div>
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }

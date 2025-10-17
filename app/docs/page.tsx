@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -143,15 +144,15 @@ export default function DocsPage() {
   })).filter(category => category.docs.length > 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Documentation</h1>
-            <p className="text-gray-600 mt-1">Comprehensive guides and API references</p>
-          </div>
-        </div>
+    <EnterpriseDashboardLayout
+      title="Documentation"
+      description="Comprehensive guides and API references"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Documentation" },
+      ]}
+    >
+      <div className="space-y-8">
 
         {/* Search */}
         <Card>
@@ -369,6 +370,6 @@ export default function DocsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useUser } from "@clerk/nextjs"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -174,21 +175,21 @@ export default function ActivityPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Activity Feed</h1>
-            <p className="text-gray-600 mt-1">Monitor recent actions, deployments, and system events</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2">
-              <Bell className="w-4 h-4" />
-              Notifications
-            </Button>
-          </div>
-        </div>
+    <EnterpriseDashboardLayout
+      title="Activity Feed"
+      description="Monitor recent actions, deployments, and system events"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Activity" },
+      ]}
+      actions={
+        <Button variant="outline" className="gap-2">
+          <Bell className="w-4 h-4" />
+          Notifications
+        </Button>
+      }
+    >
+      <div className="space-y-8">
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -405,6 +406,6 @@ export default function ActivityPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }

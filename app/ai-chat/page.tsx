@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -41,21 +42,21 @@ export default function AiChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">AI Assistant</h1>
-            <p className="text-gray-600 mt-1">Get help with backend development, architecture, and best practices</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-green-100 text-green-800">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              Online
-            </Badge>
-          </div>
-        </div>
+    <EnterpriseDashboardLayout
+      title="AI Assistant"
+      description="Get help with backend development, architecture, and best practices"
+      breadcrumbs={[
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "AI Assistant" },
+      ]}
+      actions={
+        <Badge variant="outline" className="bg-green-100 text-green-800">
+          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+          Online
+        </Badge>
+      }
+    >
+      <div className="space-y-8">
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
@@ -158,6 +159,6 @@ export default function AiChatPage() {
           </div>
         </div>
       </div>
-    </div>
+    </EnterpriseDashboardLayout>
   )
 }
