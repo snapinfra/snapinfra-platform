@@ -996,100 +996,55 @@ Provide 2-4 specific, actionable risks per category.`;
   return JSON.parse(text.trim().replace(/^```json\s*/, '').replace(/\s*```$/, ''));
 }
 
-// Main orchestrator function
+// Main orchestrator function - simplified to a single AI call to reduce failures
 export async function generateSystemDecisions(
   request: GenerateSystemDecisionsRequest
 ): Promise<SystemDecisionsSummary> {
   try {
     const { architecture, projectData, options = {} } = request;
 
-    console.log('Step 1: Analyzing project context...');
-    const projectContext = await analyzeProjectContext(architecture, projectData, options);
+    console.log('Generating complete system decisions in one AI call...');
     
-    console.log('Step 2: Generating tool recommendations for each component...');
-    const decisions = [];
-    for (const componentType of projectContext.componentTypes) {
-      console.log(`  - Generating decision for: ${componentType}`);
-      const decision = await generateComponentDecision(componentType, projectContext, options);
-      decisions.push(decision);
-    }
-    
-    console.log('Step 3: Generating cost and timeline estimates...');
-    const estimates = await generateEstimates(projectContext, decisions, options);
-    
-    console.log('Step 4: Creating integration plan...');
-    const integrationPlan = await generateIntegrationPlan(decisions, options);
-    
-    console.log('Step 5: Assessing risks...');
-    const riskAssessment = await generateRiskAssessment(projectContext, decisions, options);
-
-    // Combine all results
-    const result: SystemDecisionsSummary = {
-      projectName: projectContext.projectName,
-      architecture: estimates.architecture,
-      decisions,
-      integrationPlan: integrationPlan.integrationPlan,
-      totalCostEstimate: estimates.totalCostEstimate,
-      riskAssessment: riskAssessment.riskAssessment,
+    const context = {
+      architecture: {
+        nodes: architecture.nodes.map(n => ({ id: n.id, type: n.type, label: n.data.label })),
+        edges: architecture.edges.map(e => ({ source: e.source, target: e.target, label: e.label })),
+        componentCount: architecture.nodes.length,
+      },
+      project: {
+        name: projectData.projectName || 'Your Project',
+        description: projectData.description || '',
+        hasSchemas: !!projectData.schemas?.length,
+        hasEndpoints: !!projectData.endpoints?.length,
+      },
     };
-    
-    console.log('Generation complete. Validating...');
 
-    // Strict validation - ensure all required fields are present
-    if (!result.projectName) {
-      throw new Error('AI response missing required field: projectName');
-    }
-    if (!result.architecture) {
-      throw new Error('AI response missing required field: architecture');
-    }
-    if (!result.architecture.complexity || !result.architecture.components || !result.architecture.estimatedCost || !result.architecture.timeline) {
-      throw new Error('AI response missing required architecture fields');
-    }
-    if (!result.decisions || !Array.isArray(result.decisions) || result.decisions.length === 0) {
-      throw new Error('AI response missing or empty decisions array');
-    }
-    if (!result.integrationPlan) {
-      throw new Error('AI response missing required field: integrationPlan');
-    }
-    if (!result.totalCostEstimate) {
-      throw new Error('AI response missing required field: totalCostEstimate');
-    }
-    if (!result.riskAssessment) {
-      throw new Error('AI response missing required field: riskAssessment');
-    }
+    const prompt = `${SYSTEM_DECISIONS_PROMPT}\n\nProject Context:\n${JSON.stringify(context, null, 2)}\n\nGenerate a complete system decisions analysis with all tool recommendations, cost estimates, timeline, integration plan, and risk assessment. Output ONLY valid JSON matching the required structure.`;
 
-    // Validate each decision
-    result.decisions.forEach((decision, index) => {
-      if (!decision.id || !decision.title || !decision.description || !decision.category || 
-          !decision.component || !decision.recommendations || !decision.selectedTool || 
-          !decision.reasoning || !decision.impact || !decision.urgency) {
-        throw new Error(`Decision at index ${index} is missing required fields`);
-      }
-      
-      if (!Array.isArray(decision.recommendations) || decision.recommendations.length < 3) {
-        throw new Error(`Decision "${decision.title}" must have at least 3 tool recommendations`);
-      }
-
-      // Validate each recommendation
-      decision.recommendations.forEach((tool, toolIndex) => {
-        if (!tool.id || !tool.name || !tool.type || !tool.description || 
-            !tool.pros || !tool.cons || !tool.pricing || !tool.complexity || 
-            tool.popularity === undefined || !tool.documentation || 
-            !tool.alternatives || !tool.integration || !tool.metadata ||
-            tool.enterpriseScore === undefined) {
-          throw new Error(`Tool at index ${toolIndex} in decision "${decision.title}" is missing required fields`);
-        }
-      });
+    const { text } = await generateText({
+      model: groq(AI_CONFIG.model),
+      prompt,
+      temperature: options.temperature ?? 0.7,
+      maxTokens: options.maxTokens ?? 8000,
     });
-    
-    console.log('Validation passed.');
+
+    const cleanedText = text.trim()
+      .replace(/^```json\s*/, '')
+      .replace(/\s*```$/, '')
+      .replace(/^```\s*/, '')
+      .trim();
+
+    const result: SystemDecisionsSummary = JSON.parse(cleanedText);
+
+    // Basic validation
+    if (!result.projectName || !result.architecture || !result.decisions || !result.integrationPlan || !result.totalCostEstimate || !result.riskAssessment) {
+      throw new Error('AI response missing required top-level fields');
+    }
 
     return result;
   } catch (error) {
     console.error('System Decisions Generation Error:', error);
-    throw new Error(
-      `Failed to generate system decisions: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
+    throw new Error(`Failed to generate system decisions: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
