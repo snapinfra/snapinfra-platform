@@ -1025,7 +1025,7 @@ export async function generateSystemDecisions(
       model: groq(AI_CONFIG.model),
       prompt,
       temperature: options.temperature ?? 0.7,
-      maxTokens: options.maxTokens ?? 16000,
+      maxTokens: options.maxTokens ?? 8192,
     });
 
     const cleanedText = text.trim()
