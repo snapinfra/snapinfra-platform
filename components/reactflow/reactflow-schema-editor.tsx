@@ -138,10 +138,13 @@ export function ReactFlowSchemaEditor({
   const [showRelations, setShowRelations] = useState(true)
   const [showMiniMap, setShowMiniMap] = useState(true)
 
-  const schema = currentProject?.schema || []
+  // Ensure schema is always an array
+  const schema = Array.isArray(currentProject?.schema) ? currentProject.schema : []
 
   // Convert schema to ReactFlow nodes
   const initialNodes = useMemo(() => {
+    if (!Array.isArray(schema) || schema.length === 0) return []
+    
     return schema.map(table => convertTableToNode(
       table,
       () => onTableEdit?.(table),
@@ -160,6 +163,11 @@ export function ReactFlowSchemaEditor({
 
   // Update nodes when schema changes
   useEffect(() => {
+    if (!Array.isArray(schema) || schema.length === 0) {
+      setNodes([])
+      return
+    }
+    
     const updatedNodes = schema.map(table => convertTableToNode(
       table,
       () => onTableEdit?.(table),
@@ -177,6 +185,8 @@ export function ReactFlowSchemaEditor({
   // Handle node position changes and sync back to schema
   const handleNodesChange = useCallback((changes: any[]) => {
     onNodesChange(changes)
+    
+    if (!Array.isArray(schema) || schema.length === 0) return
     
     // Update schema with new positions
     const positionChanges = changes.filter(change => change.type === 'position' && change.position)

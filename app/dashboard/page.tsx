@@ -1,8 +1,10 @@
 "use client"
 
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAppContext } from "@/lib/app-context"
+import { getProjectById } from "@/lib/api-client"
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { 
   EnterpriseMetricCard, 
@@ -26,33 +28,102 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 export default function Dashboard() {
   const { state, dispatch } = useAppContext()
   const { currentProject } = state
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false)
+  const [isGeneratingIac, setIsGeneratingIac] = useState(false)
+  
+  // Load project from AWS if project ID in query params
+  useEffect(() => {
+    const projectId = searchParams.get('project')
+    if (projectId && (!currentProject || currentProject.id !== projectId)) {
+      getProjectById(projectId).then(project => {
+        console.log('📦 Loaded project from AWS:', project.name)
+        console.log('Has generatedCode:', !!project.generatedCode)
+        console.log('Has generatedIaC:', !!project.generatedIaC)
+        dispatch({ type: 'SET_CURRENT_PROJECT', payload: project })
+      }).catch(error => {
+        console.error('Failed to load project:', error)
+        router.push('/projects')
+      })
+    }
+  }, [searchParams, currentProject, dispatch, router])
 
   async function retryGenerate(kind: 'code'|'iac') {
     if (!currentProject) return
+    
+    // Normalize schema to array format (AWS returns { tables: [...] })
+    const normalizedSchema = Array.isArray(currentProject.schema) 
+      ? currentProject.schema 
+      : currentProject.schema?.tables || []
+    
+    console.log('🔍 Dashboard: Current project before generation:', {
+      name: currentProject.name,
+      hasSchema: !!currentProject.schema,
+      schemaType: Array.isArray(currentProject.schema) ? 'array' : typeof currentProject.schema,
+      normalizedSchemaLength: normalizedSchema.length,
+      schemaSample: normalizedSchema.length > 0 ? normalizedSchema[0].name : 'No tables'
+    })
+    
+    if (normalizedSchema.length === 0) {
+      alert('Project has no tables. Please add tables to your schema first.')
+      return
+    }
+    
+    if (kind === 'code') setIsGeneratingCode(true)
+    else setIsGeneratingIac(true)
+    
+    // Create normalized project with schema as array
+    const normalizedProject = {
+      ...currentProject,
+      schema: normalizedSchema
+    }
+    
     try {
       if (kind === 'code') {
         const resp = await fetch('/api/generate-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project: currentProject, framework: 'express', language: 'typescript', includeAuth: false, includeTests: false })
+          body: JSON.stringify({ project: normalizedProject, framework: 'express', language: 'typescript', includeAuth: false, includeTests: false })
         })
         const data = await resp.json()
-        if (data?.success) {
-          dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode: data.data } as any })
-        } else {
-          dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode: { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'Code generation failed' } } as any })
+        const generatedCode = data?.success 
+          ? data.data 
+          : { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'Code generation failed' }
+        
+        // Update local state
+        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode } as any })
+        
+        // Save to AWS (project ID is the backend ID)
+        try {
+          const { updateProject: updateProjectAPI } = await import('@/lib/api-client')
+          await updateProjectAPI(currentProject.id, { generatedCode })
+          console.log('✅ Generated code saved to AWS')
+        } catch (awsError) {
+          console.warn('⚠️ Failed to save generated code to AWS:', awsError)
         }
       } else {
         const resp = await fetch('/api/generate-iac', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project: currentProject, options: { targets: ['terraform','aws-cdk','docker-compose'], cloud: 'aws', environment: 'development' } })
+          body: JSON.stringify({ project: normalizedProject, options: { targets: ['terraform','aws-cdk','docker-compose'], cloud: 'aws', environment: 'development' } })
         })
         const data = await resp.json()
-        if (data?.success) {
-          dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC: data.data } as any })
-        } else {
-          dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC: { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'IaC generation failed' } } as any })
+        const generatedIaC = data?.success
+          ? data.data
+          : { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'IaC generation failed' }
+        
+        // Update local state
+        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC } as any })
+        
+        // Save to AWS (project ID is the backend ID)
+        try {
+          const { updateProject: updateProjectAPI } = await import('@/lib/api-client')
+          await updateProjectAPI(currentProject.id, { generatedIaC })
+          console.log('✅ Generated IaC saved to AWS')
+        } catch (awsError) {
+          console.warn('⚠️ Failed to save generated IaC to AWS:', awsError)
         }
       }
     } catch (e) {
@@ -62,12 +133,20 @@ export default function Dashboard() {
       } else {
         dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC: { files: [], instructions: '', dependencies: [], success: false, error: msg } } as any })
       }
+    } finally {
+      if (kind === 'code') setIsGeneratingCode(false)
+      else setIsGeneratingIac(false)
     }
   }
 
   const metrics = useMemo(() => {
-    const tables = currentProject?.schema?.length || 0
-    const fields = currentProject?.schema?.reduce((acc: number, t: any) => acc + (t.fields?.length || 0), 0) || 0
+    // Handle schema - AWS returns { tables: [...] } not just an array
+    const schemaArray = Array.isArray(currentProject?.schema) 
+      ? currentProject.schema 
+      : currentProject?.schema?.tables || []
+    
+    const tables = schemaArray.length || 0
+    const fields = schemaArray.reduce((acc: number, t: any) => acc + (t.fields?.length || 0), 0) || 0
     const endpoints = currentProject?.endpoints?.length ?? (tables > 0 ? tables * 4 : 0)
     const decisions = (currentProject as any)?.decisions?.decisions?.length || 0
     const components = (currentProject as any)?.architecture?.nodes?.length || 0
@@ -77,8 +156,14 @@ export default function Dashboard() {
 
   const fieldTypeData = useMemo(() => {
     if (!currentProject?.schema) return [] as { name: string; value: number; fill: string }[]
+    
+    // Handle schema - AWS returns { tables: [...] } not just an array
+    const schemaArray = Array.isArray(currentProject.schema) 
+      ? currentProject.schema 
+      : currentProject.schema?.tables || []
+    
     const counts = new Map<string, number>()
-    currentProject.schema.forEach((tbl: any) => {
+    schemaArray.forEach((tbl: any) => {
       tbl.fields?.forEach((f: any) => {
         const key = typeof f.type === 'string' && f.type.trim() ? f.type : 'Other'
         counts.set(key, (counts.get(key) || 0) + 1)
@@ -216,12 +301,12 @@ export default function Dashboard() {
               title="Project Metrics"
               description="Overview of your infrastructure components"
               stats={[
-                { label: "Database Tables", value: metrics.tables, change: 12, changeLabel: "vs. last week" },
-                { label: "Total Fields", value: metrics.fields, change: 8, changeLabel: "vs. last week" },
-                { label: "API Endpoints", value: metrics.endpoints, change: 15, changeLabel: "vs. last week" },
-                { label: "Architecture Nodes", value: metrics.components, change: 5, changeLabel: "vs. last week" },
-                { label: "Connections", value: metrics.connections, change: 3, changeLabel: "vs. last week" },
-                { label: "Decisions Made", value: metrics.decisions, change: 0, changeLabel: "vs. last week" },
+                { label: "Database Tables", value: metrics.tables },
+                { label: "Total Fields", value: metrics.fields },
+                { label: "API Endpoints", value: metrics.endpoints },
+                { label: "Architecture Nodes", value: metrics.components },
+                { label: "Connections", value: metrics.connections },
+                { label: "Decisions Made", value: metrics.decisions },
               ]}
               columns={6}
             />
@@ -237,16 +322,14 @@ export default function Dashboard() {
                     value={metrics.tables}
                     subtitle="Active schema definitions"
                     icon={<Database className="h-5 w-5" />}
-                    change={{ value: 12, period: "vs. last week", isPositive: true }}
-                    status="success"
+                    status={metrics.tables > 0 ? "success" : "info"}
                   />
                   <EnterpriseMetricCard
                     title="API Endpoints"
                     value={metrics.endpoints}
                     subtitle="REST API routes"
                     icon={<Code2 className="h-5 w-5" />}
-                    change={{ value: 15, period: "vs. last week", isPositive: true }}
-                    status="success"
+                    status={metrics.endpoints > 0 ? "success" : "info"}
                   />
                 </div>
 
@@ -305,53 +388,171 @@ export default function Dashboard() {
                   </Card>
                 </div>
 
-                {/* Generated Assets */}
-                <Card id="assets" className="border border-gray-200 shadow-sm">
-                <CardHeader className="pb-3 border-b border-gray-100 bg-white">
-                  <CardTitle className="text-sm font-semibold text-gray-900">Generated Assets</CardTitle>
-                  <CardDescription className="text-xs text-gray-600 mt-1">Backend code and Infrastructure-as-Code</CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 bg-white">
-                  <Tabs defaultValue={currentProject?.generatedCode ? 'code' : 'iac'}>
-                    <TabsList>
-                      <TabsTrigger value="code">Backend Code</TabsTrigger>
-                      <TabsTrigger value="iac">IaC</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="code" className="mt-3 space-y-2">
-                      {currentProject?.generatedCode?.files?.length ? (
+                {/* Backend Code */}
+                <Card id="backend-code" className="border border-gray-200 shadow-sm">
+                  <CardHeader className="pb-3 border-b border-gray-100 bg-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                          <Code2 className="w-4 h-4" />
+                          Backend Code
+                        </CardTitle>
+                        <CardDescription className="text-xs text-gray-600 mt-1">Production-ready API endpoints and models</CardDescription>
+                      </div>
+                      {currentProject?.generatedCode?.files?.length > 0 && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
+                          {currentProject.generatedCode.files.length} files
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 bg-white">
+                    {isGeneratingCode ? (
+                      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                        <div className="relative">
+                          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                        </div>
+                        <div className="text-center space-y-1">
+                          <p className="text-sm font-medium text-gray-900">Generating Backend Code</p>
+                          <p className="text-xs text-gray-500">Analyzing schema and creating API endpoints...</p>
+                        </div>
+                      </div>
+                    ) : currentProject?.generatedCode?.files?.length ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          <span className="text-sm font-medium text-green-900">Code Generated Successfully</span>
+                        </div>
                         <GeneratedFilesList files={currentProject.generatedCode.files} fileType="code" projectName={currentProject.name} />
-                      ) : (
-                        <>
-                          <div className="text-sm text-gray-500">
-                            {currentProject?.generatedCode?.success === false ? (
-                              <>Code generation failed: {currentProject.generatedCode.error || 'Unknown error'}</>
-                            ) : (
-                              <>Generating backend code…</>
+                      </div>
+                    ) : currentProject?.generatedCode?.success === false ? (
+                      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg max-w-md">
+                          <div className="flex items-start gap-3">
+                            <Shield className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium text-red-900">Generation Failed</p>
+                              <p className="text-xs text-red-700">{currentProject.generatedCode.error || 'Unknown error occurred'}</p>
+                              <Button variant="outline" size="sm" onClick={() => retryGenerate('code')} className="mt-2">
+                                <RefreshCw className="w-3 h-3 mr-2" />
+                                Try Again
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border border-dashed border-gray-300 rounded-lg p-8">
+                        <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                          <div className="p-3 bg-gray-100 rounded-full">
+                            <Code2 className="w-6 h-6 text-gray-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-semibold text-gray-900">No Backend Code Yet</h4>
+                            <p className="text-xs text-gray-500 max-w-sm">Generate production-ready backend code with API endpoints, models, and database configuration based on your schema.</p>
+                          </div>
+                          <div className="pt-2">
+                            <Button 
+                              onClick={() => retryGenerate('code')} 
+                              size="sm"
+                              disabled={metrics.tables === 0}
+                              className="shadow-sm"
+                            >
+                              <Code2 className="w-4 h-4 mr-2" />
+                              Generate Backend Code
+                            </Button>
+                            {metrics.tables === 0 && (
+                              <p className="text-xs text-gray-500 mt-2">Add tables to your schema first</p>
                             )}
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => retryGenerate('code')}>Retry</Button>
-                        </>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Infrastructure as Code */}
+                <Card id="infrastructure" className="border border-gray-200 shadow-sm">
+                  <CardHeader className="pb-3 border-b border-gray-100 bg-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                          <Rocket className="w-4 h-4" />
+                          Infrastructure as Code
+                        </CardTitle>
+                        <CardDescription className="text-xs text-gray-600 mt-1">Terraform, AWS CDK, and Docker configurations</CardDescription>
+                      </div>
+                      {currentProject?.generatedIaC?.files?.length > 0 && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
+                          {currentProject.generatedIaC.files.length} files
+                        </Badge>
                       )}
-                    </TabsContent>
-                    <TabsContent value="iac" className="mt-3 space-y-2">
-                      {currentProject?.generatedIaC?.files?.length ? (
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 bg-white">
+                    {isGeneratingIac ? (
+                      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                        <div className="relative">
+                          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                        </div>
+                        <div className="text-center space-y-1">
+                          <p className="text-sm font-medium text-gray-900">Generating Infrastructure Code</p>
+                          <p className="text-xs text-gray-500">Creating Terraform, CDK, and Docker configurations...</p>
+                        </div>
+                      </div>
+                    ) : currentProject?.generatedIaC?.files?.length ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          <span className="text-sm font-medium text-green-900">Infrastructure Code Generated</span>
+                        </div>
                         <GeneratedFilesList files={currentProject.generatedIaC.files} fileType="iac" projectName={currentProject.name} />
-                      ) : (
-                        <>
-                          <div className="text-sm text-gray-500">
-                            {currentProject?.generatedIaC?.success === false ? (
-                              <>IaC generation failed: {currentProject.generatedIaC.error || 'Unknown error'}. {`Ensure GROQ_API_KEY is configured on the server.`}</>
-                            ) : (
-                              <>Generating infrastructure code…</>
+                      </div>
+                    ) : currentProject?.generatedIaC?.success === false ? (
+                      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg max-w-md">
+                          <div className="flex items-start gap-3">
+                            <Shield className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium text-red-900">Generation Failed</p>
+                              <p className="text-xs text-red-700">{currentProject.generatedIaC.error || 'Unknown error occurred'}</p>
+                              <Button variant="outline" size="sm" onClick={() => retryGenerate('iac')} className="mt-2">
+                                <RefreshCw className="w-3 h-3 mr-2" />
+                                Try Again
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border border-dashed border-gray-300 rounded-lg p-8">
+                        <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                          <div className="p-3 bg-gray-100 rounded-full">
+                            <Rocket className="w-6 h-6 text-gray-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-semibold text-gray-900">No Infrastructure Code Yet</h4>
+                            <p className="text-xs text-gray-500 max-w-sm">Generate Infrastructure-as-Code including Terraform, AWS CDK, and Docker Compose configurations for deployment.</p>
+                          </div>
+                          <div className="pt-2">
+                            <Button 
+                              onClick={() => retryGenerate('iac')} 
+                              size="sm"
+                              disabled={metrics.tables === 0}
+                              className="shadow-sm"
+                            >
+                              <Rocket className="w-4 h-4 mr-2" />
+                              Generate Infrastructure Code
+                            </Button>
+                            {metrics.tables === 0 && (
+                              <p className="text-xs text-gray-500 mt-2">Add tables to your schema first</p>
                             )}
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => retryGenerate('iac')}>Retry</Button>
-                        </>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Right Column - 1/3 width */}
@@ -362,21 +563,18 @@ export default function Dashboard() {
                   items={[
                     {
                       label: "Database",
-                      status: "operational",
-                      description: currentProject?.database?.type || "PostgreSQL",
-                      lastChecked: "2 minutes ago",
+                      status: currentProject?.database?.type ? "operational" : "maintenance",
+                      description: currentProject?.database?.type || "Not configured",
                     },
                     {
                       label: "API Endpoints",
                       status: metrics.endpoints > 0 ? "operational" : "maintenance",
                       description: `${metrics.endpoints} active routes`,
-                      lastChecked: "Just now",
                     },
                     {
                       label: "Deployment",
                       status: currentProject?.deployment ? "operational" : "maintenance",
                       description: currentProject?.deployment?.environment || "Not deployed",
-                      lastChecked: "5 minutes ago",
                     },
                   ]}
                 />
@@ -473,22 +671,27 @@ export default function Dashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {(currentProject?.schema || []).length > 0 ? (
-                            (currentProject?.schema || []).map((t: any) => (
-                              <TableRow key={t.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
-                                <TableCell className="font-medium text-gray-900 text-sm">{t.name}</TableCell>
-                                <TableCell className="text-right text-gray-600 text-sm">{t.fields?.length || 0}</TableCell>
-                                <TableCell className="text-right text-gray-600 text-sm">{t.relationships?.length || 0}</TableCell>
-                                <TableCell className="text-right text-gray-600 text-sm">{t.indexes?.length || 0}</TableCell>
+                          {(() => {
+                            const schemaArray = Array.isArray(currentProject?.schema) 
+                              ? currentProject.schema 
+                              : currentProject?.schema?.tables || []
+                            return schemaArray.length > 0 ? (
+                              schemaArray.map((t: any) => (
+                                <TableRow key={t.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
+                                  <TableCell className="font-medium text-gray-900 text-sm">{t.name}</TableCell>
+                                  <TableCell className="text-right text-gray-600 text-sm">{t.fields?.length || 0}</TableCell>
+                                  <TableCell className="text-right text-gray-600 text-sm">{t.relationships?.length || 0}</TableCell>
+                                  <TableCell className="text-right text-gray-600 text-sm">{t.indexes?.length || 0}</TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center text-sm text-gray-500 py-8">
+                                  No tables defined yet
+                                </TableCell>
                               </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center text-sm text-gray-500 py-8">
-                                No tables defined yet
-                              </TableCell>
-                            </TableRow>
-                          )}
+                            )
+                          })()}
                         </TableBody>
                       </Table>
                     </div>
@@ -572,21 +775,35 @@ export default function Dashboard() {
                   <TabsContent value="decisions" className="mt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {(currentProject as any)?.decisions?.decisions?.length > 0 ? (
-                        (currentProject as any).decisions.decisions.slice(0, 12).map((d: any) => (
-                          <Card key={d.id} className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                            <CardContent className="p-4 bg-white">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
-                                  <p className="text-sm font-semibold text-gray-900">{d.title}</p>
-                                  <p className="text-xs text-gray-600 mt-1.5 line-clamp-2">{d.description}</p>
+                        (currentProject as any).decisions.decisions.slice(0, 12).map((d: any) => {
+                          // Use user's actual selection if available, otherwise fall back to recommended
+                          const userSelectedToolId = (currentProject as any)?.selectedTools?.[d.id]
+                          const toolIdToUse = userSelectedToolId || d.selectedTool
+                          const selectedTool = d.recommendations?.find((r: any) => r.id === toolIdToUse)
+                          const isUserSelection = !!userSelectedToolId
+                          return (
+                            <Card key={d.id} className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <CardContent className="p-4 bg-white">
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex-1">
+                                    <p className="text-sm font-semibold text-gray-900">{d.title}</p>
+                                  </div>
+                                  <Badge variant="secondary" className="text-xs flex-shrink-0 bg-gray-100 text-gray-700 border-gray-200">
+                                    {d.category}
+                                  </Badge>
                                 </div>
-                                <Badge variant="secondary" className="text-xs flex-shrink-0 bg-gray-100 text-gray-700 border-gray-200">
-                                  {d.category}
-                                </Badge>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))
+                                {selectedTool && (
+                                  <div className="mb-2">
+                                    <Badge className="text-xs font-semibold bg-blue-600 text-white">
+                                      {selectedTool.name}
+                                    </Badge>
+                                  </div>
+                                )}
+                                <p className="text-xs text-gray-600 line-clamp-2">{d.description}</p>
+                              </CardContent>
+                            </Card>
+                          )
+                        })
                       ) : (
                         <div className="col-span-2 text-center text-sm text-gray-500 py-8">
                           No decisions made yet

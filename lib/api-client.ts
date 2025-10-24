@@ -140,6 +140,17 @@ export interface CreateProjectPayload {
     tables: any[]
     relationships?: any[]
   }
+  endpoints?: any[]
+  database?: {
+    type: string
+    reasoning?: string
+    confidence?: number
+    features?: string[]
+  }
+  architecture?: any
+  decisions?: any
+  selectedTools?: Record<string, string>
+  analysis?: any
 }
 
 export interface UpdateProjectPayload {
@@ -147,6 +158,20 @@ export interface UpdateProjectPayload {
   description?: string
   status?: 'draft' | 'building' | 'deployed' | 'error'
   schema?: any
+  generatedCode?: {
+    files: Array<{ path: string; content: string; description?: string }>
+    instructions: string
+    dependencies: string[]
+    success: boolean
+    error?: string
+  }
+  generatedIaC?: {
+    files: Array<{ path: string; content: string; description?: string }>
+    instructions: string
+    dependencies: string[]
+    success: boolean
+    error?: string
+  }
 }
 
 export interface ApiResponse<T> {

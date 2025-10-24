@@ -430,9 +430,9 @@ export default function LandingPage() {
             <div className="pt-28 sm:pt-32 md:pt-36 lg:pt-[140px] pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-0 w-full">
               <div className="w-full max-w-[900px] flex flex-col justify-center items-center gap-2 sm:gap-3">
                 <div className="self-stretch rounded-[3px] flex flex-col justify-center items-center gap-3 sm:gap-4 md:gap-5">
-              <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[36px] xs:text-[40px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-normal leading-[1.15] sm:leading-[1.15] md:leading-[1.15] font-serif px-2 sm:px-4 md:px-0" style={{ letterSpacing: '-0.04em' }}>
-                    <span className="text-[#1d1d1f]">Enterprise infrastructure in</span>
-                    <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className}`}>one prompt.</span>
+              <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[36px] xs:text-[40px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-normal leading-[1.15] sm:leading-[1.15] md:leading-[1.15] font-serif px-2 sm:px-4 md:px-0" style={{ letterSpacing: '-0.02em' }}>
+                    <span className="text-[#1d1d1f]" style={{ letterSpacing: '-0.02em' }}>Enterprise infrastructure in</span>
+                    <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className}`} style={{ letterSpacing: '-0.02em' }}>one prompt.</span>
                   </div>
                   <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[rgba(55,50,47,0.80)] text-[15px] sm:text-[16px] leading-[1.6] font-sans px-2 sm:px-4 md:px-0 font-normal">
                     Multi-tenant architecture. Database schemas. API layers. Security built-in.

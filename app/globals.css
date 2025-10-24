@@ -119,6 +119,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    letter-spacing: 0.025em;
+  }
+  
+  p, span, button, a, label, input, textarea, select, li, td, th, div {
+    letter-spacing: 0.025em;
   }
 }
 

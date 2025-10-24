@@ -36,7 +36,19 @@ const createProjectSchema = Joi.object({
       indexes: Joi.array().default([])
     })).min(1).required(),
     relationships: Joi.array().default([])
-  }).required()
+  }).required(),
+  // Additional onboarding data
+  endpoints: Joi.array().optional(),
+  database: Joi.object({
+    type: Joi.string().required(),
+    reasoning: Joi.string().optional(),
+    confidence: Joi.number().optional(),
+    features: Joi.array().items(Joi.string()).optional()
+  }).optional(),
+  architecture: Joi.any().optional(),
+  decisions: Joi.any().optional(),
+  selectedTools: Joi.object().optional(),
+  analysis: Joi.any().optional()
 });
 
 const updateProjectSchema = Joi.object({
@@ -52,6 +64,31 @@ const updateProjectSchema = Joi.object({
       indexes: Joi.array().default([])
     })).optional(),
     relationships: Joi.array().optional()
+  }).optional(),
+  // Generated code and IaC
+  generatedCode: Joi.object({
+    files: Joi.array().items(Joi.object({
+      path: Joi.string().required(),
+      content: Joi.string().allow('').optional(),
+      description: Joi.string().optional()
+    })).optional(),
+    instructions: Joi.string().optional(),
+    dependencies: Joi.array().items(Joi.string()).optional(),
+    success: Joi.boolean().optional(),
+    error: Joi.string().optional(),
+    steps: Joi.any().optional()
+  }).optional(),
+  generatedIaC: Joi.object({
+    files: Joi.array().items(Joi.object({
+      path: Joi.string().required(),
+      content: Joi.string().allow('').optional(),
+      description: Joi.string().optional()
+    })).optional(),
+    instructions: Joi.string().optional(),
+    dependencies: Joi.array().items(Joi.string()).optional(),
+    success: Joi.boolean().optional(),
+    error: Joi.string().optional(),
+    steps: Joi.any().optional()
   }).optional()
 });
 
@@ -122,7 +159,14 @@ router.post('/', auth, asyncHandler(async (req: AuthenticatedRequest, res: Respo
       name: value.name,
       description: value.description,
       schema: value.schema,
-      status: ProjectStatus.DRAFT
+      status: ProjectStatus.DRAFT,
+      // Include all onboarding data
+      ...(value.endpoints && { endpoints: value.endpoints }),
+      ...(value.database && { database: value.database }),
+      ...(value.architecture && { architecture: value.architecture }),
+      ...(value.decisions && { decisions: value.decisions }),
+      ...(value.selectedTools && { selectedTools: value.selectedTools }),
+      ...(value.analysis && { analysis: value.analysis })
     });
 
     res.status(201).json({
@@ -189,13 +233,31 @@ router.put('/:id', auth, asyncHandler(async (req: AuthenticatedRequest, res: Res
   const userId = getCurrentUserId(req);
   
   console.log('PUT /api/projects/:id - Project ID:', projectId, 'User ID:', userId);
+  console.log('Request body keys:', Object.keys(req.body));
   
-  const { error, value } = updateProjectSchema.validate(req.body);
+  const { error, value } = updateProjectSchema.validate(req.body, { abortEarly: false });
   if (error) {
+    console.error('❌ Update validation failed:', error.details.map(d => ({
+      path: d.path.join('.'),
+      message: d.message,
+      type: d.type
+    })));
+    console.error('📦 Received payload keys:', Object.keys(req.body));
+    if (req.body.generatedCode) {
+      console.error('generatedCode keys:', Object.keys(req.body.generatedCode));
+      if (req.body.generatedCode.files) {
+        console.error('generatedCode.files length:', req.body.generatedCode.files.length);
+        console.error('First file keys:', Object.keys(req.body.generatedCode.files[0] || {}));
+      }
+    }
     return res.status(400).json({
       success: false,
       error: 'Validation failed',
-      details: error.details.map(d => d.message),
+      details: error.details.map(d => ({
+        field: d.path.join('.'),
+        message: d.message,
+        type: d.type
+      })),
       timestamp: new Date().toISOString()
     });
   }

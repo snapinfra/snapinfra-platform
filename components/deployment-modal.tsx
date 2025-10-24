@@ -275,8 +275,8 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
                   <h4 className="font-semibold text-sm mb-2">Deployment Summary</h4>
                   <div className="space-y-1 text-sm text-gray-600">
                     <p><strong>Project:</strong> {currentProject.name}</p>
-                    <p><strong>Tables:</strong> {currentProject.schema.length}</p>
-                    <p><strong>Database:</strong> {currentProject.database.type}</p>
+                    <p><strong>Tables:</strong> {Array.isArray(currentProject.schema) ? currentProject.schema.length : (currentProject.schema?.tables?.length || 0)}</p>
+                    <p><strong>Database:</strong> {currentProject.database?.type || 'Not configured'}</p>
                     <p><strong>Platform:</strong> {selectedPlatform?.name}</p>
                     <p><strong>Environment:</strong> {environment}</p>
                   </div>

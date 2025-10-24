@@ -19,5 +19,5 @@ export function useApiAuth() {
         return null;
       }
     });
-  }, [getToken]);
+  }, []); // Empty deps - getToken is stable from Clerk
 }

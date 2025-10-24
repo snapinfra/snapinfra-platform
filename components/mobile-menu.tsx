@@ -40,7 +40,7 @@ const navigationItems: NavItem[] = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { title: 'Projects', href: '/projects', icon: FolderKanban, badge: 'New' },
   { title: 'Schema', href: '/schema', icon: Database },
-  { title: 'Architecture', href: '/architecture-demo', icon: GitBranch },
+  { title: 'Architecture', href: '/architecture', icon: GitBranch },
   { title: 'Code Gen', href: '/code-generation', icon: Code2 },
   { title: 'Deployments', href: '/deployments', icon: Rocket },
   { title: 'Analytics', href: '/analytics', icon: BarChart3 },

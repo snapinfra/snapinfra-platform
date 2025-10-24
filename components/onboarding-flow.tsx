@@ -53,6 +53,7 @@ export function OnboardingFlow() {
       
       // Clear ALL data immediately
       localStorage.removeItem('onboarding-data')
+      localStorage.removeItem('onboarding-decisions')
       localStorage.removeItem('current-project')
       localStorage.removeItem('chat-history')
       
@@ -156,6 +157,18 @@ export function OnboardingFlow() {
         estimatedRows: 0,
       })) || []
 
+      // Flatten grouped endpoints into a single array with group info
+      const flattenedEndpoints = Array.isArray(data.endpoints)
+        ? data.endpoints.flatMap((group: any) => 
+            Array.isArray(group.endpoints)
+              ? group.endpoints.map((endpoint: any) => ({
+                  ...endpoint,
+                  group: group.group || 'General',
+                }))
+              : []
+          )
+        : []
+
       // Generate a smart project name from description
       const generateProjectName = (description: string): string => {
         if (!description) return 'My Project'
@@ -232,7 +245,7 @@ export function OnboardingFlow() {
       if (backendAvailable) {
         // Create project in backend (AWS DynamoDB)
         try {
-          console.log('📡 Calling backend API to create project...')
+          console.log('📡 Calling backend API to create project with full onboarding data...')
           const backendProject = await createProjectAPI({
             name: projectName,
             description: data.description || 'Generated from onboarding',
@@ -244,14 +257,25 @@ export function OnboardingFlow() {
                 fields: t.fields,
                 indexes: t.indexes
               }))
-            }
+            },
+            endpoints: flattenedEndpoints,
+            database: {
+              type: data.database?.toLowerCase() || 'postgresql',
+              reasoning: `Recommended for this ${data.description ? 'use case' : 'project'} based on AI analysis`,
+              confidence: 0.9,
+              features: ['ACID compliance', 'Complex queries', 'Scalability']
+            },
+            architecture: (data as any)?.architecture,
+            decisions: (data as any)?.decisions,
+            selectedTools: (data as any)?.selectedTools,
+            analysis: (data as any)?.analysis
           })
           
           // Use the project from backend with server-generated ID
           project = {
             ...backendProject,
             schema: tables,
-            endpoints: Array.isArray(data.endpoints) ? data.endpoints : [],
+            endpoints: flattenedEndpoints,
             database: {
               type: data.database?.toLowerCase() || 'postgresql',
               reasoning: `Recommended for this ${data.description ? 'use case' : 'project'} based on AI analysis`,
@@ -276,7 +300,7 @@ export function OnboardingFlow() {
             createdAt: new Date(),
             updatedAt: new Date(),
             schema: tables,
-            endpoints: Array.isArray(data.endpoints) ? data.endpoints : [],
+            endpoints: flattenedEndpoints,
             database: {
               type: data.database?.toLowerCase() || 'postgresql',
               reasoning: `Recommended for this ${data.description ? 'use case' : 'project'} based on AI analysis`,
@@ -293,79 +317,32 @@ export function OnboardingFlow() {
         // Backend not available - create project locally only
         console.log('⚠️ Backend not available, creating project locally only')
         project = {
-          id: `project_${Date.now()}`,
-          name: projectName,
-          description: data.description || 'Generated from onboarding',
-          status: 'draft',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          schema: tables,
-          endpoints: Array.isArray(data.endpoints) ? data.endpoints : [],
-          database: {
-            type: data.database?.toLowerCase() || 'postgresql',
-            reasoning: `Recommended for this ${data.description ? 'use case' : 'project'} based on AI analysis`,
-            confidence: 0.9,
-            features: ['ACID compliance', 'Complex queries', 'Scalability']
-          },
-          architecture: (data as any)?.architecture,
-          decisions: (data as any)?.decisions,
-          selectedTools: (data as any)?.selectedTools,
-          analysis: (data as any)?.analysis
-        }
+        id: `project_${Date.now()}`,
+        name: projectName,
+        description: data.description || 'Generated from onboarding',
+        status: 'draft',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        schema: tables,
+        endpoints: flattenedEndpoints,
+        database: {
+          type: data.database?.toLowerCase() || 'postgresql',
+          reasoning: `Recommended for this ${data.description ? 'use case' : 'project'} based on AI analysis`,
+          confidence: 0.9,
+          features: ['ACID compliance', 'Complex queries', 'Scalability']
+        },
+        architecture: (data as any)?.architecture,
+        decisions: (data as any)?.decisions,
+        selectedTools: (data as any)?.selectedTools,
+        analysis: (data as any)?.analysis
+      }
       }
 
       // Add project to state (this will also save to localStorage via app-context)
       dispatch({ type: 'ADD_PROJECT', payload: project })
 
-      // Fire-and-forget: generate backend code and IaC by default; update project when ready
-      ;(async () => {
-        try {
-          // Backend code (defaults)
-          const codeResp = await fetch('/api/generate-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              project,
-              framework: 'express',
-              language: 'typescript',
-              includeAuth: false,
-              includeTests: false,
-            }),
-          })
-          const codeData = await codeResp.json()
-          if (codeData?.success) {
-            dispatch({ type: 'UPDATE_PROJECT', payload: { id: project.id, generatedCode: codeData.data } as any })
-          } else {
-            dispatch({ type: 'UPDATE_PROJECT', payload: { id: project.id, generatedCode: { files: [], instructions: '', dependencies: [], success: false, error: codeData?.error || 'Code generation failed' } } as any })
-          }
-        } catch (e) {
-          console.warn('Auto code generation failed:', e)
-        }
-
-        try {
-          // IaC (defaults)
-          const iacResp = await fetch('/api/generate-iac', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              project,
-              options: {
-                targets: ['terraform', 'aws-cdk', 'docker-compose'],
-                cloud: 'aws',
-                environment: 'development',
-              },
-            }),
-          })
-          const iacData = await iacResp.json()
-          if (iacData?.success) {
-            dispatch({ type: 'UPDATE_PROJECT', payload: { id: project.id, generatedIaC: iacData.data } as any })
-          } else {
-            dispatch({ type: 'UPDATE_PROJECT', payload: { id: project.id, generatedIaC: { files: [], instructions: '', dependencies: [], success: false, error: iacData?.error || 'IaC generation failed' } } as any })
-          }
-        } catch (e) {
-          console.warn('Auto IaC generation failed:', e)
-        }
-      })()
+      // Note: Code and IaC generation is now user-triggered from the dashboard
+      // This prevents automatic generation errors and gives users control
       
       // Create initial chat message from user description
       const userMessage: ChatMessage = {
@@ -409,6 +386,7 @@ What would you like to explore next?`,
       // Mark onboarding as complete and clear data
       markOnboardingComplete()
       localStorage.removeItem('onboarding-data')
+      localStorage.removeItem('onboarding-decisions')
       router.push('/dashboard')
       
     } catch (error) {
@@ -416,6 +394,7 @@ What would you like to explore next?`,
       // Navigate to dashboard anyway and mark onboarding complete
       markOnboardingComplete()
       localStorage.removeItem('onboarding-data')
+      localStorage.removeItem('onboarding-decisions')
       router.push('/dashboard')
     }
   }

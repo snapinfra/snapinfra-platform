@@ -44,7 +44,8 @@ import {
   CheckSquare,
   XCircle,
   Download,
-  GitCompare
+  GitCompare,
+  Sparkles
 } from "lucide-react"
 
 import { SystemDecisionsSummary, SystemDecision, ToolRecommendation } from '@/lib/types/system-decisions'
@@ -97,10 +98,34 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   // Ref to preserve scroll position
   const scrollPositionRef = useRef<number>(0)
   const shouldRestoreScroll = useRef<boolean>(false)
+  const hasGeneratedRef = useRef<boolean>(false)
 
   useEffect(() => {
+    // Prevent double execution in React Strict Mode
+    if (hasGeneratedRef.current) {
+      return
+    }
+    
     const generateDecisions = async () => {
+      // Check if decisions are already cached in localStorage
+      const cachedDecisions = localStorage.getItem('onboarding-decisions')
+      if (cachedDecisions) {
+        try {
+          const parsed = JSON.parse(cachedDecisions)
+          console.log('✅ Using cached decisions:', parsed)
+          setDecisions(parsed.decisions)
+          setSelectedTools(parsed.selectedTools || {})
+          setIsGenerating(false)
+          hasGeneratedRef.current = true
+          return
+        } catch (error) {
+          console.warn('Failed to parse cached decisions:', error)
+          localStorage.removeItem('onboarding-decisions')
+        }
+      }
+
       setIsGenerating(true)
+      hasGeneratedRef.current = true
       
       try {
         if (!data.architecture) {
@@ -145,10 +170,17 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
           initialSelections[decision.id] = decision.selectedTool
         })
         setSelectedTools(initialSelections)
+        
+        // Cache the decisions to prevent re-generation
+        console.log('💾 Caching decisions to localStorage')
+        localStorage.setItem('onboarding-decisions', JSON.stringify({
+          decisions: decisionsSummary,
+          selectedTools: initialSelections
+        }))
       } catch (error) {
         console.error('Failed to generate system decisions:', error)
-        // DO NOT fall back to mock/static data - show error to user
         setDecisions(null)
+        hasGeneratedRef.current = false // Allow retry
         alert(
           `Failed to generate system decisions: ${
             error instanceof Error ? error.message : 'Unknown error'
@@ -160,7 +192,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
     }
     
     generateDecisions()
-  }, [data])
+  }, [])
   
   // Effect to restore scroll position after selection
   useEffect(() => {
@@ -186,10 +218,23 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   }, [selectedTools])
 
   const handleToolSelection = (decisionId: string, toolId: string) => {
-    setSelectedTools(prev => ({
-      ...prev,
-      [decisionId]: toolId
-    }))
+    // Use functional setState to avoid dependency on selectedTools
+    setSelectedTools(prev => {
+      const updated = {
+        ...prev,
+        [decisionId]: toolId
+      }
+      
+      // Update localStorage cache to persist selection
+      if (decisions) {
+        localStorage.setItem('onboarding-decisions', JSON.stringify({
+          decisions,
+          selectedTools: updated
+        }))
+      }
+      
+      return updated
+    })
   }
 
   const calculateTotalMonthlyCost = () => {
@@ -231,30 +276,35 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
     if (tool) {
       const score = calculateToolScore(tool)
       
-      // Batch state updates to prevent multiple re-renders
-      const isNewDecision = !completedDecisions.has(decisionId)
-      
-      if (isNewDecision) {
-        setTotalScore(prev => prev + score)
-        setCompletedDecisions(prev => new Set([...prev, decisionId]))
+      // Use functional updates to avoid state mutation issues
+      setCompletedDecisions(prev => {
+        const isNewDecision = !prev.has(decisionId)
         
-        // Check for achievements
-        const newAchievements = []
-        if (tool.type === 'open-source' && !achievements.includes('open-source-advocate')) {
-          newAchievements.push('open-source-advocate')
+        if (isNewDecision) {
+          setTotalScore(current => current + score)
+          
+          // Check for achievements
+          const newAchievements = []
+          if (tool.type === 'open-source' && !achievements.includes('open-source-advocate')) {
+            newAchievements.push('open-source-advocate')
+          }
+          if (tool.complexity === 'low' && !achievements.includes('simplicity-seeker')) {
+            newAchievements.push('simplicity-seeker')
+          }
+          if (prev.size + 1 === decisions?.decisions.length) {
+            newAchievements.push('decision-master')
+            setShowCelebration(true)
+            setTimeout(() => setShowCelebration(false), 3000)
+          }
+          if (newAchievements.length > 0) {
+            setAchievements(current => [...current, ...newAchievements])
+          }
+          
+          return new Set([...prev, decisionId])
         }
-        if (tool.complexity === 'low' && !achievements.includes('simplicity-seeker')) {
-          newAchievements.push('simplicity-seeker')
-        }
-        if (completedDecisions.size + 1 === decisions?.decisions.length) {
-          newAchievements.push('decision-master')
-          setShowCelebration(true)
-          setTimeout(() => setShowCelebration(false), 3000)
-        }
-        if (newAchievements.length > 0) {
-          setAchievements(prev => [...prev, ...newAchievements])
-        }
-      }
+        
+        return prev
+      })
     }
   }
 
@@ -862,6 +912,29 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                   <Settings className="w-4 h-4 mr-2" />
                   {decisions?.decisions.length || 0} Decisions
                 </Badge>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    if (!decisions) return
+                    const recommendedSelections: Record<string, string> = {}
+                    decisions.decisions.forEach(decision => {
+                      recommendedSelections[decision.id] = decision.selectedTool
+                    })
+                    
+                    setSelectedTools(recommendedSelections)
+                    
+                    // Update cache
+                    localStorage.setItem('onboarding-decisions', JSON.stringify({
+                      decisions,
+                      selectedTools: recommendedSelections
+                    }))
+                  }}
+                  className="h-9 px-4 text-xs bg-[#005BE3] hover:bg-[#004CC2] gap-2"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Use All Recommended
+                </Button>
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-[#605A57]" />
                   <Select value={filters.urgency} onValueChange={(value) => setFilters(prev => ({...prev, urgency: value}))}>
@@ -959,6 +1032,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {decision.recommendations.map((tool) => {
                           const isSelected = selectedTools[decision.id] === tool.id
+                          const isRecommended = tool.id === decision.selectedTool
                           
                           return (
                             <Card 
@@ -966,7 +1040,9 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                               className={`relative p-4 cursor-pointer transition-all duration-300 border group ${
                                 isSelected 
                                   ? 'ring-2 ring-[#005BE3] border-[#005BE3] bg-gradient-to-br from-[#005BE3]/10 to-[#005BE3]/5 shadow-lg scale-105' 
-                                  : 'border-[rgba(55,50,47,0.12)] hover:shadow-lg hover:border-[#005BE3]/50 hover:scale-102'
+                                  : isRecommended
+                                    ? 'border-[#005BE3]/30 bg-[#005BE3]/5 hover:shadow-lg hover:border-[#005BE3]/50'
+                                    : 'border-[rgba(55,50,47,0.12)] hover:shadow-md hover:border-[rgba(55,50,47,0.2)]'
                               }`}
                               onClick={(e) => {
                                 e.preventDefault()
@@ -980,6 +1056,16 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                                   <div className="w-8 h-8 rounded-full bg-[#005BE3] flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
                                     <CheckCircle className="w-5 h-5 text-white fill-[#005BE3]" />
                                   </div>
+                                </div>
+                              )}
+                              
+                              {/* Recommended Badge */}
+                              {!isSelected && isRecommended && (
+                                <div className="absolute -top-2 -right-2 z-10">
+                                  <Badge className="bg-[#005BE3] text-white text-[10px] h-6 px-2 shadow-md">
+                                    <Sparkles className="w-2.5 h-2.5 mr-1" />
+                                    Recommended
+                                  </Badge>
                                 </div>
                               )}
 

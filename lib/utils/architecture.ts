@@ -197,17 +197,20 @@ export function generateArchitectureFromData(
 
   // Create database node
   const recommendedDb = schemaData.analysis?.databaseRecommendations?.[0]?.name || 'PostgreSQL'
+  const schemas = Array.isArray(schemaData.schemas) ? schemaData.schemas : []
+  const totalFields = schemas.reduce((acc: number, schema: any) => acc + (schema.fields?.length || 0), 0)
+  
   nodes.push({
     id: 'database-1',
     type: 'database',
     position: { x: 700, y: 400 },
     data: {
       name: `${recommendedDb} Database`,
-      description: `${schemaData.schemas.length} tables, ${schemaData.schemas.reduce((acc: number, schema: any) => acc + schema.fields?.length || 0, 0)} fields`,
+      description: `${schemas.length} tables, ${totalFields} fields`,
       color: '#EF4444',
       metadata: {
         technology: recommendedDb,
-        tables: schemaData.schemas.length,
+        tables: schemas.length,
         estimatedSize: schemaData.analysis?.scalingInsights?.expectedLoad || 'Medium'
       }
     }

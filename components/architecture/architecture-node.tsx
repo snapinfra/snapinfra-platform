@@ -195,10 +195,10 @@ function ArchitectureNodeComponent({ data, selected, type }: NodeProps<Architect
               <IconComponent className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm text-[#1d1d1f] truncate">{data.name}</h4>
+              <h4 className="font-semibold text-[15px] text-[#1d1d1f] truncate">{data.name}</h4>
               <Badge 
                 variant="outline" 
-                className="text-[10px] mt-1 h-4 px-1.5 border-[rgba(55,50,47,0.12)]"
+                className="text-[11px] mt-1 h-5 px-2 border-[rgba(55,50,47,0.12)]"
                 style={{ borderColor: nodeColor, color: nodeColor }}
               >
                 {getNodeTypeLabel(type as string)}
@@ -239,42 +239,42 @@ function ArchitectureNodeComponent({ data, selected, type }: NodeProps<Architect
 
       <CardContent className="p-3 pt-0">
         <div className="space-y-2">
-          <p className="text-sm text-gray-600 truncate">{data.description}</p>
+          <p className="text-[13px] text-gray-600 truncate">{data.description}</p>
           
           {data.metadata && (
             <div className="space-y-1.5">
               {data.metadata.technology && (
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-[13px]">
                   <span className="text-gray-500">Tech:</span>
-                  <Badge variant="secondary" className="text-xs h-5">
+                  <Badge variant="secondary" className="text-[11px] h-5">
                     {data.metadata.technology}
                   </Badge>
                 </div>
               )}
               
               {data.metadata.port && (
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-[13px]">
                   <span className="text-gray-500">Port:</span>
                   <span className="font-mono">{data.metadata.port}</span>
                 </div>
               )}
               
               {data.metadata.tables && (
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-[13px]">
                   <span className="text-gray-500">Tables:</span>
                   <span className="font-medium">{data.metadata.tables}</span>
                 </div>
               )}
               
               {data.metadata.endpoints && Array.isArray(data.metadata.endpoints) && (
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-[13px]">
                   <span className="text-gray-500">Endpoints:</span>
                   <span className="font-medium">{data.metadata.endpoints.length}</span>
                 </div>
               )}
               
               {data.metadata.external && (
-                <Badge variant="outline" className="text-xs w-full justify-center h-5">
+                <Badge variant="outline" className="text-[11px] w-full justify-center h-5">
                   External Service
                 </Badge>
               )}

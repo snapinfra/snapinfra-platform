@@ -420,28 +420,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Initialize API authentication
   useApiAuth()
   
-  // Load persisted data on mount
+  // Load persisted data on mount - ONLY user preferences, NOT projects
   useEffect(() => {
-    // Clean up any old demo projects first
+    // Clean up any old demo projects and localStorage
     cleanupDemoProjects()
     
-    // Load projects and current project
-    const projects = loadProjects()
-    const currentProject = loadCurrentProject()
+    // Only load user preferences (UI state)
     const preferences = loadUserPreferences()
-    
-    if (projects.length > 0) {
-      // Set projects first
-      projects.forEach(project => {
-        dispatch({ type: 'ADD_PROJECT', payload: project })
-      })
-      
-      // Then set current project if it exists and is in the loaded projects
-      // Chat messages will be loaded automatically by the separate useEffect
-      if (currentProject && projects.some(p => p.id === currentProject.id)) {
-        dispatch({ type: 'SET_CURRENT_PROJECT', payload: currentProject })
-      }
-    }
     
     // Apply user preferences
     if (preferences.sidebarCollapsed !== undefined) {
@@ -452,16 +437,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
   
-  // Auto-save when state changes
-  useEffect(() => {
-    if (state.projects.length > 0) {
-      saveProjects(state.projects)
-    }
-  }, [state.projects])
+  // DO NOT auto-save projects to localStorage - AWS is source of truth
+  // Projects are only saved to AWS backend
   
   // Sync current project to backend when it changes (with debouncing)
+  // DISABLED: Projects are now loaded directly from AWS, no need to auto-sync
   useEffect(() => {
     const syncProjectToBackend = async () => {
+      // Skip auto-sync - projects are managed via explicit API calls
+      return;
       if (!state.currentProject) {
         saveCurrentProject(null)
         return
@@ -502,8 +486,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
           if (meta.backendId) {
             // Project exists in backend, update it
+            // Handle schema - it might be an object or array
+            const schemaArray = Array.isArray(state.currentProject.schema) 
+              ? state.currentProject.schema 
+              : state.currentProject.schema?.tables || []
+            
             // Filter out tables without fields
-            const validTables = state.currentProject.schema.filter(t => 
+            const validTables = schemaArray.filter((t: any) => 
               t.fields && t.fields.length > 0
             )
             
@@ -535,7 +524,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   // Note: relationships not allowed at table level per backend validation
                 })),
                 relationships: []
-              }
+              },
+              endpoints: state.currentProject.endpoints || [],
+              decisions: state.currentProject.decisions || { decisions: [] },
+              architecture: state.currentProject.architecture || { nodes: [], edges: [] },
+              database: state.currentProject.database || { type: 'PostgreSQL' }
             })
             console.log('✅ Project updated in backend successfully')
           } else {
@@ -543,8 +536,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.log('📝 Creating project in backend for the first time...')
             
             // Prepare clean schema data for backend
+            // Handle schema - it might be an object or array
+            const schemaArray = Array.isArray(state.currentProject.schema) 
+              ? state.currentProject.schema 
+              : state.currentProject.schema?.tables || []
+            
             // Filter out tables without fields (invalid)
-            const validTables = state.currentProject.schema.filter(t => 
+            const validTables = schemaArray.filter((t: any) => 
               t.fields && t.fields.length > 0
             )
             
@@ -575,7 +573,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   // Note: relationships not allowed at table level per backend validation
                 })),
                 relationships: []
-              }
+              },
+              endpoints: state.currentProject.endpoints || [],
+              decisions: state.currentProject.decisions || { decisions: [] },
+              architecture: state.currentProject.architecture || { nodes: [], edges: [] },
+              database: state.currentProject.database || { type: 'PostgreSQL' }
             }
             
             console.log('Schema payload:', JSON.stringify(schemaPayload, null, 2))
@@ -608,8 +610,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem(`project-meta-${state.currentProject.id}`)
             
             try {
+              // Handle schema - it might be an object or array
+              const schemaArray = Array.isArray(state.currentProject.schema) 
+                ? state.currentProject.schema 
+                : state.currentProject.schema?.tables || []
+              
               // Filter out tables without fields (invalid)
-              const validTables = state.currentProject.schema.filter(t => 
+              const validTables = schemaArray.filter((t: any) => 
                 t.fields && t.fields.length > 0
               )
               
@@ -640,7 +647,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     // Note: relationships not allowed at table level per backend validation
                   })),
                   relationships: []
-                }
+                },
+                endpoints: state.currentProject.endpoints || [],
+                decisions: state.currentProject.decisions || { decisions: [] },
+                architecture: state.currentProject.architecture || { nodes: [], edges: [] },
+                database: state.currentProject.database || { type: 'PostgreSQL' }
               })
               
               // Update the stored backend ID

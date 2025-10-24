@@ -62,7 +62,7 @@ const navigationItems: NavItem[] = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, description: 'Overview & metrics' },
   { title: 'Projects', href: '/projects', icon: Boxes, badge: 'New', description: 'Manage all projects' },
   { title: 'Schema', href: '/schema', icon: Database, description: 'Database design' },
-  { title: 'Architecture', href: '/architecture-demo', icon: Layers, description: 'System architecture' },
+  { title: 'Architecture', href: '/architecture', icon: Layers, description: 'System architecture' },
   { title: 'Code Gen', href: '/code-generation', icon: Code2, description: 'Generate code' },
   { title: 'Deployments', href: '/deployments', icon: Rocket, description: 'Deploy & monitor' },
   { title: 'Analytics', href: '/analytics', icon: BarChart3, description: 'Project insights' },

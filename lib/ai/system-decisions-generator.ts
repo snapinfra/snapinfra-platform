@@ -1025,7 +1025,7 @@ export async function generateSystemDecisions(
       model: groq(AI_CONFIG.model),
       prompt,
       temperature: options.temperature ?? 0.7,
-      maxTokens: options.maxTokens ?? 8000,
+      maxTokens: options.maxTokens ?? 16000,
     });
 
     const cleanedText = text.trim()
@@ -1034,7 +1034,20 @@ export async function generateSystemDecisions(
       .replace(/^```\s*/, '')
       .trim();
 
-    const result: SystemDecisionsSummary = JSON.parse(cleanedText);
+    // Debug logging
+    console.log('AI response length:', text.length);
+    console.log('Cleaned text preview:', cleanedText.substring(0, 200));
+    console.log('Cleaned text ending:', cleanedText.substring(cleanedText.length - 200));
+
+    let result: SystemDecisionsSummary;
+    try {
+      result = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Failed to parse text (first 500 chars):', cleanedText.substring(0, 500));
+      console.error('Failed to parse text (last 500 chars):', cleanedText.substring(cleanedText.length - 500));
+      throw new Error('AI returned incomplete or invalid JSON. The response was cut off. Try reducing the complexity of your architecture or try again.');
+    }
 
     // Basic validation
     if (!result.projectName || !result.architecture || !result.decisions || !result.integrationPlan || !result.totalCostEstimate || !result.riskAssessment) {

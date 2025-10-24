@@ -23,42 +23,48 @@ export default function ProjectsPage() {
   const [sortBy, setSortBy] = useState("updated")
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
 
-  // Fetch projects from backend on mount
+  // Fetch projects from backend on mount - AWS is the ONLY source of truth
   useEffect(() => {
     async function fetchProjects() {
+      setIsLoadingProjects(true)
       try {
-        const backendAvailable = await isBackendAvailable()
-        if (!backendAvailable) {
-          console.log('Backend unavailable, using local projects only')
-          return
-        }
-
-        setIsLoadingProjects(true)
+        // Check what user ID we're using
+        const { getCurrentUserId } = await import('@/lib/api-client')
+        const userId = getCurrentUserId()
+        console.log('👤 Current user ID:', userId)
+        
+        // Clear existing local projects and localStorage first
+        state.projects.forEach(p => {
+          localStorage.removeItem(`project-meta-${p.id}`)
+          localStorage.removeItem(`chat-${p.id}`)
+        })
+        
+        // Fetch projects directly from AWS backend
         const backendProjects = await getProjects()
         
-        // Merge backend projects with local state
-        // Backend projects should be the source of truth
-        backendProjects.forEach(backendProject => {
-          const localProject = state.projects.find(p => {
-            const meta = localStorage.getItem(`project-meta-${p.id}`)
-            if (!meta) return false
-            const parsed = JSON.parse(meta)
-            return parsed.backendId === backendProject.id
-          })
-          
-          if (localProject) {
-            // Update existing project with backend data
+        console.log(`📦 Received ${backendProjects.length} projects from AWS`)
+        
+        // Add each backend project to state
+        backendProjects.forEach((backendProject, index) => {
+          try {
+            console.log(`➡️ Project ${index + 1}:`, backendProject.name, '(ID:', backendProject.id, ')')
             dispatch({ 
-              type: 'UPDATE_PROJECT', 
-              payload: { 
-                id: localProject.id,
-                ...backendProject 
-              } 
+              type: 'ADD_PROJECT', 
+              payload: backendProject
             })
+          } catch (err) {
+            console.error(`❌ Failed to add project ${index + 1}:`, err)
+            console.error('Project data:', backendProject)
           }
         })
-      } catch (error) {
-        console.error('Failed to fetch projects from backend:', error)
+        
+        console.log(`✅ Successfully loaded ${backendProjects.length} projects from AWS backend`)
+      } catch (error: any) {
+        console.error('❌ Failed to fetch projects from AWS backend:', error?.message || error)
+        // Show user-friendly error message
+        if (error?.statusCode === 401) {
+          console.error('Please sign in to view your projects')
+        }
       } finally {
         setIsLoadingProjects(false)
       }
@@ -86,27 +92,30 @@ export default function ProjectsPage() {
   }
 
   const handleDeleteProject = async (projectId: string) => {
-    try {
-      // Get backend ID from localStorage metadata
-      const meta = localStorage.getItem(`project-meta-${projectId}`)
-      if (meta) {
-        const parsed = JSON.parse(meta)
-        if (parsed.backendId) {
-          // Delete from backend first
-          const backendAvailable = await isBackendAvailable()
-          if (backendAvailable) {
-            await deleteProjectAPI(parsed.backendId)
-            console.log('Project deleted from backend successfully')
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to delete project from backend:', error)
-      // Continue with local deletion even if backend fails
-    }
+    console.log('🗑️ Attempting to delete project:', projectId)
     
-    // Always delete from local state
-    dispatch({ type: 'DELETE_PROJECT', payload: projectId })
+    try {
+      // Project ID from AWS is the actual backend ID - use it directly
+      await deleteProjectAPI(projectId)
+      console.log('✅ Project deleted from AWS backend successfully')
+      
+      // Delete from local state after successful backend deletion
+      dispatch({ type: 'DELETE_PROJECT', payload: projectId })
+    } catch (error: any) {
+      console.error('❌ Failed to delete project from AWS backend:')
+      console.error('Error details:', error)
+      console.error('Status code:', error?.statusCode)
+      console.error('Message:', error?.message)
+      
+      // If project not found in backend (404), it was created locally - delete locally only
+      if (error?.statusCode === 404 || error?.message?.includes('not found')) {
+        console.log('⚠️  Project not found in AWS (likely local-only), deleting from local state')
+        dispatch({ type: 'DELETE_PROJECT', payload: projectId })
+      } else {
+        // Show error to user for other errors
+        alert(`Failed to delete project: ${error?.message || 'Unknown error'}\n\nCheck console for details.`)
+      }
+    }
   }
 
 
@@ -314,7 +323,7 @@ export default function ProjectsPage() {
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <div className="flex items-center gap-1">
                       <Database className="w-4 h-4" />
-                      {project.schema.length} tables
+                      {Array.isArray(project.schema) ? project.schema.length : (project.schema?.tables?.length || 0)} tables
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />

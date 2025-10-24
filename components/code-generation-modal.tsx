@@ -72,6 +72,30 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
   const handleGenerate = async () => {
     if (!currentProject) return
 
+    // Normalize schema to array format
+    let normalizedSchema = currentProject.schema
+    if (!Array.isArray(normalizedSchema)) {
+      // If schema is an object with a tables property, extract it
+      if (normalizedSchema && typeof normalizedSchema === 'object' && 'tables' in normalizedSchema) {
+        normalizedSchema = (normalizedSchema as any).tables
+      } else {
+        normalizedSchema = []
+      }
+    }
+
+    console.log('🔍 Current project before code generation:', {
+      name: currentProject.name,
+      hasSchema: !!currentProject.schema,
+      schemaType: Array.isArray(currentProject.schema) ? 'array' : typeof currentProject.schema,
+      normalizedSchemaLength: normalizedSchema.length,
+      schemaSample: normalizedSchema.length > 0 ? normalizedSchema[0].name : 'No tables'
+    })
+
+    if (!normalizedSchema || normalizedSchema.length === 0) {
+      setError('Project has no tables defined. Please add tables to your schema first.')
+      return
+    }
+
     setError(null)
     setIsGenerating(true)
     try {
@@ -81,7 +105,10 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          project: currentProject,
+          project: {
+            ...currentProject,
+            schema: normalizedSchema // Use normalized schema
+          },
           framework,
           language,
           includeAuth,
@@ -99,6 +126,11 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
       }
     } catch (error) {
       console.error('Failed to generate code:', error)
+      setError(
+        error instanceof Error 
+          ? error.message 
+          : 'Network error. Please check your connection and try again.'
+      )
     } finally {
       setIsGenerating(false)
     }
@@ -175,8 +207,19 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
           // Configuration Form
           <div className="space-y-6 py-4">
             {error && (
-              <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-md px-3 py-2">
-                {error}
+              <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-md px-3 py-2 flex items-center justify-between">
+                <span>{error}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setError(null)
+                    handleGenerate()
+                  }}
+                  className="ml-3 h-7 text-xs"
+                >
+                  Try Again
+                </Button>
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
@@ -281,6 +324,17 @@ export function CodeGenerationModal({ children }: CodeGenerationModalProps) {
                 <Badge variant="outline">
                   {generatedCode.files.length} files
                 </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    resetModal()
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Code className="w-4 h-4" />
+                  Regenerate
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

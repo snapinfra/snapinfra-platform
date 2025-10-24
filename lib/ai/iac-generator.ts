@@ -41,14 +41,42 @@ export interface GeneratedIaCResult {
   error?: string
 }
 
-const SYSTEM_PROMPT = `You are a senior DevOps/SRE engineer. Generate production-ready Infrastructure-as-Code (IaC) and complete self-host/cloud setup instructions.
+const SYSTEM_PROMPT = `You are a senior DevOps/SRE engineer. Generate production-ready Infrastructure-as-Code (IaC) that EXACTLY matches the provided database schemas, architecture, and API endpoints.
 
-CRITICAL:
-- Output ONLY valid JSON, no markdown, no commentary.
+CRITICAL JSON FORMATTING:
+- Output ONLY valid, parseable JSON - NO markdown code blocks, NO commentary
+- DO NOT use escaped newlines (\\n) for formatting between JSON properties
+- DO NOT add literal backslash-n (\\n) between array items or object properties
+- Keep JSON compact - use actual newlines and whitespace for formatting, not escape sequences
+- The "content" field values SHOULD contain properly escaped newlines (\\n) for the actual IaC code
+- But the JSON structure itself should NOT have escaped newlines
 - Include complete, runnable IaC with file paths and content.
+- Infrastructure must support ALL tables, fields, indexes, and constraints from the schemas.
+- Infrastructure must match the architecture components (nodes, edges, services).
 - Use secure defaults, least-privilege, and production-ready configurations.
 - Include environment-specific guidance and commands.
 - Respect the requested targets (Terraform, AWS CDK TS, Kubernetes/Helm, Docker Compose, Azure Bicep, GCP TF).
+
+CONSISTENT NAMING CONVENTIONS:
+- Resource naming: kebab-case with project prefix (myapp-api-server, myapp-db-instance)
+- Terraform: snake_case for resources and variables (api_server, db_instance, vpc_cidr)
+- AWS CDK: PascalCase for constructs (ApiServer, DatabaseInstance, VpcStack)
+- Kubernetes: kebab-case for all resource names (api-deployment, db-service, app-configmap)
+- Docker Compose: snake_case for service names (api_server, postgres_db, redis_cache)
+- Environment variables: SCREAMING_SNAKE_CASE (DATABASE_URL, API_PORT, NODE_ENV)
+- Tags/Labels: use consistent keys (Environment, Project, ManagedBy, Component)
+- Use same naming pattern for related resources across all IaC files
+- File naming: descriptive kebab-case (main.tf, api-stack.ts, deployment.yaml, docker-compose.yml)
+
+CROSS-FILE CONSISTENCY (CRITICAL):
+- If you reference a resource name, use the EXACT SAME name in all files (e.g., "myapp-database" everywhere)
+- If you reference a module/stack, use the EXACT SAME import and constructor name across files
+- Variable references must be consistent (e.g., if you use \${var.project_name} in one .tf file, use it everywhere)
+- Output names must match input variable names when chaining modules/stacks
+- Kubernetes labels/selectors must match EXACTLY across deployment, service, and ingress files
+- Docker Compose service names must match EXACTLY in depends_on, networks, and volumes
+- Environment variable names must be IDENTICAL across all config files (.env.example, k8s configmap, compose file)
+- If a database is called "postgres_db" in one file, NEVER call it "db" or "database" in another file
 
 JSON schema to return:
 {
@@ -87,36 +115,86 @@ Instructions must include:
 `
 
 function buildUserPrompt(project: Project, options: IaCOptions): string {
-  const schemaSummary = `${project.schema.length} tables, ${project.schema.reduce((a, t) => a + t.fields.length, 0)} fields`
-  const endpointsApprox = project.endpoints?.length || project.schema.length * 4
-  const architectureNote = project.architecture ? `Architecture nodes: ${project.architecture.nodes?.length || 0}, edges: ${project.architecture.edges?.length || 0}.` : 'No explicit architecture graph provided.'
-  const toolsNote = project.decisions ? `Tools selected count: ${project.decisions.decisions.length}.` : 'No explicit tool selections captured.'
+  const schemaArray = Array.isArray(project.schema) ? project.schema : []
   const targetsStr = options.targets.join(', ')
   const cloud = options.cloud || 'aws'
   const env = options.environment || 'development'
+  
+  // Serialize complete details
+  const schemaDetails = JSON.stringify(schemaArray, null, 2)
+  const endpointsDetails = project.endpoints ? JSON.stringify(project.endpoints, null, 2) : '[]'
+  const architectureDetails = project.architecture ? JSON.stringify(project.architecture, null, 2) : '{}'
+  const decisionsDetails = project.decisions ? JSON.stringify(project.decisions, null, 2) : '{}'
 
   return `Project overview:
 - Name: ${project.name}
 - Description: ${project.description}
 - Database: ${project.database?.type}
-- Schema: ${schemaSummary}
-- Endpoints (approx): ${endpointsApprox}
-- ${architectureNote}
-- ${toolsNote}
+- Targets: ${targetsStr}
+- Primary cloud: ${cloud}
+- Environment: ${env}
 
-Targets: ${targetsStr}
-Primary cloud: ${cloud}
-Environment: ${env}
+=== COMPLETE DATABASE SCHEMAS ===
+Infrastructure must support these exact tables, fields, indexes, and constraints:
+${schemaDetails}
+
+=== COMPLETE API ENDPOINTS ===
+Infrastructure must support these exact API endpoints:
+${endpointsDetails}
+
+=== ARCHITECTURE COMPONENTS ===
+Infrastructure must match this architecture (nodes = services/components, edges = connections):
+${architectureDetails}
+
+=== SYSTEM DECISIONS ===
+Use these technology choices and decisions:
+${decisionsDetails}
 
 Requirements:
-- Generate best-practice IaC for the requested targets, wiring the app and database appropriately.
-- For AWS: include VPC, security groups, ECR or S3 where relevant, ECS or EKS if Kubernetes is chosen, IAM roles, and parameterize regions.
-- For self-host: Docker Compose with volumes, healthchecks, and .env templates.
-- For Kubernetes: include deployment, service (ClusterIP), ingress examples, configmaps, and secrets references.
-- Provide an .env.example for the application side including placeholders for secrets and cloud outputs.
-- Include stateful storage recommendations for the DB type ${project.database?.type} if self-hosted.
-- Ensure file paths are realistic within a top-level infra/ directory (e.g., infra/terraform/main.tf, infra/cdk/bin/app.ts, infra/k8s/deployment.yaml, infra/compose/docker-compose.yml).
-- Include outputs that the app will consume (URIs, ARNs, endpoints) and list them in instructions.
+- Generate best-practice IaC for the requested targets, wiring ALL components appropriately.
+- Infrastructure must support the EXACT database schema (correct DB instance size, storage for data volume).
+- Infrastructure must support ALL architecture components (compute, storage, networking per nodes/edges).
+- For AWS: include VPC, security groups, ECR or S3, ECS/EKS/Lambda based on architecture, IAM roles, RDS/DynamoDB matching DB type.
+- For self-host: Docker Compose with volumes, healthchecks, .env templates, and proper service dependencies.
+- For Kubernetes: deployment, service, ingress, configmaps, secrets, and persistent volumes matching architecture.
+- Provide .env.example with placeholders for all required environment variables.
+- Include database initialization scripts/migrations compatible with the schema.
+- Ensure file paths are realistic within infra/ directory (e.g., infra/terraform/main.tf, infra/cdk/bin/app.ts).
+- Include outputs that the app will consume (connection strings, endpoints, ARNs) in instructions.
+- Size resources appropriately for the number of tables, expected load from endpoints, and architecture scale.
+
+EXAMPLE OF CONSISTENT CROSS-FILE NAMING:
+Kubernetes example:
+// deployment.yaml
+metadata:
+  name: myapp-api
+  labels:
+    app: myapp-api  # ← Define once
+
+// service.yaml
+spec:
+  selector:
+    app: myapp-api  # ← EXACT SAME label
+
+// ingress.yaml
+backend:
+  service:
+    name: myapp-api  # ← EXACT SAME name
+
+Docker Compose example:
+// docker-compose.yml
+services:
+  api_server:  # ← Define once
+    ...
+  postgres_db:  # ← Define once
+    ...
+  redis_cache:
+    depends_on:
+      - postgres_db  # ← EXACT SAME name
+    environment:
+      DB_HOST: postgres_db  # ← EXACT SAME name
+
+NOTICE: Names are used consistently across ALL IaC files.
 `
 }
 
@@ -159,21 +237,47 @@ export async function generateIaC(project: Project, options: IaCOptions): Promis
       throw new Error(lastError?.message || 'All models failed')
     }
 
+    console.log('\n========== RAW AI RESPONSE ==========');
+    console.log('First 500 chars:', text.substring(0, 500));
+    console.log('Last 200 chars:', text.substring(Math.max(0, text.length - 200)));
+    console.log('=====================================\n');
+    
+    // Write full response to temp file for debugging
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const tmpPath = path.join(process.cwd(), '.iac-debug.json');
+      fs.writeFileSync(tmpPath, text, 'utf8');
+      console.log(`\u{1F4BE} Full AI response written to: ${tmpPath}`);
+    } catch (e) {
+      console.error('Could not write debug file:', e);
+    }
+
     let clean = text.trim()
-    if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/, '').replace(/\s*```$/, '')
-    if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/\s*```$/, '')
-    const jsonStart = clean.indexOf('{')
-    const jsonEnd = clean.lastIndexOf('}')
-    if (jsonStart !== -1 && jsonEnd > jsonStart) clean = clean.substring(jsonStart, jsonEnd + 1)
+    
+    // Remove markdown code blocks
+    clean = clean.replace(/^```json\s*/g, '').replace(/\s*```$/g, '').trim()
 
-    // Repair common model mistakes: template literals for values (content: `...`)
-    const repairTemplateLiterals = (s: string) => s.replace(/:\s*`([\s\S]*?)`/g, (_m, p1) => {
-      const escaped = String(p1).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, "\\n")
-      return ': "' + escaped + '"'
-    })
-    clean = repairTemplateLiterals(clean)
-
-    const parsed = JSON.parse(clean)
+    let parsed
+    try {
+      parsed = JSON.parse(clean)
+    } catch (parseError) {
+      console.error('\n========== JSON PARSE ERROR ==========');
+      console.error('Parse error:', parseError);
+      console.error('\nCleaned JSON (first 800 chars):', clean.substring(0, 800));
+      console.error('\nCleaned JSON (last 300 chars):', clean.substring(Math.max(0, clean.length - 300)));
+      console.error('\nTotal length:', clean.length);
+      console.error('======================================\n');
+      
+      // Try to find where the JSON is malformed
+      const errorMatch = parseError instanceof Error && parseError.message.match(/position (\d+)/);
+      if (errorMatch) {
+        const pos = parseInt(errorMatch[1]);
+        console.error('Error position context:', clean.substring(Math.max(0, pos - 100), Math.min(clean.length, pos + 100)));
+      }
+      
+      throw new Error(`AI returned invalid JSON format. ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+    }
 
     // Basic validation
     if (!parsed || !Array.isArray(parsed.files) || typeof parsed.instructions !== 'string') {

@@ -1,0 +1,38 @@
+```json
+{
+  "files": [
+    {
+      "path": "infra/terraform/main.tf",
+      "content": "provider \"aws\" {\n  region = \"us-west-2\"\n}\n\nresource \"aws_vpc\" \"task_manager_vpc\" {\n  cidr_block = \"10.0.0.0/16\"\n}\n\nresource \"aws_subnet\" \"task_manager_subnet\" {\n  vpc_id            = aws_vpc.task_manager_vpc.id\n  cidr_block        = \"10.0.1.0/24\"\n  availability_zone = \"us-west-2a\"\n}\n\nresource \"aws_db_instance\" \"task_manager_db\" {\n  allocated_storage    = 20\n  engine               = \"postgres\"\n  engine_version       = \"13.4\"\n  instance_class       = \"db.t3.micro\"\n  name                 = \"taskmanagerdb\"\n  username             = \"taskmanager\"\n  password             = \"taskmanagerpassword\"\n  vpc_security_group_ids = [aws_security_group.task_manager_sg.id]\n  db_subnet_group_name = aws_db_subnet_group.task_manager_db_sg.name\n}\n\nresource \"aws_db_subnet_group\" \"task_manager_db_sg\" {\n  name       = \"task-manager-db-sg\"\n  subnet_ids = [aws_subnet.task_manager_subnet.id]\n}\n\nresource \"aws_security_group\" \"task_manager_sg\" {\n  name        = \"task-manager-sg\"\n  description = \"Allow inbound traffic on port 5432\"\n  vpc_id      = aws_vpc.task_manager_vpc.id\n\n  ingress {\n    from_port   = 5432\n    to_port     = 5432\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}\n",
+      "description": "Terraform configuration for AWS infrastructure"
+    },
+    {
+      "path": "infra/cdk/bin/app.ts",
+      "content": "import * as cdk from 'aws-cdk-lib';\nimport * as iam from 'aws-cdk-lib/aws-iam';\nimport * as rds from 'aws-cdk-lib/aws-rds';\nimport * as ec2 from 'aws-cdk-lib/aws-ec2';\n\nexport class TaskManagerStack extends cdk.Stack {\n  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {\n    super(scope, id, props);\n\n    const vpc = new ec2.Vpc(this, 'TaskManagerVPC');\n    const dbInstance = new rds.DatabaseInstance(this, 'TaskManagerDB', {\n      engine: rds.DatabaseInstanceEngine.postgres({ version: rds.PostgresEngineVersion.VER_13_4 }),\n      instanceIdentifier: 'task-manager-db',\n      masterUsername: 'taskmanager',\n      masterPassword: cdk.SecretValue.plainText('taskmanagerpassword'),\n      vpc,\n      vpcSubnets: {\n        subnetType: ec2.SubnetType.PRIVATE_WITH_NAT,\n      },\n    });\n  }\n}\n",
+      "description": "AWS CDK configuration for Task Manager infrastructure"
+    },
+    {
+      "path": "infra/docker-compose.yml",
+      "content": "version: '3'\n\nservices:\n  api_server:\n    build: .\n    environment:\n      - DATABASE_URL=postgres://taskmanager:taskmanagerpassword@postgres_db:5432/taskmanagerdb\n    depends_on:\n      - postgres_db\n    ports:\n      - \"8080:8080\"\n\n  postgres_db:\n    image: postgres:13.4\n    environment:\n      - POSTGRES_USER=taskmanager\n      - POSTGRES_PASSWORD=taskmanagerpassword\n      - POSTGRES_DB=taskmanagerdb\n    volumes:\n      - postgres-data:/var/lib/postgresql/data\n\nvolumes:\n  postgres-data:\n",
+      "description": "Docker Compose configuration for Task Manager services"
+    },
+    {
+      "path": ".env.example",
+      "content": "DATABASE_URL=postgres://taskmanager:taskmanagerpassword@localhost:5432/taskmanagerdb\nAPI_PORT=8080\n",
+      "description": "Environment variables for Task Manager application"
+    },
+    {
+      "path": "infra/terraform/outputs.tf",
+      "content": "output \"database_url\" {\n  value = \"postgres://${aws_db_instance.task_manager_db.username}:${aws_db_instance.task_manager_db.password}@${aws_db_instance.task_manager_db.endpoint}/taskmanagerdb\"\n}\n\noutput \"api_endpoint\" {\n  value = \"http://localhost:8080\"\n}\n",
+      "description": "Terraform output values for Task Manager infrastructure"
+    }
+  ],
+  "instructions": "To deploy the Task Manager infrastructure, follow these steps:\n1. Initialize the Terraform working directory: `terraform init`\n2. Apply the Terraform configuration: `terraform apply`\n3. Create a new AWS CDK stack: `cdk bootstrap aws://account-id/us-west-2`\n4. Deploy the AWS CDK stack: `cdk deploy`\n5. Start the Docker Compose services: `docker-compose up -d`\n6. Verify the Task Manager application: `curl http://localhost:8080/api/v1/tasks`",
+  "dependencies": [
+    "terraform",
+    "aws-cdk",
+    "docker-compose"
+  ],
+  "success": true
+}
+```

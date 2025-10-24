@@ -85,10 +85,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setWorkspaces((prev) =>
       prev.map((ws) => (ws.id === workspaceId ? { ...ws, ...updates } : ws))
     )
-    if (currentWorkspace?.id === workspaceId) {
-      setCurrentWorkspace((prev) => (prev ? { ...prev, ...updates } : null))
-    }
-  }, [currentWorkspace])
+    setCurrentWorkspace((prev) => 
+      prev?.id === workspaceId ? { ...prev, ...updates } : prev
+    )
+  }, [])
 
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev)

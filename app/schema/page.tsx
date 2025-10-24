@@ -5,7 +5,8 @@ import { ReactFlowSchemaEditor } from "@/components/reactflow/reactflow-schema-e
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Database, Plus, Rocket } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Database, Plus, Rocket, Info, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAppContext } from "@/lib/app-context"
 import { DeploymentModal } from "@/components/deployment-modal"
@@ -13,22 +14,97 @@ import Link from "next/link"
 
 export default function SchemaEditor() {
   const router = useRouter()
-  const { state } = useAppContext()
+  const { state, dispatch } = useAppContext()
   const { currentProject } = state
 
   const handleUpdateTable = (updatedTable: any) => {
-    // Handle table updates - implement as needed
-    console.log("Update table:", updatedTable)
+    if (!currentProject) return
+    
+    const updatedSchema = currentProject.schema.map(table => 
+      table.id === updatedTable.id ? updatedTable : table
+    )
+    dispatch({ type: 'UPDATE_SCHEMA', payload: updatedSchema })
   }
 
   const handleDeleteTable = (tableId: string) => {
-    // Handle table deletion - implement as needed
-    console.log("Delete table:", tableId)
+    if (!currentProject) return
+    
+    const updatedSchema = currentProject.schema.filter(table => table.id !== tableId)
+    dispatch({ type: 'UPDATE_SCHEMA', payload: updatedSchema })
   }
 
   const handleDuplicateTable = (table: any) => {
-    // Handle table duplication - implement as needed
-    console.log("Duplicate table:", table)
+    if (!currentProject) return
+    
+    const newTable = {
+      ...table,
+      id: `${table.id}-copy-${Date.now()}`,
+      name: `${table.name}_copy`,
+      position: {
+        x: (table.position?.x || 0) + 50,
+        y: (table.position?.y || 0) + 50
+      }
+    }
+    
+    const updatedSchema = [...currentProject.schema, newTable]
+    dispatch({ type: 'UPDATE_SCHEMA', payload: updatedSchema })
+  }
+
+  // Check if project has no schema
+  if (!currentProject) {
+    return (
+      <EnterpriseDashboardLayout
+        title="Schema Editor"
+        description="Visual database schema designer"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Schema" },
+        ]}
+      >
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Please create or select a project to view its schema.
+          </AlertDescription>
+        </Alert>
+      </EnterpriseDashboardLayout>
+    )
+  }
+
+  if (!currentProject.schema || currentProject.schema.length === 0) {
+    return (
+      <EnterpriseDashboardLayout
+        title={`${currentProject.name} - Schema Editor`}
+        description="Visual database schema designer"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: currentProject.name, href: "/dashboard" },
+          { label: "Schema" },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge 
+              variant="secondary" 
+              className={`text-xs ${
+                currentProject.status === 'deployed' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                currentProject.status === 'building' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                currentProject.status === 'error' ? 'bg-red-100 text-red-700 border-red-200' :
+                'bg-gray-100 text-gray-700 border-gray-200'
+              }`}
+            >
+              {currentProject.status}
+            </Badge>
+          </div>
+        }
+      >
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            No schema found for this project. Please complete the onboarding process to generate a database schema.
+          </AlertDescription>
+        </Alert>
+      </EnterpriseDashboardLayout>
+    )
   }
 
   return (

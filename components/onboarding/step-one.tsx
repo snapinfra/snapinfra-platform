@@ -290,6 +290,14 @@ export function StepOne({ onComplete }: StepOneProps) {
 
   const architecturalExamples = [
     {
+      platformType: "simple todo list application",
+      businessDomain: "personal task management",
+      targetMetric: "100+ active users",
+      keyFeatures: "create tasks, mark complete, organize by categories, due dates, priority levels, search and filter",
+      scalingGoal: "small team usage with real-time sync",
+      compliance: "basic authentication and data privacy"
+    },
+    {
       platformType: "multi-tenant B2B SaaS",
       businessDomain: "supply chain visibility",
       targetMetric: "1M+ daily shipments",
@@ -352,6 +360,30 @@ export function StepOne({ onComplete }: StepOneProps) {
       keyFeatures: "AI route optimization, fleet management, driver app, customer notifications, warehouse integration",
       scalingGoal: "regional rollout to 50 cities with mixed vehicle types (drones, bikes, vans)",
       compliance: "SOC 2, local transportation regulations, carbon reporting standards"
+    },
+    {
+      platformType: "social media platform",
+      businessDomain: "community engagement and content sharing",
+      targetMetric: "10K+ daily active users",
+      keyFeatures: "user profiles, posts with media, comments, likes, follows, real-time feed, notifications, hashtags",
+      scalingGoal: "MVP to 100K users with global reach",
+      compliance: "GDPR, content moderation policies, user data protection"
+    },
+    {
+      platformType: "e-commerce marketplace",
+      businessDomain: "online retail and vendor management",
+      targetMetric: "50K+ monthly orders",
+      keyFeatures: "product catalog, shopping cart, payment processing, order tracking, vendor dashboard, reviews and ratings",
+      scalingGoal: "500 vendors to 5K vendors with multi-currency support",
+      compliance: "PCI-DSS, consumer protection laws, tax compliance"
+    },
+    {
+      platformType: "project management tool",
+      businessDomain: "team collaboration and workflow automation",
+      targetMetric: "5K+ teams managing 100K+ tasks",
+      keyFeatures: "project boards, task assignments, time tracking, file attachments, team chat, gantt charts, reporting",
+      scalingGoal: "small teams to enterprise with SSO and advanced permissions",
+      compliance: "SOC 2, ISO 27001, enterprise security standards"
     }
   ]
 
@@ -498,17 +530,21 @@ export function StepOne({ onComplete }: StepOneProps) {
       {!isGenerating && (
         <div className="w-full max-w-[900px] mt-6">
           <p className="text-[#605A57] text-sm text-center mb-4">Try an example:</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {architecturalExamples.map((example, index) => {
               const titles = [
-                'Global Supply Chain Platform',
-                'Healthcare Data Exchange',
-                'Multi-Region Payment Infrastructure',
-                'Industrial IoT Monitoring',
-                'AI Customer Data Platform',
-                'Media Streaming Service',
-                'EdTech Learning Management',
-                'Autonomous Logistics Platform'
+                'Todo App',
+                'Supply Chain',
+                'Healthcare Platform',
+                'Payment System',
+                'IoT Monitoring',
+                'Customer Analytics',
+                'Media Streaming',
+                'Learning Platform',
+                'Logistics Network',
+                'Social Media',
+                'E-commerce Store',
+                'Project Management'
               ];
               const title = titles[index] || `Example ${index + 1}`;
               return (

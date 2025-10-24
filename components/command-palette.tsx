@@ -89,7 +89,7 @@ export function CommandPalette() {
       description: 'System architecture',
       icon: GitBranch,
       section: 'Navigation',
-      action: () => router.push('/architecture-demo'),
+      action: () => router.push('/architecture'),
     },
     {
       id: 'nav-codegen',

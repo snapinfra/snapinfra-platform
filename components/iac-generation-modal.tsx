@@ -62,11 +62,39 @@ export function IacGenerationModal({ children }: { children: React.ReactNode }) 
       setError('Select at least one target')
       return
     }
+    
+    // Normalize schema to array format
+    let normalizedSchema = currentProject.schema
+    if (!Array.isArray(normalizedSchema)) {
+      // If schema is an object with a tables property, extract it
+      if (normalizedSchema && typeof normalizedSchema === 'object' && 'tables' in normalizedSchema) {
+        normalizedSchema = (normalizedSchema as any).tables
+      } else {
+        normalizedSchema = []
+      }
+    }
+    
+    console.log('🔍 Current project before IaC generation:', {
+      name: currentProject.name,
+      hasSchema: !!currentProject.schema,
+      schemaType: Array.isArray(currentProject.schema) ? 'array' : typeof currentProject.schema,
+      normalizedSchemaLength: normalizedSchema.length,
+      schemaSample: normalizedSchema.length > 0 ? normalizedSchema[0].name : 'No tables'
+    })
+    
+    if (!normalizedSchema || normalizedSchema.length === 0) {
+      setError('Project has no tables defined. Please add tables to your schema first.')
+      return
+    }
+    
     setError(null)
     setIsGenerating(true)
     try {
       const payload = {
-        project: currentProject,
+        project: {
+          ...currentProject,
+          schema: normalizedSchema // Use normalized schema
+        },
         options: {
           targets: Object.entries(targets).filter(([_, v]) => v).map(([k]) => k),
           cloud,
@@ -87,6 +115,11 @@ export function IacGenerationModal({ children }: { children: React.ReactNode }) 
       }
     } catch (e) {
       console.error('Failed to generate IaC:', e)
+      setError(
+        e instanceof Error 
+          ? e.message 
+          : 'Network error. Please check your connection and try again.'
+      )
     } finally {
       setIsGenerating(false)
     }
@@ -152,8 +185,19 @@ export function IacGenerationModal({ children }: { children: React.ReactNode }) 
         {!result ? (
           <div className="space-y-6 py-4">
             {error && (
-              <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-md px-3 py-2">
-                {error}
+              <div className="border border-red-200 bg-red-50 text-red-700 text-sm rounded-md px-3 py-2 flex items-center justify-between">
+                <span>{error}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setError(null)
+                    handleGenerate()
+                  }}
+                  className="ml-3 h-7 text-xs"
+                >
+                  Try Again
+                </Button>
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -212,6 +256,9 @@ export function IacGenerationModal({ children }: { children: React.ReactNode }) 
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{result.files.length} files</Badge>
+                <Button variant="outline" size="sm" onClick={() => reset()} className="flex items-center gap-2">
+                  <Boxes className="w-4 h-4" /> Regenerate
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleDownloadBundle} className="flex items-center gap-2">
                   <Download className="w-4 h-4" /> Download
                 </Button>

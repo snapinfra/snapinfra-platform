@@ -396,15 +396,15 @@ export function StepTwo({ data, onComplete, onBack }: StepTwoProps) {
             </div>
             <div className="space-y-3">
               <div>
-                <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-1">Read/Write Pattern</p>
+                <p className="text-[11px] text-[#605A57] uppercase tracking-wider mb-1.5">Read/Write Pattern</p>
                 <p className="text-sm text-[#1d1d1f] font-medium">{scalingInsights.readWriteRatio}</p>
               </div>
               <div>
-                <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-1">Caching Strategy</p>
+                <p className="text-[11px] text-[#605A57] uppercase tracking-wider mb-1.5">Caching Strategy</p>
                 <p className="text-sm text-[#1d1d1f] font-medium">{scalingInsights.cachingStrategy || 'Application-level'}</p>
               </div>
               <div>
-                <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-1">Scaling Approach</p>
+                <p className="text-[11px] text-[#605A57] uppercase tracking-wider mb-1.5">Scaling Approach</p>
                 <p className="text-sm text-[#1d1d1f] font-medium">Horizontal with read replicas</p>
               </div>
             </div>
@@ -448,12 +448,12 @@ export function StepTwo({ data, onComplete, onBack }: StepTwoProps) {
           <h3 className="text-sm font-semibold text-[#1d1d1f] mb-4">Scaling Strategy for {scalingInsights.expectedLoad} Load</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-2">Read/Write Pattern</p>
+              <p className="text-[11px] text-[#605A57] uppercase tracking-wider mb-2">Read/Write Pattern</p>
               <p className="text-sm text-[#1d1d1f] font-medium mb-2">{scalingInsights.readWriteRatio || '70:30'}</p>
               <p className="text-xs text-[#605A57]">Optimized for read-heavy workloads with caching</p>
             </div>
             <div>
-              <p className="text-[10px] text-[#605A57] uppercase tracking-wide mb-2">Caching Strategy</p>
+              <p className="text-[11px] text-[#605A57] uppercase tracking-wider mb-2">Caching Strategy</p>
               <p className="text-sm text-[#1d1d1f] font-medium mb-2">{scalingInsights.cachingStrategy || 'Application-level'}</p>
               <p className="text-xs text-[#605A57]">Redis recommended for session and query caching</p>
             </div>
