@@ -16,12 +16,18 @@ import { updateProject as updateProjectAPI, createProject as createProjectAPI, d
 import { useApiAuth } from '@/hooks/useApiAuth'
 
 // Types
+export type ProjectStatus = 'draft' | 'building' | 'deployed' | 'error'
+export type DeploymentStatus = 'deploying' | 'deployed' | 'failed'
+
 export interface User {
   id: string
   name: string
   email: string
   avatar?: string
   plan: 'free' | 'pro' | 'enterprise'
+  username?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 import type { SystemArchitecture } from './types/architecture'
@@ -31,9 +37,11 @@ export interface Project {
   id: string
   name: string
   description: string
-  status: 'draft' | 'building' | 'deployed' | 'error'
+  status: ProjectStatus
   createdAt: Date
   updatedAt: Date
+  userId?: string
+  deployments?: any[]
   schema: TableSchema[]
   endpoints: ApiEndpoint[]
   database: DatabaseConfig
@@ -132,9 +140,26 @@ export interface DatabaseConfig {
 
 export interface DeploymentInfo {
   url: string
-  status: 'deploying' | 'deployed' | 'failed'
+  status: DeploymentStatus
   lastDeploy: Date
   environment: 'development' | 'staging' | 'production'
+}
+
+export interface DatabaseSchema {
+  id: string
+  name: string
+  tables: TableSchema[]
+  relationships?: Relationship[]
+  version?: string
+}
+
+export interface Deployment {
+  id: string
+  projectId: string
+  status: DeploymentStatus
+  environment: 'development' | 'staging' | 'production'
+  createdAt: string
+  updatedAt: string
 }
 
 export interface ChatMessage {
