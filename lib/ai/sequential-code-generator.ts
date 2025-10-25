@@ -156,7 +156,7 @@ async function callAI(prompt: string, context: string, modelId: string): Promise
       { role: 'user', content: context }
     ],
     temperature: 0.3, // Lower temperature for more consistent output
-    maxTokens: 4000,
+    maxTokens: 8192, // Increased to model's max
     topP: 0.9,
   })
   
