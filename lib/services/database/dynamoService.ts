@@ -14,7 +14,7 @@ import {
   Deployment, 
   ProjectStatus, 
   DeploymentStatus 
-} from '@/types';
+} from '@/lib/app-context';
 import { v4 as uuidv4 } from 'uuid';
 
 export class DynamoService {
