@@ -258,7 +258,7 @@ export function SystemArchitectureEditor({
       () => handleNodeConfigure(node.id)
     ))
     setNodes(updatedNodes)
-  }, [architecture.nodes])
+  }, [architecture.nodes, handleNodeEdit, handleNodeDelete, handleNodeDuplicate, handleNodeConfigure, setNodes])
 
   // Update edges when showConnections changes
   useEffect(() => {
