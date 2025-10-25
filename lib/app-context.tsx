@@ -16,8 +16,22 @@ import { updateProject as updateProjectAPI, createProject as createProjectAPI, d
 import { useApiAuth } from '@/hooks/useApiAuth'
 
 // Types
-export type ProjectStatus = 'draft' | 'building' | 'deployed' | 'error'
-export type DeploymentStatus = 'deploying' | 'deployed' | 'failed'
+export const ProjectStatus = {
+  DRAFT: 'draft' as const,
+  BUILDING: 'building' as const,
+  DEPLOYED: 'deployed' as const,
+  ERROR: 'error' as const
+}
+
+export type ProjectStatus = typeof ProjectStatus[keyof typeof ProjectStatus]
+
+export const DeploymentStatus = {
+  DEPLOYING: 'deploying' as const,
+  DEPLOYED: 'deployed' as const,
+  FAILED: 'failed' as const
+}
+
+export type DeploymentStatus = typeof DeploymentStatus[keyof typeof DeploymentStatus]
 
 export interface User {
   id: string
