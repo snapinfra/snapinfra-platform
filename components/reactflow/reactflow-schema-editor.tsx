@@ -175,12 +175,12 @@ export function ReactFlowSchemaEditor({
       () => onTableDuplicate?.(table)
     ))
     setNodes(updatedNodes)
-  }, [schema, onTableEdit, onTableDelete, onTableDuplicate, setNodes])
+  }, [schema, onTableEdit, onTableDelete, onTableDuplicate])
 
   // Update edges when showRelations changes
   useEffect(() => {
     setEdges(showRelations ? generateEdges(schema) : [])
-  }, [showRelations, schema, setEdges])
+  }, [showRelations, schema])
 
   // Handle node position changes and sync back to schema
   const handleNodesChange = useCallback((changes: any[]) => {
