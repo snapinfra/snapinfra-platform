@@ -148,7 +148,7 @@ Output ONLY valid JSON:
 
 async function callAI(prompt: string, context: string, modelId: string): Promise<string> {
   const { groq } = await import('./groq-client')
-  
+
   const { text } = await generateText({
     model: groq(modelId),
     messages: [
@@ -159,26 +159,26 @@ async function callAI(prompt: string, context: string, modelId: string): Promise
     maxTokens: 8192, // Increased to model's max
     topP: 0.9,
   })
-  
+
   return text
 }
 
 function cleanJSON(text: string): string {
   let clean = text.trim()
-  
+
   // Remove markdown code blocks
   if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/, '').replace(/\s*```$/, '')
   if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/\s*```$/, '')
-  
+
   // Extract JSON
   const jsonStart = clean.indexOf('{')
   const jsonEnd = clean.lastIndexOf('}')
   if (jsonStart !== -1 && jsonEnd > jsonStart) clean = clean.substring(jsonStart, jsonEnd + 1)
-  
+
   // Fix common issues
   clean = clean.replace(/,\s*([\]}])/g, '$1') // Trailing commas
   clean = clean.replace(/"\s*\n\s*"/g, '",\n"') // Missing commas
-  
+
   // Fix unescaped control characters in strings
   // This regex finds strings and escapes control characters within them
   clean = clean.replace(/"([^"]*)"/g, (match, content) => {
@@ -194,7 +194,7 @@ function cleanJSON(text: string): string {
     })
     return '"' + escaped + '"'
   })
-  
+
   return clean
 }
 
@@ -205,12 +205,12 @@ export async function generateCodeSequential(
   try {
     const { AI_CONFIG } = await import('./groq-client')
     const modelId = options.model || AI_CONFIG.model || 'llama-3.1-8b-instant'
-    
+
     const schemaDetails = JSON.stringify(project.schema, null, 2)
     const endpointsDetails = project.endpoints ? JSON.stringify(project.endpoints, null, 2) : '[]'
-    
+
     console.log('🚀 Step 1: Defining naming conventions...')
-    
+
     // STEP 1: Define naming conventions
     const step1Context = `Project: ${project.name}
 Description: ${project.description}
@@ -230,14 +230,14 @@ Define consistent naming conventions for all files and imports.`
       console.error('Raw response:', step1Response.substring(0, 500))
       throw new Error('Step 1: Failed to parse naming conventions. AI returned invalid JSON.')
     }
-    
+
     console.log('✅ Step 1 complete: Naming conventions defined')
     console.log('   Models:', step1Data.fileStructure.models)
     console.log('   Services:', step1Data.fileStructure.services)
-    
+
     // STEP 2: Generate shared files
     console.log('🚀 Step 2: Generating shared configuration files...')
-    
+
     const step2Context = `Project: ${project.name}
 Database: ${project.database?.type}
 DB Connection Name: ${step1Data.namingConventions.dbConnectionName}
@@ -260,12 +260,12 @@ ${schemaDetails}`
       console.error('Raw response:', step2Response.substring(0, 500))
       throw new Error('Step 2: Failed to parse shared files. AI returned invalid JSON.')
     }
-    
+
     console.log('✅ Step 2 complete: Config files generated')
-    
+
     // STEP 3: Generate models
     console.log('🚀 Step 3: Generating database models...')
-    
+
     const step3Context = `Naming conventions from step 1:
 ${JSON.stringify(step1Data.namingConventions, null, 2)}
 
@@ -287,13 +287,13 @@ Model class names: ${project.schema.map((s: any) => s.name.charAt(0).toUpperCase
       console.error('Raw response:', step3Response.substring(0, 500))
       throw new Error('Step 3: Failed to parse models. AI returned invalid JSON.')
     }
-    
+
     console.log('✅ Step 3 complete: Models generated')
     console.log('   Files:', step3Data.files.map((f: any) => f.path))
-    
+
     // STEP 4: Generate services
     console.log('🚀 Step 4: Generating service layer...')
-    
+
     const step4Context = `Naming conventions:
 ${JSON.stringify(step1Data.namingConventions, null, 2)}
 
@@ -314,12 +314,12 @@ Generate services for: ${step1Data.fileStructure.services.join(', ')}`
       console.error('Raw response:', step4Response.substring(0, 500))
       throw new Error('Step 4: Failed to parse services. AI returned invalid JSON.')
     }
-    
+
     console.log('✅ Step 4 complete: Services generated')
-    
+
     // STEP 5: Generate routes
     console.log('🚀 Step 5: Generating API routes...')
-    
+
     const step5Context = `Naming conventions:
 ${JSON.stringify(step1Data.namingConventions, null, 2)}
 
@@ -340,9 +340,9 @@ Generate routes for: ${step1Data.fileStructure.routes.join(', ')}`
       console.error('Raw response:', step5Response.substring(0, 500))
       throw new Error('Step 5: Failed to parse routes. AI returned invalid JSON.')
     }
-    
+
     console.log('✅ Step 5 complete: Routes generated')
-    
+
     // Combine all files
     const allFiles = [
       ...step2Data.files,
@@ -350,7 +350,7 @@ Generate routes for: ${step1Data.fileStructure.routes.join(', ')}`
       ...step4Data.files,
       ...step5Data.files
     ]
-    
+
     // Generate final instructions
     const instructions = `# ${project.name} - Generated Backend
 
@@ -385,9 +385,9 @@ ${JSON.stringify(step1Data.namingConventions, null, 2)}`
       'dotenv',
       options.language === 'typescript' ? '@types/node' : null
     ].filter(Boolean) as string[]
-    
+
     console.log('🎉 All steps complete! Generated', allFiles.length, 'files')
-    
+
     return {
       files: allFiles,
       instructions,
@@ -401,7 +401,7 @@ ${JSON.stringify(step1Data.namingConventions, null, 2)}`
         routes: step5Data
       }
     }
-    
+
   } catch (error: any) {
     console.error('Sequential code generation error:', error)
     return {

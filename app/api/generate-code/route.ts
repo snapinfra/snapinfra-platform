@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateCodeSequential } from '@/lib/ai/sequential-code-generator'
+import generateCode from '@/lib/ai/code-generator'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.log('   Tables:', project.schema.length)
     console.log('   Framework:', framework)
 
-    const result = await generateCodeSequential(project, {
+    const result = await generateCode(project, {
       framework,
       language,
       includeAuth,
