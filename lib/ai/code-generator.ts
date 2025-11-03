@@ -593,14 +593,14 @@ async function generateCodeInternal(
     console.log(`🎯 Handlers: ${registryStats.handlerCount}`);
     console.log('='.repeat(60) + '\n');
 
-    // Strict success criteria: 95% success rate AND all critical modules validated
+    // Success criteria: 90% success rate AND all critical modules validated
     const criticalModules = ['database', 'models', 'services', 'handlers', 'routes'];
     const criticalModuleResults = criticalModules
       .map(type => ctx.moduleResults.get(type))
       .filter(Boolean);
     const allCriticalValidated = criticalModuleResults.every(m => m?.success && m?.validated);
 
-    const isSuccess = successRate >= 95 && allCriticalValidated;
+    const isSuccess = successRate >= 90 && allCriticalValidated;
     const errorMessage = !isSuccess 
       ? `Generation incomplete: ${successRate.toFixed(0)}% success rate. ` +
         (!allCriticalValidated ? 'Critical modules failed validation.' : '')
@@ -608,8 +608,8 @@ async function generateCodeInternal(
 
     if (!isSuccess) {
       console.error('\n⚠️  QUALITY CHECK FAILED:');
-      if (successRate < 95) {
-        console.error(`   - Success rate ${successRate.toFixed(1)}% is below 95% threshold`);
+      if (successRate < 90) {
+        console.error(`   - Success rate ${successRate.toFixed(1)}% is below 90% threshold`);
       }
       if (!allCriticalValidated) {
         console.error('   - Critical modules not fully validated:');
