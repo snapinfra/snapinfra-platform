@@ -15,11 +15,13 @@ import { useAppContext } from "@/lib/app-context"
 import type { Project, TableSchema, ChatMessage } from "@/lib/app-context"
 import { createProject as createProjectAPI, isBackendAvailable } from "@/lib/api-client"
 import { markOnboardingComplete } from "@/lib/storage"
+import { ProjectNameDialog } from "@/components/project-name-dialog"
 import Image from "next/image"
 import Link from "next/link"
 
 interface GeneratedData {
   projectName?: string
+  customProjectName?: string
   description: string
   schemas: any[]
   analysis?: any
@@ -33,6 +35,7 @@ export function OnboardingFlow() {
   const [generatedData, setGeneratedData] = useState<GeneratedData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isNewProject, setIsNewProject] = useState(false)
+  const [showNameDialog, setShowNameDialog] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { state, dispatch } = useAppContext()
@@ -85,7 +88,7 @@ export function OnboardingFlow() {
     setCurrentStep(validStep)
     
     // Only load data from localStorage if this is NOT a new project
-    if (!isNewProject) {
+    if (!isNewProjectFlag) {
       const savedData = localStorage.getItem('onboarding-data')
       if (savedData) {
         try {
@@ -104,7 +107,7 @@ export function OnboardingFlow() {
     }
     
     setIsLoading(false)
-  }, [searchParams, router, isNewProject])
+  }, [searchParams])
   
 
   // Function to update step in both state and URL
@@ -233,8 +236,9 @@ export function OnboardingFlow() {
         return candidateName
       }
 
-      // Generate project name
-      const projectName = makeUniqueProjectName(generateProjectName(data.description || ''))
+      // Use custom name if provided, otherwise generate smart name
+      const baseName = data.customProjectName || generateProjectName(data.description || '')
+      const projectName = makeUniqueProjectName(baseName)
       
       // Check if backend is available
       const backendAvailable = await isBackendAvailable()
@@ -387,7 +391,8 @@ What would you like to explore next?`,
       markOnboardingComplete()
       localStorage.removeItem('onboarding-data')
       localStorage.removeItem('onboarding-decisions')
-      router.push('/dashboard')
+      // Redirect to the specific project overview page
+      router.push(`/projects/${project.id}`)
       
     } catch (error) {
       console.error('Failed to create project and chat:', error)
@@ -449,8 +454,8 @@ What would you like to explore next?`,
       // Save tool decisions from Step 5 before project creation
       const updatedData = { ...generatedData, decisions: data.decisions, selectedTools: data.selectedTools }
       saveData(updatedData)
-      // Create project and initiate chat conversation when completing step 5 using the latest updated data
-      createProjectAndChat(updatedData)
+      // Show project naming dialog before creating project
+      setShowNameDialog(true)
       return
     }
 
@@ -587,6 +592,19 @@ What would you like to explore next?`,
           </div>
         </div>
       </div>
+      
+      <ProjectNameDialog
+        open={showNameDialog}
+        onOpenChange={setShowNameDialog}
+        onConfirm={(name) => {
+          const updatedData = { ...generatedData, customProjectName: name }
+          saveData(updatedData)
+          createProjectAndChat(updatedData)
+        }}
+        currentName={generatedData?.customProjectName || ''}
+        existingNames={state.projects.map(p => p.name)}
+        mode="create"
+      />
     </div>
   )
 }

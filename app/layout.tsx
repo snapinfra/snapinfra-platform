@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import Link from "next/link"
 import { Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
@@ -56,7 +56,12 @@ export const metadata: Metadata = {
   title: "Snapinfra - AI Backend Builder",
   description: "Build backends that absolutely slap with AI",
   generator: "Snapinfra",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 }
 
 export default function RootLayout({
@@ -72,9 +77,6 @@ export default function RootLayout({
       }}
     >
       <html lang="en">
-        <head>
-          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-        </head>
         <body className={`font-sans ${geistMono.variable} ${tasaOrbiter.variable} antialiased tracking-tight`}>
           <ErrorBoundary>
             <EnterpriseQueryProvider>

@@ -37,6 +37,8 @@ import {
   Database
 } from "lucide-react"
 import { useAppContext } from "@/lib/app-context"
+import { updateProject } from "@/lib/api-client"
+import Image from "next/image"
 
 interface DeploymentModalProps {
   children: React.ReactNode
@@ -74,22 +76,38 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
     {
       id: 'vercel',
       name: 'Vercel',
-      description: 'Deploy to Vercel with automatic HTTPS and global CDN'
+      description: 'Deploy to Vercel with automatic HTTPS and global CDN',
+      logo: 'https://assets.vercel.com/image/upload/v1588805858/repositories/vercel/logo.png'
     },
     {
       id: 'railway',
       name: 'Railway',
-      description: 'Deploy to Railway with built-in database hosting'
+      description: 'Deploy to Railway with built-in database hosting',
+      logo: 'https://railway.app/brand/logo-light.png'
     },
     {
       id: 'render',
       name: 'Render',
-      description: 'Deploy to Render with automatic SSL and global CDN'
+      description: 'Deploy to Render with automatic SSL and global CDN',
+      logo: 'https://www.vectorlogo.zone/logos/rendercom/rendercom-ar21.svg'
+    },
+    {
+      id: 'aws',
+      name: 'AWS',
+      description: 'Deploy to AWS with full control and scalability',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg'
+    },
+    {
+      id: 'digitalocean',
+      name: 'DigitalOcean',
+      description: 'Deploy to DigitalOcean App Platform',
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/DigitalOcean_logo.svg'
     },
     {
       id: 'heroku',
       name: 'Heroku',
-      description: 'Deploy to Heroku with add-on ecosystem'
+      description: 'Deploy to Heroku with add-on ecosystem',
+      logo: 'https://www.vectorlogo.zone/logos/heroku/heroku-ar21.svg'
     }
   ]
 
@@ -125,6 +143,18 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
       }
       
       setDeploymentResult(data)
+
+      // Update project status in AWS if deployment was successful
+      if (data.success && currentProject.id) {
+        try {
+          await updateProject(currentProject.id, {
+            status: 'deployed'
+          })
+          console.log('✅ Project status updated to deployed in AWS')
+        } catch (error) {
+          console.error('Failed to update project status:', error)
+        }
+      }
     } catch (error) {
       console.error('Deployment failed:', error)
       setDeploymentResult({
@@ -228,16 +258,30 @@ export function DeploymentModal({ children }: DeploymentModalProps) {
                       key={p.id}
                       className={`border rounded-lg p-4 cursor-pointer transition-all ${
                         platform === p.id 
-                          ? 'border-gray-900 bg-gray-50 ring-1 ring-gray-900' 
+                          ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600' 
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                       onClick={() => setPlatform(p.id)}
                     >
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <h4 className="font-semibold text-sm text-gray-900">{p.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 relative flex items-center justify-center bg-white rounded border border-gray-200">
+                              <img 
+                                src={p.logo} 
+                                alt={`${p.name} logo`}
+                                className="w-6 h-6 object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  e.currentTarget.parentElement!.className = 'w-8 h-8 relative flex items-center justify-center bg-blue-100 rounded border border-gray-200'
+                                  e.currentTarget.parentElement!.innerHTML = `<span class="text-sm font-bold text-blue-600">${p.name.charAt(0)}</span>`
+                                }}
+                              />
+                            </div>
+                            <h4 className="font-semibold text-sm text-gray-900">{p.name}</h4>
+                          </div>
                           {platform === p.id && (
-                            <div className="h-2 w-2 rounded-full bg-gray-900" />
+                            <CheckCircle2 className="w-5 h-5 text-blue-600" />
                           )}
                         </div>
                         <p className="text-xs text-gray-600 leading-relaxed">{p.description}</p>

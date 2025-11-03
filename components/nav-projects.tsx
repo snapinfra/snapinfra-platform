@@ -1,6 +1,7 @@
 "use client"
 
-import { Database, Forward, MoreHorizontal, Trash2, Folder, Plus } from "lucide-react"
+import { useState } from "react"
+import { Database, Forward, MoreHorizontal, Trash2, Folder, Plus, Edit2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -17,6 +18,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { ProjectNameDialog } from "@/components/project-name-dialog"
+import { useAppContext } from "@/lib/app-context"
 
 export function NavProjects({
   projects,
@@ -39,6 +42,20 @@ export function NavProjects({
   onProjectDelete?: (projectId: string) => void
 }) {
   const { open } = useSidebar()
+  const { state, dispatch } = useAppContext()
+  const [renameDialog, setRenameDialog] = useState<{ open: boolean; projectId: string; currentName: string }>({
+    open: false,
+    projectId: '',
+    currentName: ''
+  })
+
+  const handleRename = (projectId: string, currentName: string) => {
+    setRenameDialog({ open: true, projectId, currentName })
+  }
+
+  const handleRenameConfirm = (newName: string) => {
+    dispatch({ type: 'RENAME_PROJECT', payload: { id: renameDialog.projectId, name: newName } })
+  }
 
   return (
     <SidebarGroup>
@@ -87,18 +104,30 @@ export function NavProjects({
                     </Badge>
                   )}
                   {open && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (confirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`)) {
-                          onProjectDelete?.(item.id)
-                        }
-                      }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 hover:text-red-600 rounded-sm shrink-0"
-                      title="Delete project"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRename(item.id, item.name)
+                        }}
+                        className="p-1 hover:bg-blue-100 hover:text-blue-600 rounded-sm"
+                        title="Rename project"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (confirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`)) {
+                            onProjectDelete?.(item.id)
+                          }
+                        }}
+                        className="p-1 hover:bg-red-100 hover:text-red-600 rounded-sm"
+                        title="Delete project"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
                 {open && (
@@ -138,6 +167,15 @@ export function NavProjects({
           </SidebarMenuItem>
         )}
       </SidebarMenu>
+      
+      <ProjectNameDialog
+        open={renameDialog.open}
+        onOpenChange={(open) => setRenameDialog({ ...renameDialog, open })}
+        onConfirm={handleRenameConfirm}
+        currentName={renameDialog.currentName}
+        existingNames={state.projects.map(p => p.name)}
+        mode="rename"
+      />
     </SidebarGroup>
   )
 }

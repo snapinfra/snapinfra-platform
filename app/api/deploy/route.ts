@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { Project } from '@/lib/app-context'
+import { DynamoService } from '@/lib/services/database/dynamoService'
+import { getCurrentUser, getDevUserId } from '@/lib/services/auth-helper'
 
 interface DeploymentRequest {
   project: Project
@@ -33,9 +35,40 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // For demo purposes, we'll simulate a deployment
-    // In a real implementation, you'd integrate with actual deployment services
+    // Get user ID for project update
+    const authMode = process.env.NEXT_PUBLIC_AUTH_MODE || 'development'
+    let userId: string
+    if (authMode === 'production') {
+      const user = await getCurrentUser(request)
+      userId = user.id
+    } else {
+      userId = getDevUserId(request)
+    }
+
+    // Simulate deployment (in production, integrate with actual deployment services)
     const result = await simulateDeployment(project, platform, environment, envVariables)
+
+    // Update project status in DynamoDB if deployment successful
+    if (result.success && project.id) {
+      try {
+        await DynamoService.updateProject(project.id, userId, {
+          status: 'deployed',
+          deploymentUrl: result.deploymentUrl,
+          lastDeployedAt: new Date().toISOString()
+        })
+        console.log('✅ Project status updated to deployed in DynamoDB')
+      } catch (error) {
+        console.error('⚠️ Failed to update project status in DynamoDB:', error)
+      }
+    } else if (!result.success && project.id) {
+      try {
+        await DynamoService.updateProject(project.id, userId, {
+          status: 'error'
+        })
+      } catch (error) {
+        console.error('⚠️ Failed to update project status to error:', error)
+      }
+    }
 
     return NextResponse.json(result)
 

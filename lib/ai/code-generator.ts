@@ -47,6 +47,8 @@ import {
   generateEnhancedDockerCompose,
   generateEnhancedEnvExample,
   generateDockerIgnore,
+  generateLocalDevScript,
+  generateLocalDevScriptWindows,
 
   getCodeGenOptions,
   getBaseDependencies,
@@ -170,6 +172,20 @@ async function generateModuleWithValidation(
 
   try {
     console.log(`\n🔄 Generating ${moduleSpec.type} (attempt ${attemptNumber}/${MAX_ATTEMPTS})...`);
+
+    // Special handling for Config module - add local development scripts
+    if (moduleSpec.type === 'config') {
+      const localDevScripts = [
+        generateLocalDevScript(ctx.project, ctx.options),
+        generateLocalDevScriptWindows(ctx.project, ctx.options)
+      ];
+      
+      // Store these scripts for later addition to the config module
+      localDevScripts.forEach(file => {
+        ctx.generatedFiles.set(file.path, file);
+        ctx.functionRegistry.register(file.path, file.content);
+      });
+    }
 
     // Special handling for Docker module
     if (moduleSpec.type === 'docker') {
@@ -665,8 +681,8 @@ function getModuleSpecs(project: Project, options: CodeGenOptions): ModuleSpec[]
       priority: 1,
       dependencies: [],
       description: 'Configuration files (package.json, .env, etc.)',
-      requiredFiles: ['package.json', '.eslintrc.json', '.env.example', '.gitignore', 'README.md'],
-      criticalFiles: ['package.json', '.env.example']
+      requiredFiles: ['package.json', '.eslintrc.json', '.env.example', '.gitignore', 'README.md', 'run-local.sh', 'run-local.bat'],
+      criticalFiles: ['package.json', '.env.example', 'run-local.sh']
     },
     {
       type: 'docker',
@@ -1169,7 +1185,29 @@ ${Array.from(registryStats.byModule.entries())
       .map(([module, count]) => `- **${module}**: ${count} files`)
       .join('\n')}
 
-## 🐳 Docker Setup (Quick Start)
+## 🚀 Quick Start - Local Development
+
+### Option 1: Using Setup Script (Recommended)
+
+\`\`\`bash
+# Linux/macOS
+chmod +x run-local.sh
+./run-local.sh
+
+# Windows
+run-local.bat
+\`\`\`
+
+The script will automatically:
+- Check prerequisites (Node.js, npm, PostgreSQL)
+- Install dependencies
+- Create and configure .env file
+- Setup database
+- Run migrations
+- Optionally seed sample data
+- Start development server
+
+### Option 2: Docker Setup
 
 \`\`\`bash
 # 1. Configure environment

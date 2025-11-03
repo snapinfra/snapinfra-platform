@@ -52,8 +52,10 @@ export function StepThree({ data, onComplete, onBack }: StepThreeProps) {
   }
 
   // Use dynamic endpoints from Step 1 AI generation
-  const endpoints = data.endpoints || []
-  const totalEndpoints = endpoints.reduce((acc: number, group: any) => acc + group.endpoints.length, 0)
+  const endpoints = Array.isArray(data.endpoints) ? data.endpoints : []
+  const totalEndpoints = endpoints.reduce((acc: number, group: any) => {
+    return acc + (Array.isArray(group?.endpoints) ? group.endpoints.length : 0)
+  }, 0)
 
   const toggleGroup = (groupName: string) => {
     const newExpanded = new Set(expandedGroups)
@@ -147,12 +149,12 @@ export function StepThree({ data, onComplete, onBack }: StepThreeProps) {
 
   const filteredEndpoints = endpoints.map((group: any) => ({
     ...group,
-    endpoints: group.endpoints.filter((endpoint: any) => 
-      endpoint.path.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      endpoint.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      group.group.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  })).filter((group: any) => group.endpoints.length > 0)
+    endpoints: Array.isArray(group?.endpoints) ? group.endpoints.filter((endpoint: any) => 
+      endpoint?.path?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      endpoint?.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group?.group?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) : []
+  })).filter((group: any) => Array.isArray(group?.endpoints) && group.endpoints.length > 0)
 
   // Initialize MSW with schemas from Step 1
   useEffect(() => {
@@ -162,7 +164,7 @@ export function StepThree({ data, onComplete, onBack }: StepThreeProps) {
       try {
         // Flatten grouped endpoints into single array
         const flatEndpoints = data.endpoints.flatMap((group: any) => 
-          (group.endpoints || []).map((ep: any) => ({ ...ep, group: group.group }))
+          (Array.isArray(group?.endpoints) ? group.endpoints : []).map((ep: any) => ({ ...ep, group: group?.group }))
         )
         
         // Validate we have endpoints to register
@@ -187,13 +189,13 @@ export function StepThree({ data, onComplete, onBack }: StepThreeProps) {
 
   useEffect(() => {
     if (!selectedEndpoint && endpoints.length > 0) {
-      const authGroup = endpoints.find((group: any) => group.group === 'Authentication')
-      if (authGroup && authGroup.endpoints.length > 0) {
-        const loginEndpoint = authGroup.endpoints.find((ep: any) => ep.path === '/auth/login') || authGroup.endpoints[0]
+      const authGroup = endpoints.find((group: any) => group?.group === 'Authentication')
+      if (authGroup && Array.isArray(authGroup.endpoints) && authGroup.endpoints.length > 0) {
+        const loginEndpoint = authGroup.endpoints.find((ep: any) => ep?.path === '/auth/login') || authGroup.endpoints[0]
         selectEndpoint(authGroup, loginEndpoint)
       } else {
         const firstGroup = endpoints[0]
-        if (firstGroup && firstGroup.endpoints.length > 0) {
+        if (firstGroup && Array.isArray(firstGroup?.endpoints) && firstGroup.endpoints.length > 0) {
           selectEndpoint(firstGroup, firstGroup.endpoints[0])
         }
       }

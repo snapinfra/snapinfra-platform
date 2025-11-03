@@ -5,9 +5,11 @@ import { useParams, useRouter } from "next/navigation"
 import { useAppContext } from "@/lib/app-context"
 import { updateProject as updateProjectAPI, getProjectById } from "@/lib/api-client"
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
+import { GenerationProgress } from "@/components/generation-progress"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Code2, 
   Download, 
@@ -28,8 +30,9 @@ export default function CodeGenerationPage() {
   const router = useRouter()
   const { state, dispatch } = useAppContext()
   const { currentProject } = state
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false)
-  const [isGeneratingIac, setIsGeneratingIac] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState(0)
+  const [generationMessage, setGenerationMessage] = useState('')
 
   // Load project if not in context (e.g., on page refresh)
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function CodeGenerationPage() {
     }
   }, [projectId, currentProject, dispatch, router])
 
-  async function retryGenerate(kind: 'code'|'iac') {
+  async function generateAll() {
     if (!currentProject) return
     
     // Normalize schema to array format (AWS returns { tables: [...] })
@@ -62,8 +65,9 @@ export default function CodeGenerationPage() {
       return
     }
     
-    if (kind === 'code') setIsGeneratingCode(true)
-    else setIsGeneratingIac(true)
+    setIsGenerating(true)
+    setGenerationProgress(5)
+    setGenerationMessage('Validating project schema...')
     
     // Create normalized project with schema as array
     const normalizedProject = {
@@ -72,59 +76,77 @@ export default function CodeGenerationPage() {
     }
     
     try {
-      if (kind === 'code') {
-        const resp = await fetch('/api/generate-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project: normalizedProject, framework: 'express', language: 'typescript', includeAuth: false, includeTests: false })
+      // Simulate progressive updates
+      const updates = [
+        { progress: 10, message: 'Generating backend configuration files...' },
+        { progress: 20, message: 'Creating database models...' },
+        { progress: 35, message: 'Building service layer...' },
+        { progress: 50, message: 'Setting up API routes...' },
+        { progress: 60, message: 'Analyzing infrastructure requirements...' },
+        { progress: 75, message: 'Generating Terraform configurations...' },
+        { progress: 85, message: 'Creating Docker Compose files...' },
+        { progress: 95, message: 'Finalizing code generation...' }
+      ]
+      
+      let updateIndex = 0
+      const updateInterval = setInterval(() => {
+        if (updateIndex < updates.length) {
+          setGenerationProgress(updates[updateIndex].progress)
+          setGenerationMessage(updates[updateIndex].message)
+          updateIndex++
+        }
+      }, 8000)
+      const resp = await fetch('/api/generate-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          project: normalizedProject, 
+          framework: 'express', 
+          language: 'typescript', 
+          includeAuth: false, 
+          includeTests: false,
+          options: {
+            iacTargets: ['terraform', 'docker-compose'],
+            environment: 'development'
+          }
         })
-        const data = await resp.json()
-        const generatedCode = data?.success 
-          ? data.data 
-          : { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'Code generation failed' }
+      })
+      const data = await resp.json()
+      clearInterval(updateInterval)
+      
+      if (data?.success) {
+        setGenerationProgress(100)
+        setGenerationMessage('Generation complete!')
+        const generatedCode = data.data.generatedCode
+        const generatedIaC = data.data.generatedIaC
         
-        // Update local state
-        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode } as any })
+        // Update local state with both results
+        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode, generatedIaC } as any })
         
         // Save to AWS (project ID is the backend ID)
         try {
-          await updateProjectAPI(currentProject.id, { generatedCode })
-          console.log('✅ Generated code saved to AWS')
+          await updateProjectAPI(currentProject.id, { generatedCode, generatedIaC })
+          console.log('✅ Generated code and IaC saved to AWS')
         } catch (awsError) {
-          console.warn('⚠️ Failed to save generated code to AWS:', awsError)
+          console.warn('⚠️ Failed to save generated files to AWS:', awsError)
         }
       } else {
-        const resp = await fetch('/api/generate-iac', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project: normalizedProject, options: { targets: ['terraform','aws-cdk','docker-compose'], cloud: 'aws', environment: 'development' } })
-        })
-        const data = await resp.json()
-        const generatedIaC = data?.success
-          ? data.data
-          : { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'IaC generation failed' }
-        
-        // Update local state
-        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC } as any })
-        
-        // Save to AWS (project ID is the backend ID)
-        try {
-          await updateProjectAPI(currentProject.id, { generatedIaC })
-          console.log('✅ Generated IaC saved to AWS')
-        } catch (awsError) {
-          console.warn('⚠️ Failed to save generated IaC to AWS:', awsError)
-        }
+        // Handle failure - update state with error
+        const generatedCode = data?.data?.generatedCode || { files: [], instructions: '', dependencies: [], success: false, error: 'Code generation failed' }
+        const generatedIaC = data?.data?.generatedIaC || { files: [], instructions: '', dependencies: [], success: false, error: 'IaC generation failed' }
+        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode, generatedIaC } as any })
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Request failed'
-      if (kind === 'code') {
-        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode: { files: [], instructions: '', dependencies: [], success: false, error: msg } } as any })
-      } else {
-        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC: { files: [], instructions: '', dependencies: [], success: false, error: msg } } as any })
-      }
+      const generatedCode = { files: [], instructions: '', dependencies: [], success: false, error: msg }
+      const generatedIaC = { files: [], instructions: '', dependencies: [], success: false, error: msg }
+      dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode, generatedIaC } as any })
     } finally {
-      if (kind === 'code') setIsGeneratingCode(false)
-      else setIsGeneratingIac(false)
+      setTimeout(() => {
+        setIsGenerating(false)
+        setGenerationProgress(0)
+        setGenerationMessage('')
+      }, generationProgress === 100 ? 2000 : 0)
     }
   }
 
@@ -141,164 +163,141 @@ export default function CodeGenerationPage() {
     >
       <div className="space-y-8">
 
-        {/* Backend Code Section */}
+        {/* Single Unified Card with Generate Button in Header */}
         {currentProject && (
-          <Card id="backend-code" className="border border-gray-200 shadow-sm">
-            <CardHeader className="pb-3 border-b border-gray-100 bg-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <Code2 className="w-4 h-4" />
-                    Backend Code
-                  </CardTitle>
-                  <CardDescription className="text-xs text-gray-600 mt-1">Production-ready API endpoints and models</CardDescription>
-                </div>
-                {currentProject?.generatedCode?.files?.length > 0 && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
-                    {currentProject.generatedCode.files.length} files
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 bg-white">
-              {isGeneratingCode ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="relative">
-                    <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+          <Card id="generated-code" className="border border-gray-200 shadow-sm">
+            <CardHeader className="pb-4 bg-white border-b border-gray-200">
+              <div className="space-y-4">
+                {/* Title and Action Row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                      <Rocket className="w-5 h-5 text-blue-600" />
+                      Generated Code
+                    </CardTitle>
+                    <CardDescription className="text-xs text-gray-600 mt-1">
+                      Backend API + Infrastructure as Code (Terraform, Docker)
+                    </CardDescription>
                   </div>
-                  <div className="text-center space-y-1">
-                    <p className="text-sm font-medium text-gray-900">Generating Backend Code</p>
-                    <p className="text-xs text-gray-500">Analyzing schema and creating API endpoints...</p>
-                  </div>
+                  {(currentProject?.generatedCode?.files?.length || currentProject?.generatedIaC?.files?.length) ? (
+                    <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
+                      {(currentProject.generatedCode?.files?.length || 0) + (currentProject.generatedIaC?.files?.length || 0)} files
+                    </Badge>
+                  ) : (
+                    <Button 
+                      onClick={generateAll} 
+                      disabled={isGenerating}
+                      size="default"
+                      className="shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      <Rocket className="w-4 h-4 mr-2" />
+                      Generate Code
+                    </Button>
+                  )}
                 </div>
-              ) : currentProject?.generatedCode?.files?.length ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-medium text-green-900">Code Generated Successfully</span>
-                  </div>
-                  <GeneratedFilesList files={currentProject.generatedCode.files} fileType="code" projectName={currentProject.name} />
-                </div>
-              ) : currentProject?.generatedCode?.success === false ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg max-w-md">
-                    <div className="flex items-start gap-3">
-                      <Shield className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-red-900">Generation Failed</p>
-                        <p className="text-xs text-red-700">{currentProject.generatedCode.error || 'Unknown error occurred'}</p>
-                        <Button variant="outline" size="sm" onClick={() => retryGenerate('code')} className="mt-2">
-                          <RefreshCw className="w-3 h-3 mr-2" />
-                          Try Again
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="border border-dashed border-gray-300 rounded-lg p-8">
-                  <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                    <div className="p-3 bg-gray-100 rounded-full">
-                      <Code2 className="w-6 h-6 text-gray-600" />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-semibold text-gray-900">No Backend Code Yet</h4>
-                      <p className="text-xs text-gray-500 max-w-sm">Generate production-ready backend code with API endpoints, models, and database configuration based on your schema.</p>
-                    </div>
-                    <div className="pt-2">
-                      <Button 
-                        onClick={() => retryGenerate('code')} 
-                        size="sm"
-                        className="shadow-sm"
-                      >
-                        <Code2 className="w-4 h-4 mr-2" />
-                        Generate Backend Code
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Infrastructure as Code Section */}
-        {currentProject && (
-          <Card id="infrastructure" className="border border-gray-200 shadow-sm">
-            <CardHeader className="pb-3 border-b border-gray-100 bg-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <Rocket className="w-4 h-4" />
-                    Infrastructure as Code
-                  </CardTitle>
-                  <CardDescription className="text-xs text-gray-600 mt-1">Terraform, AWS CDK, and Docker configurations</CardDescription>
-                </div>
-                {currentProject?.generatedIaC?.files?.length > 0 && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
-                    {currentProject.generatedIaC.files.length} files
-                  </Badge>
+                {/* Progress Bar (shown when generating) */}
+                {isGenerating && (
+                  <div className="space-y-2 pt-2 border-t border-blue-200">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0">
+                        <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-700">
+                          {generationMessage || "Processing your request..."}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <span className="text-xs font-bold text-blue-600">{Math.round(generationProgress)}%</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 h-1.5 rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${generationProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 text-center">This may take 1-2 minutes</p>
+                  </div>
                 )}
               </div>
             </CardHeader>
             <CardContent className="p-4 bg-white">
-              {isGeneratingIac ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="relative">
-                    <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-                  </div>
-                  <div className="text-center space-y-1">
-                    <p className="text-sm font-medium text-gray-900">Generating Infrastructure Code</p>
-                    <p className="text-xs text-gray-500">Creating Terraform, CDK, and Docker configurations...</p>
-                  </div>
-                </div>
-              ) : currentProject?.generatedIaC?.files?.length ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-medium text-green-900">Infrastructure Code Generated</span>
-                  </div>
-                  <GeneratedFilesList files={currentProject.generatedIaC.files} fileType="iac" projectName={currentProject.name} />
-                </div>
-              ) : currentProject?.generatedIaC?.success === false ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg max-w-md">
-                    <div className="flex items-start gap-3">
-                      <Shield className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-red-900">Generation Failed</p>
-                        <p className="text-xs text-red-700">{currentProject.generatedIaC.error || 'Unknown error occurred'}</p>
-                        <Button variant="outline" size="sm" onClick={() => retryGenerate('iac')} className="mt-2">
-                          <RefreshCw className="w-3 h-3 mr-2" />
-                          Try Again
-                        </Button>
+              {(() => {
+                const hasBackend = currentProject?.generatedCode?.files?.length > 0
+                const hasIaC = currentProject?.generatedIaC?.files?.length > 0
+                const backendFailed = currentProject?.generatedCode?.success === false
+                const iacFailed = currentProject?.generatedIaC?.success === false
+                const hasAny = hasBackend || hasIaC
+                const hasFailed = backendFailed || iacFailed
+
+                if (!hasAny && !hasFailed) {
+                  return (
+                    <div className="border border-dashed border-gray-300 rounded-lg p-12">
+                      <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                        <div className="p-4 bg-gray-100 rounded-full">
+                          <Code2 className="w-8 h-8 text-gray-600" />
+                        </div>
+                        <div className="space-y-2">
+                          <h4 className="text-base font-semibold text-gray-900">No Code Generated Yet</h4>
+                          <p className="text-sm text-gray-500 max-w-md">Click the button above to generate production-ready backend API and infrastructure code</p>
+                        </div>
                       </div>
                     </div>
+                  )
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {/* Success Banner */}
+                    {hasAny && (
+                      <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-green-900">Generation Complete</p>
+                          <p className="text-xs text-green-700 mt-0.5">
+                            {hasBackend && hasIaC && "Backend code and infrastructure files generated"}
+                            {hasBackend && !hasIaC && "Backend code generated"}
+                            {!hasBackend && hasIaC && "Infrastructure files generated"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error Banner */}
+                    {hasFailed && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <Shield className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 space-y-2">
+                            <p className="text-sm font-medium text-red-900">Partial Generation Failure</p>
+                            {backendFailed && (
+                              <p className="text-xs text-red-700">Backend: {currentProject.generatedCode.error}</p>
+                            )}
+                            {iacFailed && (
+                              <p className="text-xs text-red-700">Infrastructure: {currentProject.generatedIaC.error}</p>
+                            )}
+                            <Button variant="outline" size="sm" onClick={generateAll} className="mt-2">
+                              <RefreshCw className="w-3 h-3 mr-2" />
+                              Try Again
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Combined File List */}
+                    {hasAny && (() => {
+                      const allFiles = [
+                        ...((currentProject.generatedCode?.files || []).map((f: any) => ({ ...f, category: 'Backend' }))),
+                        ...((currentProject.generatedIaC?.files || []).map((f: any) => ({ ...f, category: 'IaC' })))
+                      ]
+                      return <GeneratedFilesList files={allFiles} fileType="all" projectName={currentProject.name} />
+                    })()}
                   </div>
-                </div>
-              ) : (
-                <div className="border border-dashed border-gray-300 rounded-lg p-8">
-                  <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                    <div className="p-3 bg-gray-100 rounded-full">
-                      <Rocket className="w-6 h-6 text-gray-600" />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-semibold text-gray-900">No Infrastructure Code Yet</h4>
-                      <p className="text-xs text-gray-500 max-w-sm">Generate Infrastructure-as-Code including Terraform, AWS CDK, and Docker Compose configurations for deployment.</p>
-                    </div>
-                    <div className="pt-2">
-                      <Button 
-                        onClick={() => retryGenerate('iac')} 
-                        size="sm"
-                        className="shadow-sm"
-                      >
-                        <Rocket className="w-4 h-4 mr-2" />
-                        Generate Infrastructure Code
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
+                )
+              })()}
             </CardContent>
           </Card>
         )}

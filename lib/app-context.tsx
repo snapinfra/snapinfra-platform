@@ -224,6 +224,7 @@ type AppAction =
   | { type: 'SET_CURRENT_PROJECT'; payload: Project | null }
   | { type: 'ADD_PROJECT'; payload: Project }
   | { type: 'UPDATE_PROJECT'; payload: Partial<Project> & { id: string } }
+  | { type: 'RENAME_PROJECT'; payload: { id: string; name: string } }
   | { type: 'DELETE_PROJECT'; payload: string }
   | { type: 'ADD_CHAT_MESSAGE'; payload: ChatMessage }
   | { type: 'LOAD_PROJECT_CHAT'; payload: ChatMessage[] }
@@ -317,6 +318,21 @@ function appReducer(state: AppState, action: AppAction): AppState {
         projects: updatedProjects,
         currentProject: state.currentProject?.id === action.payload.id
           ? { ...state.currentProject, ...action.payload, updatedAt: new Date() }
+          : state.currentProject
+      }
+    
+    case 'RENAME_PROJECT':
+      const renamedProjects = state.projects.map(project =>
+        project.id === action.payload.id
+          ? { ...project, name: action.payload.name, updatedAt: new Date() }
+          : project
+      )
+      
+      return {
+        ...state,
+        projects: renamedProjects,
+        currentProject: state.currentProject?.id === action.payload.id
+          ? { ...state.currentProject, name: action.payload.name, updatedAt: new Date() }
           : state.currentProject
       }
     

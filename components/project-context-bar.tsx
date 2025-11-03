@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { useAppContext } from '@/lib/app-context'
 import { Button } from '@/components/ui/button'
@@ -13,15 +13,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ChevronDown, Plus, Check } from 'lucide-react'
+import { ChevronDown, Plus, Check, Edit2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ProjectNameDialog } from '@/components/project-name-dialog'
 
 export function ProjectContextBar() {
   const { state, dispatch } = useAppContext()
   const { currentProject, projects } = state
+  const [renameDialog, setRenameDialog] = useState<{ open: boolean; projectId: string; currentName: string }>({
+    open: false,
+    projectId: '',
+    currentName: ''
+  })
 
   if (!currentProject) {
     return null
+  }
+
+  const handleRename = (projectId: string, currentName: string) => {
+    setRenameDialog({ open: true, projectId, currentName })
+  }
+
+  const handleRenameConfirm = (newName: string) => {
+    dispatch({ type: 'RENAME_PROJECT', payload: { id: renameDialog.projectId, name: newName } })
   }
 
   const getStatusColor = (status?: string) => {
@@ -109,6 +123,13 @@ export function ProjectContextBar() {
             ))}
           </div>
           <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => handleRename(currentProject.id, currentProject.name)}
+            className="cursor-pointer"
+          >
+            <Edit2 className="h-4 w-4 mr-2" />
+            <span className="font-medium">Rename Current Project</span>
+          </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/onboarding?new=true" className="cursor-pointer">
               <Plus className="h-4 w-4 mr-2" />
@@ -122,6 +143,15 @@ export function ProjectContextBar() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      
+      <ProjectNameDialog
+        open={renameDialog.open}
+        onOpenChange={(open) => setRenameDialog({ ...renameDialog, open })}
+        onConfirm={handleRenameConfirm}
+        currentName={renameDialog.currentName}
+        existingNames={projects.map(p => p.name)}
+        mode="rename"
+      />
     </div>
   )
 }

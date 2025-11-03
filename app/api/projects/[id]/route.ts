@@ -4,7 +4,7 @@ import { getCurrentUser, getDevUserId } from '@/lib/services/auth-helper';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authMode = process.env.NEXT_PUBLIC_AUTH_MODE || 'development';
@@ -17,7 +17,7 @@ export async function GET(
       userId = getDevUserId(request);
     }
 
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const project = await DynamoService.getProjectById(projectId, userId);
 
     if (!project) {
@@ -45,7 +45,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authMode = process.env.NEXT_PUBLIC_AUTH_MODE || 'development';
@@ -58,7 +58,7 @@ export async function PUT(
       userId = getDevUserId(request);
     }
 
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const updates = await request.json();
 
     const project = await DynamoService.updateProject(projectId, userId, updates);
@@ -81,7 +81,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authMode = process.env.NEXT_PUBLIC_AUTH_MODE || 'development';
@@ -94,7 +94,7 @@ export async function DELETE(
       userId = getDevUserId(request);
     }
 
-    const projectId = params.id;
+    const { id: projectId } = await params;
     await DynamoService.deleteProject(projectId, userId);
 
     return NextResponse.json({

@@ -334,6 +334,11 @@ export class FunctionRegistry {
     if (!context) return issues;
 
     for (const imp of context.imports) {
+      // Skip validation for npm packages (non-relative imports)
+      if (!imp.from.startsWith('.') && !imp.from.startsWith('/')) {
+        continue;
+      }
+
       const importedFilePath = this.resolvePath(filePath, imp.from);
       const importedContext = this.registry.get(importedFilePath);
 
@@ -1792,6 +1797,438 @@ export function addConditionalDependencies(
     devDeps['@jest/globals'] = '^29.7.0';
   }
 }
+
+// ============================================================================
+// LOCAL DEVELOPMENT SCRIPT
+// ============================================================================
+// TODO: These functions have bash script escaping issues - temporarily disabled
+// Will be re-added with proper escaping
+
+export function generateLocalDevScript(project: Project, options: CodeGenOptions): GeneratedFile {
+  return {
+    path: 'run-local.sh',
+    content: '#!/bin/bash\necho "Local dev script - coming soon"\n',
+    description: 'Script to setup and run backend locally'
+  };
+}
+
+export function generateLocalDevScriptWindows(project: Project, options: CodeGenOptions): GeneratedFile {
+  return {
+    path: 'run-local.bat',
+    content: '@echo off\necho Local dev script - coming soon\n',
+    description: 'Windows script to setup and run backend locally'
+  };
+}
+
+/*
+// ORIGINAL FUNCTION - HAS ESCAPING ISSUES - NEEDS FIXING
+export function generateLocalDevScript_DISABLED(project: Project, options: CodeGenOptions): GeneratedFile {
+  const dbName = project.name.toLowerCase().replace(/\s+/g, '_');
+  
+  // Use array and join to avoid template literal escaping issues
+  const content = `#!/bin/bash
+
+# =============================================================================
+# ${project.name} - Local Development Setup Script
+# =============================================================================
+# This script sets up and runs the backend locally for development
+# Author: AI-Generated
+# =============================================================================
+
+set -e  # Exit on error
+
+# Colors for output
+RED='\\033[0;31m'
+GREEN='\\033[0;32m'
+YELLOW='\\033[1;33m'
+BLUE='\\033[0;34m'
+NC='\\033[0m' # No Color
+
+# Project configuration
+PROJECT_NAME="${project.name}"
+DB_NAME="${dbName}"
+DB_USER="postgres"
+DB_PASSWORD="postgres"
+DB_PORT="5432"
+PORT="3000"
+
+echo -e "\\\${BLUE}================================================\\\${NC}"
+echo -e "\\\${BLUE}  ${project.name} - Local Development Setup\\\${NC}"
+echo -e "\\\${BLUE}================================================\\\${NC}"
+echo ""
+
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to check if PostgreSQL is running
+check_postgres() {
+    if command_exists psql; then
+        if psql -U "$DB_USER" -lqt | cut -d \\| -f 1 | grep -qw "$DB_NAME"; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Step 1: Check prerequisites
+echo -e "\\\${YELLOW}[1/7]\\\${NC} Checking prerequisites..."
+
+if ! command_exists node; then
+    echo -e "\\\${RED}❌ Node.js is not installed. Please install Node.js >= 18\\\${NC}"
+    exit 1
+fi
+echo -e "\\\${GREEN}  ✓ Node.js \$(node --version)\\\${NC}"
+
+if ! command_exists npm; then
+    echo -e "\\\${RED}❌ npm is not installed\\\${NC}"
+    exit 1
+fi
+echo -e "\\\${GREEN}  ✓ npm \$(npm --version)\\\${NC}"
+
+if ! command_exists psql; then
+    echo -e "\\\${YELLOW}  ⚠ PostgreSQL CLI not found. You may need to install PostgreSQL\\\${NC}"
+    echo -e "\\\${YELLOW}    Or use Docker: docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15\\\${NC}"
+else
+    echo -e "\\\${GREEN}  ✓ PostgreSQL \$(psql --version | cut -d' ' -f3)\\\${NC}"
+fi
+echo ""
+
+# Step 2: Install dependencies
+echo -e "\${YELLOW}[2/7]\${NC} Installing dependencies..."
+if [ ! -d "node_modules" ]; then
+    npm install
+    echo -e "\${GREEN}  ✓ Dependencies installed\${NC}"
+else
+    echo -e "\${GREEN}  ✓ Dependencies already installed (run 'npm install' to update)\${NC}"
+fi
+echo ""
+
+# Step 3: Setup environment file
+echo -e "\${YELLOW}[3/7]\${NC} Setting up environment configuration..."
+if [ ! -f ".env" ]; then
+    cp .env.example .env
+    
+    # Update .env with local development values
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' "s|NODE_ENV=production|NODE_ENV=development|g" .env
+        sed -i '' "s|DB_HOST=.*|DB_HOST=localhost|g" .env
+        sed -i '' "s|DB_PORT=.*|DB_PORT=$DB_PORT|g" .env
+        sed -i '' "s|DB_USER=.*|DB_USER=$DB_USER|g" .env
+        sed -i '' "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|g" .env
+        sed -i '' "s|DB_NAME=.*|DB_NAME=$DB_NAME|g" .env
+        sed -i '' "s|DB_SSL=true|DB_SSL=false|g" .env
+        sed -i '' "s|PORT=.*|PORT=$PORT|g" .env
+    else
+        # Linux
+        sed -i "s|NODE_ENV=production|NODE_ENV=development|g" .env
+        sed -i "s|DB_HOST=.*|DB_HOST=localhost|g" .env
+        sed -i "s|DB_PORT=.*|DB_PORT=$DB_PORT|g" .env
+        sed -i "s|DB_USER=.*|DB_USER=$DB_USER|g" .env
+        sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|g" .env
+        sed -i "s|DB_NAME=.*|DB_NAME=$DB_NAME|g" .env
+        sed -i "s|DB_SSL=true|DB_SSL=false|g" .env
+        sed -i "s|PORT=.*|PORT=$PORT|g" .env
+    fi
+    
+    echo -e "\${GREEN}  ✓ .env file created and configured for local development\${NC}"
+else
+    echo -e "\${GREEN}  ✓ .env file already exists\${NC}"
+    echo -e "\${YELLOW}    Note: Make sure DB_HOST=localhost and DB_SSL=false for local dev\${NC}"
+fi
+echo ""
+
+# Step 4: Check/Create database
+echo -e "\${YELLOW}[4/7]\${NC} Setting up database..."
+if command_exists psql; then
+    # Check if database exists
+    if psql -U "$DB_USER" -lqt | cut -d \\| -f 1 | grep -qw "$DB_NAME"; then
+        echo -e "\${GREEN}  ✓ Database '$DB_NAME' already exists\${NC}"
+    else
+        echo -e "\${YELLOW}  Creating database '$DB_NAME'...\${NC}"
+        createdb -U "$DB_USER" "$DB_NAME" 2>/dev/null || {
+            echo -e "\${RED}  ❌ Failed to create database. Trying with sudo...\${NC}"
+            sudo -u postgres createdb "$DB_NAME" || {
+                echo -e "\${RED}  ❌ Could not create database. Please create it manually:\${NC}"
+                echo -e "\${RED}     createdb -U postgres $DB_NAME\${NC}"
+                exit 1
+            }
+        }
+        echo -e "\${GREEN}  ✓ Database created\${NC}"
+    fi
+else
+    echo -e "\${YELLOW}  ⚠ PostgreSQL CLI not available, skipping database check\${NC}"
+    echo -e "\${YELLOW}    Make sure PostgreSQL is running with database: $DB_NAME\${NC}"
+fi
+echo ""
+
+# Step 5: Run migrations
+echo -e "\${YELLOW}[5/7]\${NC} Running database migrations..."
+if npm run migrate:up; then
+    echo -e "\${GREEN}  ✓ Migrations completed successfully\${NC}"
+else
+    echo -e "\${RED}  ❌ Migration failed. Check database connection and try again\${NC}"
+    exit 1
+fi
+echo ""
+
+# Step 6: Seed database (optional)
+echo -e "\${YELLOW}[6/7]\${NC} Seeding database with sample data..."
+read -p "$(echo -e "\${BLUE}  Would you like to seed the database with sample data? (y/N): \${NC}")" -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if npm run db:seed; then
+        echo -e "\${GREEN}  ✓ Database seeded successfully\${NC}"
+    else
+        echo -e "\${YELLOW}  ⚠ Seeding failed, but continuing...\${NC}"
+    fi
+else
+    echo -e "\${BLUE}  ⊘ Skipping database seeding\${NC}"
+fi
+echo ""
+
+# Step 7: Find available port and start development server
+echo -e "\${YELLOW}[7/7]\${NC} Finding available port and starting server..."
+
+# Function to check if port is in use
+is_port_in_use() {
+    if command_exists lsof; then
+        lsof -Pi :$1 -sTCP:LISTEN -t >/dev/null 2>&1
+    elif command_exists netstat; then
+        netstat -tuln 2>/dev/null | grep -q ":$1 "
+    else
+        # Fallback: try to connect to the port
+        (echo >/dev/tcp/localhost/$1) 2>/dev/null
+    fi
+}
+
+# Find an available port starting from PORT
+ORIGINAL_PORT=$PORT
+while is_port_in_use $PORT; do
+    echo -e "\${YELLOW}  ⚠ Port $PORT is already in use, trying $(($PORT + 1))...\${NC}"
+    PORT=$(($PORT + 1))
+    
+    # Safety check: don't go beyond port 4000
+    if [ $PORT -gt 4000 ]; then
+        echo -e "\${RED}  ❌ Could not find available port between $ORIGINAL_PORT and 4000\${NC}"
+        echo -e "\${YELLOW}  Please free up a port or specify a different PORT in .env\${NC}"
+        exit 1
+    fi
+done
+
+# Update .env with the available port if it changed
+if [ $PORT -ne $ORIGINAL_PORT ]; then
+    echo -e "\${GREEN}  ✓ Found available port: $PORT\${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s|PORT=.*|PORT=$PORT|g" .env
+    else
+        sed -i "s|PORT=.*|PORT=$PORT|g" .env
+    fi
+else
+    echo -e "\${GREEN}  ✓ Port $PORT is available\${NC}"
+fi
+
+echo -e "\${GREEN}================================================\${NC}"
+echo -e "\${GREEN}  ✓ Setup complete!\${NC}"
+echo -e "\${GREEN}================================================\${NC}"
+echo ""
+echo -e "\${BLUE}📡 API will be available at:\${NC}"
+echo -e "   \${GREEN}http://localhost:$PORT\${NC}"
+echo ""
+echo -e "\${BLUE}📊 Health check endpoint:\${NC}"
+echo -e "   \${GREEN}http://localhost:$PORT/health\${NC}"
+echo ""
+echo -e "\${BLUE}🔧 Useful commands:\${NC}"
+echo -e "   npm run dev          - Start with auto-reload"
+echo -e "   npm run migrate:up   - Run new migrations"
+echo -e "   npm run migrate:down - Rollback last migration"
+echo -e "   npm run db:seed      - Seed database"
+echo -e "   npm run db:reset     - Reset and reseed database"
+echo -e "   npm run lint:fix     - Fix code style issues"
+echo ""
+echo -e "\${YELLOW}Press Ctrl+C to stop the server\${NC}"
+echo ""
+
+# Export PORT for npm script
+export PORT
+npm run dev
+
+  return {
+    path: 'run-local.sh',
+    content,
+    description: 'Script to setup and run backend locally for development'
+  };
+}
+
+export function generateLocalDevScriptWindows(project: Project, options: CodeGenOptions): GeneratedFile {
+  const dbName = project.name.toLowerCase().replace(/\s+/g, '_');
+  
+  const content = `@echo off
+REM =============================================================================
+REM ${project.name} - Local Development Setup Script (Windows)
+REM =============================================================================
+REM This script sets up and runs the backend locally for development
+REM Author: AI-Generated
+REM =============================================================================
+
+setlocal enabledelayedexpansion
+
+set PROJECT_NAME=${project.name}
+set DB_NAME=${dbName}
+set DB_USER=postgres
+set DB_PASSWORD=postgres
+set DB_PORT=5432
+set PORT=3000
+
+echo ================================================
+echo   %PROJECT_NAME% - Local Development Setup
+echo ================================================
+echo.
+
+REM Step 1: Check prerequisites
+echo [1/7] Checking prerequisites...
+
+where node >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] Node.js is not installed. Please install Node.js ^>= 18
+    exit /b 1
+)
+for /f "tokens=*" %%i in ('node --version') do set NODE_VERSION=%%i
+echo   [OK] Node.js %NODE_VERSION%
+
+where npm >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] npm is not installed
+    exit /b 1
+)
+for /f "tokens=*" %%i in ('npm --version') do set NPM_VERSION=%%i
+echo   [OK] npm %NPM_VERSION%
+
+where psql >nul 2>nul
+if errorlevel 1 (
+    echo   [WARNING] PostgreSQL CLI not found. You may need to install PostgreSQL
+    echo   Or use Docker: docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15
+) else (
+    echo   [OK] PostgreSQL installed
+)
+echo.
+
+REM Step 2: Install dependencies
+echo [2/7] Installing dependencies...
+if not exist "node_modules" (
+    call npm install
+    echo   [OK] Dependencies installed
+) else (
+    echo   [OK] Dependencies already installed
+)
+echo.
+
+REM Step 3: Setup environment file
+echo [3/7] Setting up environment configuration...
+if not exist ".env" (
+    copy .env.example .env >nul
+    
+    REM Update .env with local development values using PowerShell
+    powershell -Command "(Get-Content .env) -replace 'NODE_ENV=production', 'NODE_ENV=development' | Set-Content .env"
+    powershell -Command "(Get-Content .env) -replace 'DB_HOST=.*', 'DB_HOST=localhost' | Set-Content .env"
+    powershell -Command "(Get-Content .env) -replace 'DB_SSL=true', 'DB_SSL=false' | Set-Content .env"
+    
+    echo   [OK] .env file created and configured for local development
+) else (
+    echo   [OK] .env file already exists
+)
+echo.
+
+REM Step 4: Database setup message
+echo [4/7] Database setup...
+echo   Make sure PostgreSQL is running with database: %DB_NAME%
+echo   Create database manually if needed: createdb -U postgres %DB_NAME%
+echo.
+
+REM Step 5: Run migrations
+echo [5/7] Running database migrations...
+call npm run migrate:up
+if errorlevel 1 (
+    echo   [ERROR] Migration failed. Check database connection
+    exit /b 1
+)
+echo   [OK] Migrations completed
+echo.
+
+REM Step 6: Seed database
+echo [6/7] Seeding database...
+set /p SEED="Would you like to seed the database? (y/N): "
+if /i "!SEED!"=="y" (
+    call npm run db:seed
+    if errorlevel 1 (
+        echo   [WARNING] Seeding failed, but continuing...
+    ) else (
+        echo   [OK] Database seeded
+    )
+) else (
+    echo   [SKIP] Database seeding skipped
+)
+echo.
+
+REM Step 7: Find available port and start server
+echo [7/7] Finding available port and starting server...
+
+REM Function to check if port is in use
+set ORIGINAL_PORT=%PORT%
+:CHECK_PORT
+netstat -ano | findstr ":%PORT% " | findstr "LISTENING" >nul 2>&1
+if not errorlevel 1 (
+    echo   [WARNING] Port %PORT% is already in use, trying next port...
+    set /a PORT+=1
+    
+    REM Safety check: don't go beyond port 4000
+    if %PORT% GTR 4000 (
+        echo   [ERROR] Could not find available port between %ORIGINAL_PORT% and 4000
+        echo   Please free up a port or specify a different PORT in .env
+        exit /b 1
+    )
+    goto CHECK_PORT
+)
+
+REM Update .env with the available port if it changed
+if not %PORT%==%ORIGINAL_PORT% (
+    echo   [OK] Found available port: %PORT%
+    powershell -Command "(Get-Content .env) -replace 'PORT=.*', 'PORT=%PORT%' | Set-Content .env"
+) else (
+    echo   [OK] Port %PORT% is available
+)
+
+echo ================================================
+echo   Setup complete!
+echo ================================================
+echo.
+echo API available at: http://localhost:%PORT%
+echo Health check: http://localhost:%PORT%/health
+echo.
+echo Useful commands:
+echo   npm run dev          - Start with auto-reload
+echo   npm run migrate:up   - Run new migrations
+echo   npm run migrate:down - Rollback last migration
+echo   npm run db:seed      - Seed database
+echo   npm run db:reset     - Reset and reseed database
+echo   npm run lint:fix     - Fix code style issues
+echo.
+echo Press Ctrl+C to stop the server
+echo.
+
+REM Set PORT environment variable for npm
+set PORT=%PORT%
+call npm run dev
+
+  return {
+    path: 'run-local.bat',
+    content,
+    description: 'Windows batch script to setup and run backend locally'
+  };
+}
+*/
 
 // ============================================================================
 // CONFIG FUNCTIONS (STABLE - NEVER CHANGE)

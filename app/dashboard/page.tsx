@@ -2,213 +2,80 @@
 
 import React, { useMemo, useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useAppContext } from "@/lib/app-context"
-import { getProjectById } from "@/lib/api-client"
+import { getProjects } from "@/lib/api-client"
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { 
   EnterpriseMetricCard, 
   StatsGrid, 
-  ActivityTimeline, 
-  DataSummaryCard,
-  StatusOverview,
-  ProgressTracker
+  ActivityTimeline
 } from "@/components/enterprise-dashboard-widgets"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { DeploymentModal } from "@/components/deployment-modal"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PieChart as PieChartIcon, BarChart3, Layers, Database, ListChecks, Network, Settings, Rocket, Activity, Globe, Code2, FileText, Download, Copy, Plus, Filter, RefreshCw, Shield, CheckCircle2, Clock } from "lucide-react"
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Folder, Database, Code2, Plus, Filter, Clock, CheckCircle2, AlertCircle, TrendingUp, Activity as ActivityIcon } from "lucide-react"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
 export default function Dashboard() {
-  const { state, dispatch } = useAppContext()
-  const { currentProject } = state
+  const { state } = useAppContext()
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const [projects, setProjects] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
 
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false)
-  const [isGeneratingIac, setIsGeneratingIac] = useState(false)
-  
-  // Load project from AWS if project ID in query params
+  // Load all projects
   useEffect(() => {
-    const projectId = searchParams.get('project')
-    if (projectId && (!currentProject || currentProject.id !== projectId)) {
-      getProjectById(projectId).then(project => {
-        console.log('📦 Loaded project from AWS:', project.name)
-        console.log('Has generatedCode:', !!project.generatedCode)
-        console.log('Has generatedIaC:', !!project.generatedIaC)
-        dispatch({ type: 'SET_CURRENT_PROJECT', payload: project })
-      }).catch(error => {
-        console.error('Failed to load project:', error)
-        router.push('/projects')
-      })
-    }
-  }, [searchParams, currentProject, dispatch, router])
-
-  async function retryGenerate(kind: 'code'|'iac') {
-    if (!currentProject) return
-    
-    // Normalize schema to array format (AWS returns { tables: [...] })
-    const normalizedSchema = Array.isArray(currentProject.schema) 
-      ? currentProject.schema 
-      : currentProject.schema?.tables || []
-    
-    console.log('🔍 Dashboard: Current project before generation:', {
-      name: currentProject.name,
-      hasSchema: !!currentProject.schema,
-      schemaType: Array.isArray(currentProject.schema) ? 'array' : typeof currentProject.schema,
-      normalizedSchemaLength: normalizedSchema.length,
-      schemaSample: normalizedSchema.length > 0 ? normalizedSchema[0].name : 'No tables'
+    getProjects().then(projectList => {
+      setProjects(projectList)
+      setLoading(false)
+    }).catch(error => {
+      console.error('Failed to load projects:', error)
+      setLoading(false)
     })
+  }, [])
+
+  // Calculate workspace-wide metrics
+  const workspaceMetrics = useMemo(() => {
+    const totalProjects = projects.length
+    const activeProjects = projects.filter(p => {
+      const schema = Array.isArray(p.schema) ? p.schema : p.schema?.tables || []
+      return schema.length > 0
+    }).length
+    const totalTables = projects.reduce((acc, p) => {
+      const schema = Array.isArray(p.schema) ? p.schema : p.schema?.tables || []
+      return acc + schema.length
+    }, 0)
+    const totalEndpoints = projects.reduce((acc, p) => acc + (p.endpoints?.length || 0), 0)
     
-    if (normalizedSchema.length === 0) {
-      alert('Project has no tables. Please add tables to your schema first.')
-      return
-    }
-    
-    if (kind === 'code') setIsGeneratingCode(true)
-    else setIsGeneratingIac(true)
-    
-    // Create normalized project with schema as array
-    const normalizedProject = {
-      ...currentProject,
-      schema: normalizedSchema
-    }
-    
-    try {
-      if (kind === 'code') {
-        const resp = await fetch('/api/generate-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project: normalizedProject, framework: 'express', language: 'typescript', includeAuth: false, includeTests: false })
-        })
-        const data = await resp.json()
-        const generatedCode = data?.success 
-          ? data.data 
-          : { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'Code generation failed' }
-        
-        // Update local state
-        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode } as any })
-        
-        // Save to AWS (project ID is the backend ID)
-        try {
-          const { updateProject: updateProjectAPI } = await import('@/lib/api-client')
-          await updateProjectAPI(currentProject.id, { generatedCode })
-          console.log('✅ Generated code saved to AWS')
-        } catch (awsError) {
-          console.warn('⚠️ Failed to save generated code to AWS:', awsError)
-        }
-      } else {
-        const resp = await fetch('/api/generate-iac', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project: normalizedProject, options: { targets: ['terraform','aws-cdk','docker-compose'], cloud: 'aws', environment: 'development' } })
-        })
-        const data = await resp.json()
-        const generatedIaC = data?.success
-          ? data.data
-          : { files: [], instructions: '', dependencies: [], success: false, error: data?.error || 'IaC generation failed' }
-        
-        // Update local state
-        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC } as any })
-        
-        // Save to AWS (project ID is the backend ID)
-        try {
-          const { updateProject: updateProjectAPI } = await import('@/lib/api-client')
-          await updateProjectAPI(currentProject.id, { generatedIaC })
-          console.log('✅ Generated IaC saved to AWS')
-        } catch (awsError) {
-          console.warn('⚠️ Failed to save generated IaC to AWS:', awsError)
-        }
+    return { totalProjects, activeProjects, totalTables, totalEndpoints }
+  }, [projects])
+
+  // Filter projects based on search
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return projects
+    const q = searchQuery.toLowerCase()
+    return projects.filter(p => 
+      p.name?.toLowerCase().includes(q) || 
+      p.description?.toLowerCase().includes(q)
+    )
+  }, [projects, searchQuery])
+
+  // Project activity chart data
+  const projectActivityData = useMemo(() => {
+    return projects.slice(0, 5).map(p => {
+      const schema = Array.isArray(p.schema) ? p.schema : p.schema?.tables || []
+      return {
+        name: p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name,
+        tables: schema.length,
+        endpoints: p.endpoints?.length || 0
       }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Request failed'
-      if (kind === 'code') {
-        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode: { files: [], instructions: '', dependencies: [], success: false, error: msg } } as any })
-      } else {
-        dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedIaC: { files: [], instructions: '', dependencies: [], success: false, error: msg } } as any })
-      }
-    } finally {
-      if (kind === 'code') setIsGeneratingCode(false)
-      else setIsGeneratingIac(false)
-    }
-  }
-
-  const metrics = useMemo(() => {
-    // Handle schema - AWS returns { tables: [...] } not just an array
-    const schemaArray = Array.isArray(currentProject?.schema) 
-      ? currentProject.schema 
-      : currentProject?.schema?.tables || []
-    
-    const tables = schemaArray.length || 0
-    const fields = schemaArray.reduce((acc: number, t: any) => acc + (t.fields?.length || 0), 0) || 0
-    const endpoints = currentProject?.endpoints?.length ?? (tables > 0 ? tables * 4 : 0)
-    const decisions = (currentProject as any)?.decisions?.decisions?.length || 0
-    const components = (currentProject as any)?.architecture?.nodes?.length || 0
-    const connections = (currentProject as any)?.architecture?.edges?.length || 0
-    return { tables, fields, endpoints, decisions, components, connections }
-  }, [currentProject])
-
-  const fieldTypeData = useMemo(() => {
-    if (!currentProject?.schema) return [] as { name: string; value: number; fill: string }[]
-    
-    // Handle schema - AWS returns { tables: [...] } not just an array
-    const schemaArray = Array.isArray(currentProject.schema) 
-      ? currentProject.schema 
-      : currentProject.schema?.tables || []
-    
-    const counts = new Map<string, number>()
-    schemaArray.forEach((tbl: any) => {
-      tbl.fields?.forEach((f: any) => {
-        const key = typeof f.type === 'string' && f.type.trim() ? f.type : 'Other'
-        counts.set(key, (counts.get(key) || 0) + 1)
-      })
     })
-    const palette = ["#e11d48", "#f97316", "#eab308", "#005BE3", "#3b82f6", "#a855f7", "#f43f5e"]
-    const entries = Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-    const top = entries.slice(0, 5)
-    const restTotal = entries.slice(5).reduce((acc, [, v]) => acc + v, 0)
-    const data = top.map(([name, value], i) => ({ name, value, fill: palette[i % palette.length] }))
-    if (restTotal > 0) data.push({ name: 'Other', value: restTotal, fill: palette[data.length % palette.length] })
-    return data
-  }, [currentProject])
-
-  const methodData = useMemo(() => {
-    const approx = metrics.endpoints
-    const methodCounts = new Map<string, number>()
-    if (currentProject?.endpoints?.length) {
-      currentProject.endpoints.forEach((ep: any) => {
-        const m = (ep.method || 'GET').toUpperCase()
-        methodCounts.set(m, (methodCounts.get(m) || 0) + 1)
-      })
-    } else if (approx > 0) {
-      // Heuristic distribution
-      methodCounts.set('GET', Math.round(approx * 0.5))
-      methodCounts.set('POST', Math.round(approx * 0.3))
-      methodCounts.set('PUT', Math.round(approx * 0.1))
-      methodCounts.set('DELETE', approx - (methodCounts.get('GET')! + methodCounts.get('POST')! + methodCounts.get('PUT')!))
-    }
-    return Array.from(methodCounts.entries()).map(([name, value]) => ({ name, value }))
-  }, [currentProject, metrics.endpoints])
-
-  // Endpoint filters
-  const [endpointSearch, setEndpointSearch] = useState("")
-  const [endpointMethod, setEndpointMethod] = useState("ALL")
-  const filteredEndpoints = useMemo(() => {
-    const list: any[] = currentProject?.endpoints || []
-    return list.filter((ep) => {
-      const matchesMethod = endpointMethod === 'ALL' || (ep.method || '').toUpperCase() === endpointMethod
-      const q = endpointSearch.trim().toLowerCase()
-      const matchesQuery = !q || ep.path?.toLowerCase().includes(q) || ep.group?.toLowerCase().includes(q)
-      return matchesMethod && matchesQuery
-    })
-  }, [currentProject, endpointMethod, endpointSearch])
+  }, [projects])
 
   // Recent activity from chat
   const recentActivity = useMemo(() => {
@@ -231,31 +98,104 @@ export default function Dashboard() {
 
   return (
     <EnterpriseDashboardLayout
-      title={currentProject ? currentProject.name : "Dashboard"}
-      description={currentProject ? "Project overview and management" : "Welcome to Snapinfra"}
+      title="Dashboard"
+      description="Overview of all your projects and workspace activity"
       breadcrumbs={[
-        { label: "Projects", href: "/" },
-        { label: currentProject?.name || "Dashboard" },
+        { label: "Dashboard" },
       ]}
       actions={
-        currentProject && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+        <div className="flex items-center gap-2">
+          <Link href="/onboarding?new=true">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              New Project
             </Button>
-            <DeploymentModal>
-              <Button size="sm">
-                Deploy
-              </Button>
-            </DeploymentModal>
-          </div>
-        )
+          </Link>
+        </div>
       }
     >
       <div className="space-y-6">
-        {/* If no project, show enterprise empty state */}
-        {!currentProject ? (
+        {loading ? (
+          <>
+            {/* Skeleton for Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className="border border-gray-200">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-3 flex-1">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-8 w-16" />
+                      </div>
+                      <Skeleton className="h-12 w-12 rounded-lg" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Skeleton for Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border border-gray-200">
+                <CardHeader className="border-b border-gray-100">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-48 mt-2" />
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <Skeleton className="h-[250px] w-full" />
+                </CardContent>
+              </Card>
+              
+              <Card className="border border-gray-200">
+                <CardHeader className="border-b border-gray-100">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-48 mt-2" />
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-lg" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                        <Skeleton className="h-5 w-16" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Skeleton for Projects Table */}
+            <Card className="border border-gray-200 shadow-sm">
+              <CardHeader className="border-b border-gray-100 bg-white">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                  <Skeleton className="h-9 w-64" />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 bg-white">
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="flex items-center gap-4 p-4 border border-gray-100 rounded-lg">
+                      <Skeleton className="h-5 w-1/4" />
+                      <Skeleton className="h-5 w-1/6" />
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-5 w-20" />
+                      <Skeleton className="h-5 w-24" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        ) : projects.length === 0 ? (
           <div className="space-y-6">
             <Card className="border border-gray-200 shadow-sm">
               <CardHeader className="border-b border-gray-100 bg-white">
@@ -272,17 +212,10 @@ export default function Dashboard() {
                       Create Project
                     </Button>
                   </Link>
-                  <Link href="/architecture-demo">
-                    <Button variant="outline" size="lg" className="border-gray-300 hover:bg-gray-50">
-                      <Activity className="w-4 h-4 mr-2" />
-                      View Demo
-                    </Button>
-                  </Link>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Feature Overview for Empty State */}
             <StatsGrid
               title="Platform Capabilities"
               description="What you can do with Snapinfra"
@@ -296,421 +229,198 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
-            {/* Compact Stats Bar */}
-            <div className="flex items-center gap-6 p-4 bg-white border border-gray-200 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 bg-blue-50 rounded-lg">
-                  <Database className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Tables</p>
-                  <p className="text-lg font-semibold text-gray-900">{metrics.tables}</p>
-                </div>
-              </div>
-              <div className="h-10 w-px bg-gray-200" />
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 bg-purple-50 rounded-lg">
-                  <Code2 className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Endpoints</p>
-                  <p className="text-lg font-semibold text-gray-900">{metrics.endpoints}</p>
-                </div>
-              </div>
-              <div className="h-10 w-px bg-gray-200" />
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 bg-green-50 rounded-lg">
-                  <Layers className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Components</p>
-                  <p className="text-lg font-semibold text-gray-900">{metrics.components}</p>
-                </div>
-              </div>
-              <div className="h-10 w-px bg-gray-200" />
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 bg-orange-50 rounded-lg">
-                  <Network className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Connections</p>
-                  <p className="text-lg font-semibold text-gray-900">{metrics.connections}</p>
-                </div>
-              </div>
+            {/* Workspace Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border border-gray-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Projects</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-2">{workspaceMetrics.totalProjects}</p>
+                    </div>
+                    <div className="flex items-center justify-center w-12 h-12 bg-blue-50 rounded-lg">
+                      <Folder className="w-6 h-6 text-blue-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Active Projects</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-2">{workspaceMetrics.activeProjects}</p>
+                    </div>
+                    <div className="flex items-center justify-center w-12 h-12 bg-green-50 rounded-lg">
+                      <CheckCircle2 className="w-6 h-6 text-green-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Tables</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-2">{workspaceMetrics.totalTables}</p>
+                    </div>
+                    <div className="flex items-center justify-center w-12 h-12 bg-purple-50 rounded-lg">
+                      <Database className="w-6 h-6 text-purple-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Endpoints</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-2">{workspaceMetrics.totalEndpoints}</p>
+                    </div>
+                    <div className="flex items-center justify-center w-12 h-12 bg-orange-50 rounded-lg">
+                      <Code2 className="w-6 h-6 text-orange-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Main Content Grid */}
+            {/* Activity Chart */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column */}
-              <div className="space-y-6">
-
-                {/* Backend Code */}
-                <Card id="backend-code" className="border border-gray-200 shadow-sm">
-                  <CardHeader className="pb-3 border-b border-gray-100 bg-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                          <Code2 className="w-4 h-4" />
-                          Backend Code
-                        </CardTitle>
-                        <CardDescription className="text-xs text-gray-600 mt-1">Production-ready API endpoints and models</CardDescription>
-                      </div>
-                      {currentProject?.generatedCode?.files?.length > 0 && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
-                          {currentProject.generatedCode.files.length} files
-                        </Badge>
-                      )}
+              <Card className="border border-gray-200">
+                <CardHeader className="border-b border-gray-100">
+                  <CardTitle className="text-base font-semibold">Project Activity</CardTitle>
+                  <CardDescription className="text-sm">Tables and endpoints by project</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  {projectActivityData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={projectActivityData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Bar dataKey="tables" fill="#8b5cf6" name="Tables" />
+                        <Bar dataKey="endpoints" fill="#3b82f6" name="Endpoints" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[250px] flex items-center justify-center text-gray-500">
+                      No project data available
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-4 bg-white">
-                    {isGeneratingCode ? (
-                      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                        <div className="relative">
-                          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border border-gray-200">
+                <CardHeader className="border-b border-gray-100">
+                  <CardTitle className="text-base font-semibold">Recent Activity</CardTitle>
+                  <CardDescription className="text-sm">Latest updates across projects</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    {projects.slice(0, 5).map((project, idx) => (
+                      <div key={project.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors" onClick={() => router.push(`/projects/${project.id}`)}>
+                        <div className="flex items-center justify-center w-10 h-10 bg-blue-50 rounded-lg flex-shrink-0">
+                          <Folder className="w-5 h-5 text-blue-600" />
                         </div>
-                        <div className="text-center space-y-1">
-                          <p className="text-sm font-medium text-gray-900">Generating Backend Code</p>
-                          <p className="text-xs text-gray-500">Analyzing schema and creating API endpoints...</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{project.name}</p>
+                          <p className="text-xs text-gray-500">Updated {formatRelativeTime(new Date(project.updatedAt || project.createdAt))}</p>
                         </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {(Array.isArray(project.schema) ? project.schema : project.schema?.tables || []).length} tables
+                        </Badge>
                       </div>
-                    ) : currentProject?.generatedCode?.files?.length ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                          <span className="text-sm font-medium text-green-900">Code Generated Successfully</span>
-                        </div>
-                        <GeneratedFilesList files={currentProject.generatedCode.files} fileType="code" projectName={currentProject.name} />
-                      </div>
-                    ) : currentProject?.generatedCode?.success === false ? (
-                      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg max-w-md">
-                          <div className="flex items-start gap-3">
-                            <Shield className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                            <div className="space-y-2">
-                              <p className="text-sm font-medium text-red-900">Generation Failed</p>
-                              <p className="text-xs text-red-700">{currentProject.generatedCode.error || 'Unknown error occurred'}</p>
-                              <Button variant="outline" size="sm" onClick={() => retryGenerate('code')} className="mt-2">
-                                <RefreshCw className="w-3 h-3 mr-2" />
-                                Try Again
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="border border-dashed border-gray-300 rounded-lg p-8">
-                        <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                          <div className="p-3 bg-gray-100 rounded-full">
-                            <Code2 className="w-6 h-6 text-gray-600" />
-                          </div>
-                          <div className="space-y-1">
-                            <h4 className="text-sm font-semibold text-gray-900">No Backend Code Yet</h4>
-                            <p className="text-xs text-gray-500 max-w-sm">Generate production-ready backend code with API endpoints, models, and database configuration based on your schema.</p>
-                          </div>
-                          <div className="pt-2">
-                            <Button 
-                              onClick={() => retryGenerate('code')} 
-                              size="sm"
-                              disabled={metrics.tables === 0}
-                              className="shadow-sm"
-                            >
-                              <Code2 className="w-4 h-4 mr-2" />
-                              Generate Backend Code
-                            </Button>
-                            {metrics.tables === 0 && (
-                              <p className="text-xs text-gray-500 mt-2">Add tables to your schema first</p>
-                            )}
-                          </div>
-                        </div>
+                    ))}
+                    {projects.length === 0 && (
+                      <div className="text-center py-8 text-gray-500 text-sm">
+                        No recent activity
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-
-                {/* Infrastructure as Code */}
-                <Card id="infrastructure" className="border border-gray-200 shadow-sm">
-                  <CardHeader className="pb-3 border-b border-gray-100 bg-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                          <Rocket className="w-4 h-4" />
-                          Infrastructure as Code
-                        </CardTitle>
-                        <CardDescription className="text-xs text-gray-600 mt-1">Terraform, AWS CDK, and Docker configurations</CardDescription>
-                      </div>
-                      {currentProject?.generatedIaC?.files?.length > 0 && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
-                          {currentProject.generatedIaC.files.length} files
-                        </Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 bg-white">
-                    {isGeneratingIac ? (
-                      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                        <div className="relative">
-                          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-                        </div>
-                        <div className="text-center space-y-1">
-                          <p className="text-sm font-medium text-gray-900">Generating Infrastructure Code</p>
-                          <p className="text-xs text-gray-500">Creating Terraform, CDK, and Docker configurations...</p>
-                        </div>
-                      </div>
-                    ) : currentProject?.generatedIaC?.files?.length ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                          <span className="text-sm font-medium text-green-900">Infrastructure Code Generated</span>
-                        </div>
-                        <GeneratedFilesList files={currentProject.generatedIaC.files} fileType="iac" projectName={currentProject.name} />
-                      </div>
-                    ) : currentProject?.generatedIaC?.success === false ? (
-                      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg max-w-md">
-                          <div className="flex items-start gap-3">
-                            <Shield className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                            <div className="space-y-2">
-                              <p className="text-sm font-medium text-red-900">Generation Failed</p>
-                              <p className="text-xs text-red-700">{currentProject.generatedIaC.error || 'Unknown error occurred'}</p>
-                              <Button variant="outline" size="sm" onClick={() => retryGenerate('iac')} className="mt-2">
-                                <RefreshCw className="w-3 h-3 mr-2" />
-                                Try Again
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="border border-dashed border-gray-300 rounded-lg p-8">
-                        <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                          <div className="p-3 bg-gray-100 rounded-full">
-                            <Rocket className="w-6 h-6 text-gray-600" />
-                          </div>
-                          <div className="space-y-1">
-                            <h4 className="text-sm font-semibold text-gray-900">No Infrastructure Code Yet</h4>
-                            <p className="text-xs text-gray-500 max-w-sm">Generate Infrastructure-as-Code including Terraform, AWS CDK, and Docker Compose configurations for deployment.</p>
-                          </div>
-                          <div className="pt-2">
-                            <Button 
-                              onClick={() => retryGenerate('iac')} 
-                              size="sm"
-                              disabled={metrics.tables === 0}
-                              className="shadow-sm"
-                            >
-                              <Rocket className="w-4 h-4 mr-2" />
-                              Generate Infrastructure Code
-                            </Button>
-                            {metrics.tables === 0 && (
-                              <p className="text-xs text-gray-500 mt-2">Add tables to your schema first</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-6">
-                {/* Quick Info Card */}
-                <Card className="border border-gray-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold">Database</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600">Type</span>
-                      <span className="text-sm font-medium text-gray-900">{currentProject?.database?.type?.toUpperCase() || "PostgreSQL"}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600">Tables</span>
-                      <span className="text-sm font-medium text-gray-900">{metrics.tables}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600">Total Fields</span>
-                      <span className="text-sm font-medium text-gray-900">{metrics.fields}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Full-Width Resources Section */}
+            {/* Projects List */}
             <Card className="border border-gray-200 shadow-sm">
               <CardHeader className="border-b border-gray-100 bg-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base font-semibold text-gray-900">Project Resources</CardTitle>
-                    <CardDescription className="text-sm text-gray-600 mt-1">Detailed view of all project components</CardDescription>
+                    <CardTitle className="text-base font-semibold text-gray-900">All Projects</CardTitle>
+                    <CardDescription className="text-sm text-gray-600 mt-1">Manage and view all your projects</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      placeholder="Search projects..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-64"
+                    />
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-6 bg-white">
-                <Tabs defaultValue="tables">
-                  <TabsList>
-                    <TabsTrigger value="tables">Tables ({metrics.tables})</TabsTrigger>
-                    <TabsTrigger value="endpoints">Endpoints ({metrics.endpoints})</TabsTrigger>
-                    <TabsTrigger value="decisions">Decisions ({metrics.decisions})</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="tables" className="mt-4">
-                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-gray-50 border-b border-gray-200">
-                            <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Name</TableHead>
-                            <TableHead className="text-right font-semibold text-gray-700 text-xs uppercase tracking-wide">Fields</TableHead>
-                            <TableHead className="text-right font-semibold text-gray-700 text-xs uppercase tracking-wide">Relationships</TableHead>
-                            <TableHead className="text-right font-semibold text-gray-700 text-xs uppercase tracking-wide">Indexes</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(() => {
-                            const schemaArray = Array.isArray(currentProject?.schema) 
-                              ? currentProject.schema 
-                              : currentProject?.schema?.tables || []
-                            return schemaArray.length > 0 ? (
-                              schemaArray.map((t: any) => (
-                                <TableRow key={t.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
-                                  <TableCell className="font-medium text-gray-900 text-sm">{t.name}</TableCell>
-                                  <TableCell className="text-right text-gray-600 text-sm">{t.fields?.length || 0}</TableCell>
-                                  <TableCell className="text-right text-gray-600 text-sm">{t.relationships?.length || 0}</TableCell>
-                                  <TableCell className="text-right text-gray-600 text-sm">{t.indexes?.length || 0}</TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={4} className="text-center text-sm text-gray-500 py-8">
-                                  No tables defined yet
-                                </TableCell>
-                              </TableRow>
-                            )
-                          })()}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="endpoints" className="mt-4">
-                    <div className="space-y-4">
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="flex-1">
-                          <Input
-                            placeholder="Search path or group..."
-                            value={endpointSearch}
-                            onChange={(e) => setEndpointSearch(e.target.value)}
-                          />
-                        </div>
-                        <Select value={endpointMethod} onValueChange={setEndpointMethod}>
-                          <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Method" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>HTTP Method</SelectLabel>
-                              <SelectItem value="ALL">All Methods</SelectItem>
-                              <SelectItem value="GET">GET</SelectItem>
-                              <SelectItem value="POST">POST</SelectItem>
-                              <SelectItem value="PUT">PUT</SelectItem>
-                              <SelectItem value="DELETE">DELETE</SelectItem>
-                              <SelectItem value="PATCH">PATCH</SelectItem>
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-gray-50 border-b border-gray-200">
-                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Method</TableHead>
-                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Path</TableHead>
-                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Group</TableHead>
-                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Auth</TableHead>
-                              <TableHead className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Description</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredEndpoints.length > 0 ? (
-                              filteredEndpoints.map((ep: any, idx: number) => (
-                                <TableRow key={idx} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
-                                  <TableCell>
-                                    <Badge variant="outline" className="text-xs font-mono font-semibold border-gray-300">
-                                      {ep.method}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="font-mono text-sm text-gray-900">{ep.path}</TableCell>
-                                  <TableCell className="text-sm text-gray-600">{ep.group}</TableCell>
-                                  <TableCell className="text-sm">
-                                    {ep.auth ? (
-                                      <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">Required</Badge>
-                                    ) : (
-                                      <span className="text-gray-500 text-xs">None</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="max-w-[300px] truncate text-sm text-gray-600" title={ep.description}>
-                                    {ep.description}
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-8">
-                                  No endpoints found
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="decisions" className="mt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {(currentProject as any)?.decisions?.decisions?.length > 0 ? (
-                        (currentProject as any).decisions.decisions.slice(0, 12).map((d: any) => {
-                          // Use user's actual selection if available, otherwise fall back to recommended
-                          const userSelectedToolId = (currentProject as any)?.selectedTools?.[d.id]
-                          const toolIdToUse = userSelectedToolId || d.selectedTool
-                          const selectedTool = d.recommendations?.find((r: any) => r.id === toolIdToUse)
-                          const isUserSelection = !!userSelectedToolId
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-semibold text-gray-700">Name</TableHead>
+                        <TableHead className="font-semibold text-gray-700">Database</TableHead>
+                        <TableHead className="text-right font-semibold text-gray-700">Tables</TableHead>
+                        <TableHead className="text-right font-semibold text-gray-700">Endpoints</TableHead>
+                        <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                        <TableHead className="font-semibold text-gray-700">Last Updated</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProjects.length > 0 ? (
+                        filteredProjects.map((project) => {
+                          const schema = Array.isArray(project.schema) ? project.schema : project.schema?.tables || []
+                          const hasContent = schema.length > 0
                           return (
-                            <Card key={d.id} className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                              <CardContent className="p-4 bg-white">
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                  <div className="flex-1">
-                                    <p className="text-sm font-semibold text-gray-900">{d.title}</p>
-                                  </div>
-                                  <Badge variant="secondary" className="text-xs flex-shrink-0 bg-gray-100 text-gray-700 border-gray-200">
-                                    {d.category}
+                            <TableRow 
+                              key={project.id} 
+                              className="hover:bg-gray-50 cursor-pointer transition-colors"
+                              onClick={() => router.push(`/projects/${project.id}`)}
+                            >
+                              <TableCell className="font-medium text-gray-900">{project.name}</TableCell>
+                              <TableCell className="text-gray-600">{project.database?.type?.toUpperCase() || 'PostgreSQL'}</TableCell>
+                              <TableCell className="text-right text-gray-600">{schema.length}</TableCell>
+                              <TableCell className="text-right text-gray-600">{project.endpoints?.length || 0}</TableCell>
+                              <TableCell>
+                                {hasContent ? (
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300 text-xs">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    Active
                                   </Badge>
-                                </div>
-                                {selectedTool && (
-                                  <div className="mb-2">
-                                    <Badge className="text-xs font-semibold bg-blue-600 text-white">
-                                      {selectedTool.name}
-                                    </Badge>
-                                  </div>
+                                ) : (
+                                  <Badge variant="secondary" className="bg-gray-100 text-gray-600 border-gray-300 text-xs">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Empty
+                                  </Badge>
                                 )}
-                                <p className="text-xs text-gray-600 line-clamp-2">{d.description}</p>
-                              </CardContent>
-                            </Card>
+                              </TableCell>
+                              <TableCell className="text-gray-600 text-sm">
+                                {formatRelativeTime(new Date(project.updatedAt || project.createdAt))}
+                              </TableCell>
+                            </TableRow>
                           )
                         })
                       ) : (
-                        <div className="col-span-2 text-center text-sm text-gray-500 py-8">
-                          No decisions made yet
-                        </div>
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                            {searchQuery ? 'No projects match your search' : 'No projects yet'}
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </>
