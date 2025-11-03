@@ -756,29 +756,8 @@ export function StepTwo({ data, onComplete, onBack }: StepTwoProps) {
         </div>
       </div>
 
-      {/* Subtle Divider */}
-      <div className="max-w-[1000px] mx-auto">
-        <div className="h-px bg-gradient-to-r from-transparent via-[#005BE3]/20 to-transparent"></div>
-      </div>
-
-      {/* Action Buttons - Clean and Centered */}
-      <div className="flex justify-center items-center gap-4 pt-16 max-w-[800px] mx-auto">
-        <button
-          onClick={onBack}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
-        >
-          <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-1" />
-          Back
-        </button>
-        <Button 
-          onClick={onComplete} 
-          size="lg" 
-          className="px-8 py-6 bg-gradient-to-r from-primary to-primary/80 hover:shadow-xl transition-all hover:scale-105 text-base font-semibold"
-        >
-          Proceed to API Testing
-          <ArrowRight className="ml-2 h-5 w-5" />
-        </Button>
-      </div>
+      {/* Bottom padding for sticky button */}
+      <div className="h-24"></div>
     </div>
   )
 }
