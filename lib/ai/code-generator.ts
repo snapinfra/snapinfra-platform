@@ -933,9 +933,10 @@ console.log(\`   Database: \${process.env.DB_NAME || '${project.name.toLowerCase
 console.log(\`   Host: \${process.env.DB_HOST || 'localhost'}\`);
 console.log(\`   SSL: \${getSslConfig() ? 'Enabled (AWS RDS)' : 'Disabled (Local)'}\`);
 
-// Error handling
+// Error handling - log but don't crash during migrations
 pool.on('error', (err) => {
-  console.error('❌ Unexpected database error:', err);
+  console.error('❌ Unexpected database error:', err.message);
+  // Migrations will handle their own errors
 });
 
 const createMigrationTable = async () => {

@@ -705,10 +705,12 @@ const createPool = () => {
       keepAliveInitialDelayMillis: 10000,
     });
 
-    // Error handling
+    // Error handling - log but don't crash the app
     pool.on('error', (err) => {
-      console.error('Unexpected error on idle client', err);
-      process.exit(-1);
+      console.error('❌ Unexpected database pool error:', err.message);
+      console.error('   Stack:', err.stack);
+      // Don't exit - let app continue and retry connections
+      // If DB is truly down, connection attempts will fail gracefully
     });
 
     // Log connection info
@@ -1314,6 +1316,7 @@ echo "   DB_HOST: \${DB_HOST}"
 echo "   DB_PORT: \${DB_PORT:-5432}"
 echo "   DB_NAME: \${DB_NAME}"
 echo "   DB_USER: \${DB_USER}"
+echo "   SSL_MODE: \${NODE_ENV:-development}" 
 echo ""
 
 # Function to check PostgreSQL connection
