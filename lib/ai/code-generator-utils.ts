@@ -660,16 +660,17 @@ module.exports = {
 
 NO default exports! Always use module.exports = { ... };`,
 
-  database: `Generate database connection using pg (PostgreSQL):
+  database: `Generate database connection using pg (PostgreSQL) WITH AWS RDS SSL SUPPORT:
 
 Files (camelCase):
-- connection.js: Export { createPool, getPool }
+- connection.js: Export { createPool, getPool } with SSL configuration
 - index.js: Re-export from connection.js using module.exports = { createPool, getPool }
 - migrations/001_initial_schema.sql: SQL to create initial tables with UUID extension. COMPULSORY include database creation SQL in comments.
 
+CRITICAL: AWS RDS REQUIRES SSL CONNECTION
 CRITICAL: getPool() should auto-create pool if not initialized (lazy initialization pattern)
 
-Example:
+Example with SSL:
 \`\`\`javascript
 // connection.js
 const { Pool } = require('pg');
@@ -678,17 +679,43 @@ let pool = null;
 
 const createPool = () => {
   if (!pool) {
+    // SSL Configuration for AWS RDS
+    const sslConfig = process.env.NODE_ENV === 'production' 
+      ? { rejectUnauthorized: false } // AWS RDS with SSL
+      : false; // Local development without SSL
+
     pool = new Pool({
       user: process.env.DB_USER || 'postgres',
       host: process.env.DB_HOST || 'localhost',
       database: process.env.DB_NAME || 'myapp',
       password: process.env.DB_PASSWORD || 'postgres',
       port: parseInt(process.env.DB_PORT || '5432', 10),
+      
+      // Connection pool settings
       min: parseInt(process.env.DB_POOL_MIN || '2', 10),
       max: parseInt(process.env.DB_POOL_MAX || '10', 10),
       idleTimeoutMillis: parseInt(process.env.DB_POOL_IDLE || '10000', 10),
       connectionTimeoutMillis: 2000,
+      
+      // AWS RDS SSL Configuration
+      ssl: sslConfig,
+      
+      // Keep connection alive
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
     });
+
+    // Error handling
+    pool.on('error', (err) => {
+      console.error('Unexpected error on idle client', err);
+      process.exit(-1);
+    });
+
+    // Log connection info
+    console.log('📊 Database pool created');
+    console.log(\`   Host: \${process.env.DB_HOST || 'localhost'}\`);
+    console.log(\`   Database: \${process.env.DB_NAME || 'myapp'}\`);
+    console.log(\`   SSL: \${process.env.NODE_ENV === 'production' ? 'Enabled (AWS RDS)' : 'Disabled (Local)'}\`);
   }
   return pool;
 };
@@ -700,21 +727,34 @@ const getPool = () => {
   return pool;
 };
 
-module.exports = { createPool, getPool };
+// Graceful shutdown
+const closePool = async () => {
+  if (pool) {
+    await pool.end();
+    console.log('📊 Database pool closed');
+    pool = null;
+  }
+};
+
+module.exports = { createPool, getPool, closePool };
 \`\`\`
 
-Migration SQL Template:
+Migration SQL Template (AWS RDS Compatible):
 \`\`\`sql
 -- ============================================================================
--- Database Creation (run manually or via docker-entrypoint.sh)
+-- Database Creation (run manually or via RDS console)
 -- ============================================================================
+-- For AWS RDS, create database via console or:
 -- CREATE DATABASE your_db_name;
 -- \\c your_db_name;
 
 -- ============================================================================
--- Enable UUID Extension
+-- Enable UUID Extension (AWS RDS Compatible)
 -- ============================================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Verify extension
+-- SELECT * FROM pg_extension WHERE extname = 'uuid-ossp';
 
 -- ============================================================================
 -- Tables with Auto-Generated UUIDs
@@ -728,9 +768,30 @@ CREATE TABLE IF NOT EXISTS users (
   deleted_at TIMESTAMPTZ
 );
 
--- Add indexes for performance
+-- Add indexes for performance (AWS RDS optimized)
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at DESC);
+
+-- ============================================================================
+-- Update trigger for updated_at timestamp
+-- ============================================================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- Verify setup
+-- ============================================================================
+-- SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
+-- SELECT * FROM pg_indexes WHERE schemaname = 'public';
 \`\`\``,
 
   models: `Generate model modules using FUNCTIONAL approach.
@@ -1246,38 +1307,70 @@ set -e
 echo "🚀 Starting ${project.name}..."
 echo "================================"
 
+# Display environment info
+echo "📋 Environment:"
+echo "   NODE_ENV: \${NODE_ENV:-development}"
+echo "   DB_HOST: \${DB_HOST}"
+echo "   DB_PORT: \${DB_PORT:-5432}"
+echo "   DB_NAME: \${DB_NAME}"
+echo "   DB_USER: \${DB_USER}"
+echo ""
+
 # Function to check PostgreSQL connection
 check_postgres() {
-  PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -U "$DB_USER" -d "postgres" -c '\\q' 2>/dev/null
+  # Extract hostname if DB_HOST contains port
+  DB_HOST_CLEAN=\$(echo "\${DB_HOST}" | cut -d: -f1)
+  
+  PGPASSWORD=\$DB_PASSWORD psql -h "\$DB_HOST_CLEAN" -p "\${DB_PORT:-5432}" -U "\$DB_USER" -d "postgres" -c '\\q' 2>/dev/null
 }
 
 # Wait for PostgreSQL with timeout
 echo "⏳ Waiting for PostgreSQL to be ready..."
-MAX_TRIES=30
+MAX_TRIES=60
 COUNTER=0
 
 until check_postgres; do
-  COUNTER=$((COUNTER + 1))
-  if [ $COUNTER -gt $MAX_TRIES ]; then
-    echo "❌ PostgreSQL is unavailable after $MAX_TRIES attempts - exiting"
+  COUNTER=\$((COUNTER + 1))
+  if [ \$COUNTER -gt \$MAX_TRIES ]; then
+    echo "❌ PostgreSQL is unavailable after \$MAX_TRIES attempts - exiting"
+    echo "   Check DB_HOST: \${DB_HOST}"
+    echo "   Check DB_PORT: \${DB_PORT:-5432}"
+    echo "   Check DB_USER: \${DB_USER}"
     exit 1
   fi
-  echo "   PostgreSQL is unavailable (attempt $COUNTER/$MAX_TRIES) - sleeping"
+  echo "   PostgreSQL is unavailable (attempt \$COUNTER/\$MAX_TRIES) - sleeping"
   sleep 2
 done
 
 echo "✅ PostgreSQL is ready!"
 
-# Create database if it doesn't exist
-echo "📦 Ensuring database '$DB_NAME' exists..."
-DB_EXISTS=$(PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -U "$DB_USER" -d "postgres" -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
+# Extract hostname for database operations
+DB_HOST_CLEAN=\$(echo "\${DB_HOST}" | cut -d: -f1)
 
-if [ "$DB_EXISTS" != "1" ]; then
-  echo "   Creating database '$DB_NAME'..."
-  PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -U "$DB_USER" -d "postgres" -c "CREATE DATABASE $DB_NAME"
-  echo "   ✅ Database created!"
+# Create database if it doesn't exist
+echo "📦 Ensuring database '\$DB_NAME' exists..."
+DB_EXISTS=\$(PGPASSWORD=\$DB_PASSWORD psql -h "\$DB_HOST_CLEAN" -p "\${DB_PORT:-5432}" -U "\$DB_USER" -d "postgres" -tAc "SELECT 1 FROM pg_database WHERE datname='\$DB_NAME'" 2>/dev/null || echo "0")
+
+if [ "\$DB_EXISTS" != "1" ]; then
+  echo "   Creating database '\$DB_NAME'..."
+  PGPASSWORD=\$DB_PASSWORD psql -h "\$DB_HOST_CLEAN" -p "\${DB_PORT:-5432}" -U "\$DB_USER" -d "postgres" -c "CREATE DATABASE \$DB_NAME" 2>&1
+  
+  if [ \$? -eq 0 ]; then
+    echo "   ✅ Database created!"
+  else
+    echo "   ⚠️  Database creation had issues (may already exist)"
+  fi
 else
   echo "   ✅ Database already exists!"
+fi
+
+# Test connection to the application database
+echo "🔍 Testing connection to application database..."
+if PGPASSWORD=\$DB_PASSWORD psql -h "\$DB_HOST_CLEAN" -p "\${DB_PORT:-5432}" -U "\$DB_USER" -d "\$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
+  echo "✅ Successfully connected to '\$DB_NAME' database!"
+else
+  echo "❌ Failed to connect to '\$DB_NAME' database"
+  exit 1
 fi
 
 # Check if migrations directory exists
@@ -1306,7 +1399,7 @@ exec "$@"`;
   return {
     path: 'docker-entrypoint.sh',
     content,
-    description: 'Enhanced Docker entrypoint with robust error handling'
+    description: 'Enhanced Docker entrypoint with robust database connectivity'
   };
 }
 
@@ -1519,19 +1612,33 @@ NODE_ENV=production
 PORT=3000
 
 # =============================================================================
-# Database Configuration
+# Database Configuration (AWS RDS)
 # =============================================================================
-DB_HOST=localhost
+# For AWS RDS, use the RDS endpoint
+DB_HOST=your-rds-instance.region.rds.amazonaws.com
 DB_PORT=5432
 DB_USER=postgres
-DB_PASSWORD=postgres
+DB_PASSWORD=your-secure-password
 DB_NAME=${dbName}
 
-DATABASE_URL=postgresql://\${DB_USER}:\${DB_PASSWORD}@\${DB_HOST}:\${DB_PORT}/\${DB_NAME}
+# Full connection string (alternative)
+DATABASE_URL=postgresql://\${DB_USER}:\${DB_PASSWORD}@\${DB_HOST}:\${DB_PORT}/\${DB_NAME}?sslmode=require
 
+# Connection pool settings (optimized for AWS RDS)
 DB_POOL_MIN=2
 DB_POOL_MAX=10
 DB_POOL_IDLE=10000
+
+# SSL Configuration for AWS RDS
+DB_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=false
+
+# =============================================================================
+# Local Development (override for local PostgreSQL)
+# =============================================================================
+# Uncomment these for local development:
+# DB_HOST=localhost
+# DB_SSL=false
 
 ${options.includeAuth ? `# =============================================================================
 # Authentication & Security
@@ -1550,19 +1657,30 @@ LOG_FORMAT=json
 # =============================================================================
 # CORS Configuration
 # =============================================================================
-CORS_ORIGIN=http://localhost:3000,http://localhost:5173
+CORS_ORIGIN=http://localhost:3000,http://localhost:5173,https://yourdomain.com
 CORS_CREDENTIALS=true
 
 # =============================================================================
 # Rate Limiting (optional)
 # =============================================================================
 RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100`;
+RATE_LIMIT_MAX_REQUESTS=100
+
+# =============================================================================
+# AWS Configuration (for ECS deployment)
+# =============================================================================
+AWS_REGION=us-east-1
+AWS_ACCOUNT_ID=your-account-id
+
+# =============================================================================
+# Health Check Configuration
+# =============================================================================
+HEALTH_CHECK_TIMEOUT=5000`;
 
   return {
     path: '.env.example',
     content,
-    description: 'Complete environment configuration template'
+    description: 'Complete environment configuration template with AWS RDS SSL settings'
   };
 }
 
