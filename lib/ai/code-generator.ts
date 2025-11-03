@@ -889,12 +889,53 @@ const fs = require('fs').promises;
 const path = require('path');
 require('dotenv').config();
 
+// SSL Configuration for AWS RDS
+const getSslConfig = () => {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const isProduction = nodeEnv === 'production';
+  
+  if (isProduction || process.env.DB_SSL === 'true') {
+    return {
+      rejectUnauthorized: false, // AWS RDS requires this
+      // For stricter SSL validation, use:
+      // rejectUnauthorized: true,
+      // ca: fs.readFileSync('/path/to/rds-ca-cert.pem').toString(),
+    };
+  }
+  
+  return false; // No SSL for local development
+};
+
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || '${project.name.toLowerCase()}'
+  database: process.env.DB_NAME || '${project.name.toLowerCase()}',
+  
+  // SSL Configuration
+  ssl: getSslConfig(),
+  
+  // Connection settings
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30000,
+  max: 10,
+  
+  // Keep connection alive
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
+});
+
+// Log configuration
+console.log('🔧 Migration utility configuration:');
+console.log(\`   Environment: \${process.env.NODE_ENV || 'development'}\`);
+console.log(\`   Database: \${process.env.DB_NAME || '${project.name.toLowerCase()}'}\`);
+console.log(\`   Host: \${process.env.DB_HOST || 'localhost'}\`);
+console.log(\`   SSL: \${getSslConfig() ? 'Enabled (AWS RDS)' : 'Disabled (Local)'}\`);
+
+// Error handling
+pool.on('error', (err) => {
+  console.error('❌ Unexpected database error:', err);
 });
 
 const createMigrationTable = async () => {
@@ -905,59 +946,124 @@ const createMigrationTable = async () => {
       executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   \`;
-  await pool.query(query);
+  
+  try {
+    await pool.query(query);
+    console.log('✅ Migration table ready');
+  } catch (error) {
+    console.error('❌ Failed to create migration table:', error.message);
+    throw error;
+  }
 };
 
 const getExecutedMigrations = async () => {
-  const result = await pool.query('SELECT name FROM migrations ORDER BY id ASC');
-  return result.rows.map(row => row.name);
+  try {
+    const result = await pool.query('SELECT name FROM migrations ORDER BY id ASC');
+    return result.rows.map(row => row.name);
+  } catch (error) {
+    console.error('❌ Failed to get executed migrations:', error.message);
+    throw error;
+  }
 };
 
 const recordMigration = async (name) => {
-  await pool.query('INSERT INTO migrations (name) VALUES ($1)', [name]);
+  try {
+    await pool.query('INSERT INTO migrations (name) VALUES ($1)', [name]);
+  } catch (error) {
+    console.error(\`❌ Failed to record migration \${name}:\`, error.message);
+    throw error;
+  }
 };
 
 const migrateUp = async () => {
-  await createMigrationTable();
-  const migrationsDir = path.join(__dirname, 'migrations');
-  const files = await fs.readdir(migrationsDir);
-  const sqlFiles = files.filter(f => f.endsWith('.sql')).sort();
-  const executed = await getExecutedMigrations();
-  const pending = sqlFiles.filter(f => !executed.includes(f));
+  console.log('\\n🚀 Starting database migration...');
+  console.log('='.repeat(60));
   
-  for (const migration of pending) {
-    const filePath = path.join(migrationsDir, migration);
-    const sql = await fs.readFile(filePath, 'utf8');
-    await pool.query('BEGIN');
-    try {
-      await pool.query(sql);
-      await recordMigration(migration);
-      await pool.query('COMMIT');
-      console.log(\`✅ Migration executed: \${migration}\`);
-    } catch (error) {
-      await pool.query('ROLLBACK');
-      throw error;
+  try {
+    // Test connection
+    await pool.query('SELECT NOW()');
+    console.log('✅ Database connection successful');
+    
+    await createMigrationTable();
+    
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const files = await fs.readdir(migrationsDir);
+    const sqlFiles = files.filter(f => f.endsWith('.sql')).sort();
+    
+    console.log(\`📁 Found \${sqlFiles.length} migration files\`);
+    
+    const executed = await getExecutedMigrations();
+    console.log(\`✓ Already executed: \${executed.length} migrations\`);
+    
+    const pending = sqlFiles.filter(f => !executed.includes(f));
+    console.log(\`⏳ Pending: \${pending.length} migrations\\n\`);
+    
+    if (pending.length === 0) {
+      console.log('✅ No pending migrations - database is up to date');
+      console.log('='.repeat(60));
+      return;
     }
+    
+    for (const migration of pending) {
+      console.log(\`📝 Executing: \${migration}\`);
+      const filePath = path.join(migrationsDir, migration);
+      const sql = await fs.readFile(filePath, 'utf8');
+      
+      await pool.query('BEGIN');
+      try {
+        await pool.query(sql);
+        await recordMigration(migration);
+        await pool.query('COMMIT');
+        console.log(\`   ✅ Success: \${migration}\\n\`);
+      } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error(\`   ❌ Failed: \${migration}\`);
+        console.error(\`   Error: \${error.message}\\n\`);
+        throw error;
+      }
+    }
+    
+    console.log('='.repeat(60));
+    console.log(\`✅ Migration complete! Executed \${pending.length} migrations\`);
+    console.log('='.repeat(60));
+    
+  } catch (error) {
+    console.error('\\n❌ Migration failed:', error.message);
+    console.error('='.repeat(60));
+    throw error;
   }
 };
 
 const main = async () => {
   const command = process.argv[2] || 'up';
+  
   try {
-    if (command === 'up') await migrateUp();
+    if (command === 'up') {
+      await migrateUp();
+    } else {
+      console.log(\`❌ Unknown command: \${command}\`);
+      console.log('Available commands: up');
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('\\n❌ Fatal error:', error.message);
+    process.exit(1);
   } finally {
     await pool.end();
+    console.log('\\n📊 Database connection closed');
   }
 };
 
-if (require.main === module) main();
+if (require.main === module) {
+  main();
+}
 
 module.exports = { migrateUp, getExecutedMigrations };`;
 
   return {
     path: 'src/database/migrate.js',
     content,
-    description: 'Database migration utility script'
+    description: 'Database migration utility with AWS RDS SSL support'
   };
 }
 

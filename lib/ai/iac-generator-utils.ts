@@ -1,5 +1,5 @@
 // ============================================================================
-// TERRAFORM AWS ECS GENERATORS
+// TERRAFORM AWS ECS GENERATORS - COMPLETE WITH UPDATED VARIABLE NAMES
 // ============================================================================
 // Add these functions to the end of code-generator-utils.ts
 
@@ -378,7 +378,7 @@ export function generateTerraformVPCModule(): GeneratedFile {
 # VPC Module
 # =============================================================================
 
-resource "aws_vpc" "main" {
+resource "aws_vpc" "vpc_main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
@@ -392,8 +392,8 @@ resource "aws_vpc" "main" {
 # Internet Gateway
 # =============================================================================
 
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
+resource "aws_internet_gateway" "igw_main" {
+  vpc_id = aws_vpc.vpc_main.id
 
   tags = {
     Name = "\${var.project_name}-\${var.environment}-igw"
@@ -404,9 +404,9 @@ resource "aws_internet_gateway" "main" {
 # Public Subnets
 # =============================================================================
 
-resource "aws_subnet" "public" {
+resource "aws_subnet" "subnet_public" {
   count                   = length(var.public_subnet_cidrs)
-  vpc_id                  = aws_vpc.main.id
+  vpc_id                  = aws_vpc.vpc_main.id
   cidr_block              = var.public_subnet_cidrs[count.index]
   availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
@@ -421,9 +421,9 @@ resource "aws_subnet" "public" {
 # Private Subnets
 # =============================================================================
 
-resource "aws_subnet" "private" {
+resource "aws_subnet" "subnet_private" {
   count             = length(var.private_subnet_cidrs)
-  vpc_id            = aws_vpc.main.id
+  vpc_id            = aws_vpc.vpc_main.id
   cidr_block        = var.private_subnet_cidrs[count.index]
   availability_zone = var.availability_zones[count.index]
 
@@ -437,7 +437,7 @@ resource "aws_subnet" "private" {
 # NAT Gateway
 # =============================================================================
 
-resource "aws_eip" "nat" {
+resource "aws_eip" "nat_eip" {
   count  = length(var.public_subnet_cidrs)
   domain = "vpc"
 
@@ -445,31 +445,31 @@ resource "aws_eip" "nat" {
     Name = "\${var.project_name}-\${var.environment}-nat-eip-\${count.index + 1}"
   }
 
-  depends_on = [aws_internet_gateway.main]
+  depends_on = [aws_internet_gateway.igw_main]
 }
 
-resource "aws_nat_gateway" "main" {
+resource "aws_nat_gateway" "nat_gw" {
   count         = length(var.public_subnet_cidrs)
-  allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
+  allocation_id = aws_eip.nat_eip[count.index].id
+  subnet_id     = aws_subnet.subnet_public[count.index].id
 
   tags = {
     Name = "\${var.project_name}-\${var.environment}-nat-\${count.index + 1}"
   }
 
-  depends_on = [aws_internet_gateway.main]
+  depends_on = [aws_internet_gateway.igw_main]
 }
 
 # =============================================================================
 # Route Tables
 # =============================================================================
 
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
+resource "aws_route_table" "rt_public" {
+  vpc_id = aws_vpc.vpc_main.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
+    gateway_id = aws_internet_gateway.igw_main.id
   }
 
   tags = {
@@ -477,13 +477,13 @@ resource "aws_route_table" "public" {
   }
 }
 
-resource "aws_route_table" "private" {
+resource "aws_route_table" "rt_private" {
   count  = length(var.private_subnet_cidrs)
-  vpc_id = aws_vpc.main.id
+  vpc_id = aws_vpc.vpc_main.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main[count.index].id
+    nat_gateway_id = aws_nat_gateway.nat_gw[count.index].id
   }
 
   tags = {
@@ -495,16 +495,16 @@ resource "aws_route_table" "private" {
 # Route Table Associations
 # =============================================================================
 
-resource "aws_route_table_association" "public" {
+resource "aws_route_table_association" "rta_public" {
   count          = length(var.public_subnet_cidrs)
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public.id
+  subnet_id      = aws_subnet.subnet_public[count.index].id
+  route_table_id = aws_route_table.rt_public.id
 }
 
-resource "aws_route_table_association" "private" {
+resource "aws_route_table_association" "rta_private" {
   count          = length(var.private_subnet_cidrs)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private[count.index].id
+  subnet_id      = aws_subnet.subnet_private[count.index].id
+  route_table_id = aws_route_table.rt_private[count.index].id
 }
 
 # =============================================================================
@@ -540,15 +540,15 @@ variable "private_subnet_cidrs" {
 # =============================================================================
 
 output "vpc_id" {
-  value = aws_vpc.main.id
+  value = aws_vpc.vpc_main.id
 }
 
 output "public_subnet_ids" {
-  value = aws_subnet.public[*].id
+  value = aws_subnet.subnet_public[*].id
 }
 
 output "private_subnet_ids" {
-  value = aws_subnet.private[*].id
+  value = aws_subnet.subnet_private[*].id
 }`;
 
   return {
@@ -570,7 +570,7 @@ export function generateTerraformSecurityModule(): GeneratedFile {
 # ALB Security Group
 # =============================================================================
 
-resource "aws_security_group" "alb" {
+resource "aws_security_group" "sg_alb" {
   name        = "\${var.project_name}-\${var.environment}-alb-sg"
   description = "Security group for Application Load Balancer"
   vpc_id      = var.vpc_id
@@ -608,7 +608,7 @@ resource "aws_security_group" "alb" {
 # ECS Tasks Security Group
 # =============================================================================
 
-resource "aws_security_group" "ecs_tasks" {
+resource "aws_security_group" "sg_ecs_tasks" {
   name        = "\${var.project_name}-\${var.environment}-ecs-tasks-sg"
   description = "Security group for ECS tasks"
   vpc_id      = var.vpc_id
@@ -618,7 +618,7 @@ resource "aws_security_group" "ecs_tasks" {
     from_port       = 3000
     to_port         = 3000
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+    security_groups = [aws_security_group.sg_alb.id]
   }
 
   egress {
@@ -638,7 +638,7 @@ resource "aws_security_group" "ecs_tasks" {
 # RDS Security Group
 # =============================================================================
 
-resource "aws_security_group" "rds" {
+resource "aws_security_group" "sg_rds" {
   name        = "\${var.project_name}-\${var.environment}-rds-sg"
   description = "Security group for RDS PostgreSQL"
   vpc_id      = var.vpc_id
@@ -648,7 +648,7 @@ resource "aws_security_group" "rds" {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_tasks.id]
+    security_groups = [aws_security_group.sg_ecs_tasks.id]
   }
 
   egress {
@@ -685,15 +685,15 @@ variable "vpc_id" {
 # =============================================================================
 
 output "alb_security_group_id" {
-  value = aws_security_group.alb.id
+  value = aws_security_group.sg_alb.id
 }
 
 output "ecs_security_group_id" {
-  value = aws_security_group.ecs_tasks.id
+  value = aws_security_group.sg_ecs_tasks.id
 }
 
 output "db_security_group_id" {
-  value = aws_security_group.rds.id
+  value = aws_security_group.sg_rds.id
 }`;
 
   return {
@@ -711,7 +711,7 @@ export function generateTerraformRDSModule(): GeneratedFile {
 # RDS PostgreSQL Module
 # =============================================================================
 
-resource "aws_db_subnet_group" "main" {
+resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "\${var.project_name}-\${var.environment}-db-subnet-group"
   subnet_ids = var.private_subnet_ids
 
@@ -720,7 +720,7 @@ resource "aws_db_subnet_group" "main" {
   }
 }
 
-resource "aws_db_instance" "main" {
+resource "aws_db_instance" "rds_postgres" {
   identifier     = "\${var.project_name}-\${var.environment}-db"
   engine         = "postgres"
   engine_version = "15"
@@ -735,7 +735,7 @@ resource "aws_db_instance" "main" {
   password = var.db_password
   port     = 5432
   
-  db_subnet_group_name   = aws_db_subnet_group.main.name
+  db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
   vpc_security_group_ids = [var.db_security_group_id]
   
   backup_retention_period = 7
@@ -806,19 +806,19 @@ variable "db_allocated_storage" {
 # =============================================================================
 
 output "db_endpoint" {
-  value = aws_db_instance.main.endpoint
+  value = aws_db_instance.rds_postgres.endpoint
 }
 
 output "db_address" {
-  value = aws_db_instance.main.address
+  value = aws_db_instance.rds_postgres.address
 }
 
 output "db_port" {
-  value = aws_db_instance.main.port
+  value = aws_db_instance.rds_postgres.port
 }
 
 output "db_name" {
-  value = aws_db_instance.main.db_name
+  value = aws_db_instance.rds_postgres.db_name
 }`;
 
   return {
@@ -836,7 +836,7 @@ export function generateTerraformECRModule(): GeneratedFile {
 # ECR Repository Module
 # =============================================================================
 
-resource "aws_ecr_repository" "main" {
+resource "aws_ecr_repository" "ecr_repo" {
   name                 = "\${var.project_name}-\${var.environment}"
   image_tag_mutability = "MUTABLE"
 
@@ -853,8 +853,8 @@ resource "aws_ecr_repository" "main" {
   }
 }
 
-resource "aws_ecr_lifecycle_policy" "main" {
-  repository = aws_ecr_repository.main.name
+resource "aws_ecr_lifecycle_policy" "ecr_lifecycle" {
+  repository = aws_ecr_repository.ecr_repo.name
 
   policy = jsonencode({
     rules = [
@@ -891,15 +891,15 @@ variable "environment" {
 # =============================================================================
 
 output "repository_url" {
-  value = aws_ecr_repository.main.repository_url
+  value = aws_ecr_repository.ecr_repo.repository_url
 }
 
 output "repository_arn" {
-  value = aws_ecr_repository.main.arn
+  value = aws_ecr_repository.ecr_repo.arn
 }
 
 output "repository_name" {
-  value = aws_ecr_repository.main.name
+  value = aws_ecr_repository.ecr_repo.name
 }`;
 
   return {
@@ -910,8 +910,7 @@ output "repository_name" {
 }
 
 /**
- * Generate ECS module - CORRECTED VERSION
- * Fixes the deployment_configuration error
+ * Generate ECS module - FIXED VERSION with proper database connectivity
  */
 export function generateTerraformECSModule(project: Project, options: CodeGenOptions): GeneratedFile {
   const content = `# =============================================================================
@@ -922,7 +921,7 @@ export function generateTerraformECSModule(project: Project, options: CodeGenOpt
 # ECS Cluster
 # =============================================================================
 
-resource "aws_ecs_cluster" "main" {
+resource "aws_ecs_cluster" "ecs_cluster_main" {
   name = "\${var.project_name}-\${var.environment}-cluster"
 
   setting {
@@ -939,7 +938,7 @@ resource "aws_ecs_cluster" "main" {
 # IAM Roles
 # =============================================================================
 
-resource "aws_iam_role" "ecs_task_execution" {
+resource "aws_iam_role" "iam_ecs_task_execution" {
   name = "\${var.project_name}-\${var.environment}-ecs-task-execution-role"
 
   assume_role_policy = jsonencode({
@@ -956,12 +955,12 @@ resource "aws_iam_role" "ecs_task_execution" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
-  role       = aws_iam_role.ecs_task_execution.name
+resource "aws_iam_role_policy_attachment" "iam_ecs_task_execution_attach" {
+  role       = aws_iam_role.iam_ecs_task_execution.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-resource "aws_iam_role" "ecs_task" {
+resource "aws_iam_role" "iam_ecs_task" {
   name = "\${var.project_name}-\${var.environment}-ecs-task-role"
 
   assume_role_policy = jsonencode({
@@ -982,7 +981,7 @@ resource "aws_iam_role" "ecs_task" {
 # Application Load Balancer
 # =============================================================================
 
-resource "aws_lb" "main" {
+resource "aws_lb" "alb_main" {
   name               = "\${var.project_name}-\${var.environment}-alb"
   internal           = false
   load_balancer_type = "application"
@@ -997,7 +996,7 @@ resource "aws_lb" "main" {
   }
 }
 
-resource "aws_lb_target_group" "main" {
+resource "aws_lb_target_group" "alb_target_group" {
   name        = "\${var.project_name}-\${var.environment}-tg"
   port        = var.app_port
   protocol    = "HTTP"
@@ -1022,14 +1021,14 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-resource "aws_lb_listener" "main" {
-  load_balancer_arn = aws_lb.main.arn
+resource "aws_lb_listener" "alb_listener" {
+  load_balancer_arn = aws_lb.alb_main.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = aws_lb_target_group.alb_target_group.arn
   }
 }
 
@@ -1037,14 +1036,14 @@ resource "aws_lb_listener" "main" {
 # ECS Task Definition
 # =============================================================================
 
-resource "aws_ecs_task_definition" "main" {
+resource "aws_ecs_task_definition" "ecs_task_def" {
   family                   = "\${var.project_name}-\${var.environment}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.app_cpu
   memory                   = var.app_memory
-  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
-  task_role_arn            = aws_iam_role.ecs_task.arn
+  execution_role_arn       = aws_iam_role.iam_ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.iam_ecs_task.arn
 
   container_definitions = jsonencode([
     {
@@ -1068,9 +1067,10 @@ resource "aws_ecs_task_definition" "main" {
           name  = "PORT"
           value = tostring(var.app_port)
         },
+        # FIXED: Extract hostname from RDS endpoint (removes :5432)
         {
           name  = "DB_HOST"
-          value = var.db_host
+          value = split(":", var.db_host)[0]
         },
         {
           name  = "DB_PORT"
@@ -1087,6 +1087,24 @@ resource "aws_ecs_task_definition" "main" {
         {
           name  = "DB_PASSWORD"
           value = var.db_password
+        },
+        # ADDED: Full connection string for compatibility
+        {
+          name  = "DATABASE_URL"
+          value = "postgresql://\${var.db_username}:\${var.db_password}@\${split(":", var.db_host)[0]}:\${var.db_port}/\${var.db_name}"
+        },
+        # ADDED: Connection pool settings
+        {
+          name  = "DB_POOL_MIN"
+          value = "2"
+        },
+        {
+          name  = "DB_POOL_MAX"
+          value = "10"
+        },
+        {
+          name  = "DB_POOL_IDLE"
+          value = "10000"
         }${options.includeAuth ? `,
         {
           name  = "JWT_SECRET"
@@ -1122,10 +1140,10 @@ resource "aws_ecs_task_definition" "main" {
 # ECS Service
 # =============================================================================
 
-resource "aws_ecs_service" "main" {
+resource "aws_ecs_service" "ecs_service_main" {
   name            = "\${var.project_name}-\${var.environment}-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.main.arn
+  cluster         = aws_ecs_cluster.ecs_cluster_main.id
+  task_definition = aws_ecs_task_definition.ecs_task_def.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
@@ -1136,12 +1154,11 @@ resource "aws_ecs_service" "main" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = aws_lb_target_group.alb_target_group.arn
     container_name   = "\${var.project_name}-\${var.environment}"
     container_port   = var.app_port
   }
 
-  # CORRECTED: Use individual attributes instead of nested block
   deployment_controller {
     type = "ECS"
   }
@@ -1157,8 +1174,8 @@ resource "aws_ecs_service" "main" {
   health_check_grace_period_seconds = 60
 
   depends_on = [
-    aws_lb_listener.main,
-    aws_iam_role_policy_attachment.ecs_task_execution
+    aws_lb_listener.alb_listener,
+    aws_iam_role_policy_attachment.iam_ecs_task_execution_attach
   ]
 
   tags = {
@@ -1170,20 +1187,20 @@ resource "aws_ecs_service" "main" {
 # Auto Scaling
 # =============================================================================
 
-resource "aws_appautoscaling_target" "ecs" {
+resource "aws_appautoscaling_target" "ecs_autoscale_target" {
   max_capacity       = 4
   min_capacity       = var.desired_count
-  resource_id        = "service/\${aws_ecs_cluster.main.name}/\${aws_ecs_service.main.name}"
+  resource_id        = "service/\${aws_ecs_cluster.ecs_cluster_main.name}/\${aws_ecs_service.ecs_service_main.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
 
-resource "aws_appautoscaling_policy" "ecs_cpu" {
+resource "aws_appautoscaling_policy" "ecs_cpu_policy" {
   name               = "\${var.project_name}-\${var.environment}-cpu-scaling"
   policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs.service_namespace
+  resource_id        = aws_appautoscaling_target.ecs_autoscale_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_autoscale_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_autoscale_target.service_namespace
 
   target_tracking_scaling_policy_configuration {
     predefined_metric_specification {
@@ -1195,12 +1212,12 @@ resource "aws_appautoscaling_policy" "ecs_cpu" {
   }
 }
 
-resource "aws_appautoscaling_policy" "ecs_memory" {
+resource "aws_appautoscaling_policy" "ecs_memory_policy" {
   name               = "\${var.project_name}-\${var.environment}-memory-scaling"
   policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs.service_namespace
+  resource_id        = aws_appautoscaling_target.ecs_autoscale_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_autoscale_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_autoscale_target.service_namespace
 
   target_tracking_scaling_policy_configuration {
     predefined_metric_specification {
@@ -1306,29 +1323,29 @@ ${options.includeAuth ? `variable "jwt_secret" {
 # =============================================================================
 
 output "cluster_name" {
-  value = aws_ecs_cluster.main.name
+  value = aws_ecs_cluster.ecs_cluster_main.name
 }
 
 output "service_name" {
-  value = aws_ecs_service.main.name
+  value = aws_ecs_service.ecs_service_main.name
 }
 
 output "alb_dns_name" {
-  value = aws_lb.main.dns_name
+  value = aws_lb.alb_main.dns_name
 }
 
 output "alb_arn" {
-  value = aws_lb.main.arn
+  value = aws_lb.alb_main.arn
 }
 
 output "target_group_arn" {
-  value = aws_lb_target_group.main.arn
+  value = aws_lb_target_group.alb_target_group.arn
 }`;
 
   return {
     path: 'terraform/modules/ecs/main.tf',
     content,
-    description: 'ECS module with corrected deployment configuration'
+    description: 'ECS module with fixed database connectivity'
   };
 }
 
@@ -1379,8 +1396,9 @@ health_check_path = "/health"`;
   };
 }
 
-
-
+/**
+ * Generate deployment script
+ */
 export function generateDeploymentScript(project: Project): GeneratedFile {
   const projectSlug = project.name.toLowerCase().replace(/\s+/g, '-');
 
