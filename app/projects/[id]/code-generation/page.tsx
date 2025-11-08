@@ -96,7 +96,7 @@ export default function CodeGenerationPage() {
           updateIndex++
         }
       }, 8000)
-      const resp = await fetch('/api/generate-all', {
+      const resp = await fetch('/api/generate-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
