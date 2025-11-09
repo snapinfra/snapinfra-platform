@@ -626,8 +626,120 @@ export default function LandingPage() {
     )
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snapinfra.com'
+
+  // Structured Data (JSON-LD) for SEO
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Snapinfra",
+    "url": baseUrl,
+    "logo": `${baseUrl}/snapinfra-logo.svg`,
+    "description": "Generate production-ready backend infrastructure with AI. Multi-tenant architecture, database schemas, API layers, and security built-in.",
+    "sameAs": [
+      "https://github.com/manojmaheshwarjg/snapinfra"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "Customer Service"
+    }
+  }
+
+  const softwareApplicationSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Snapinfra",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": "AI-powered backend infrastructure generator. Create production-ready backends with multi-tenant architecture, database schemas, API layers, and security built-in. Deploy to AWS, GCP, or Azure in minutes.",
+    "featureList": [
+      "Multi-tenant architecture",
+      "Database schema generation",
+      "API layer generation",
+      "Security built-in",
+      "Infrastructure as Code",
+      "Cloud deployment (AWS, GCP, Azure)",
+      "TypeScript backend generation"
+    ]
+  }
+
+  // FAQ Schema for AI models
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Snapinfra?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Snapinfra is an AI-powered platform that generates production-ready backend infrastructure from natural language prompts. It creates multi-tenant architectures, database schemas, API layers, and security configurations, then deploys to cloud providers like AWS, GCP, and Azure."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Snapinfra generate real code?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, Snapinfra generates actual TypeScript code, not no-code solutions. You own all the generated code with no vendor lock-in. The code includes Infrastructure as Code (Terraform, AWS CDK), database schemas, API endpoints, and security configurations."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Which cloud providers does Snapinfra support?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Snapinfra supports AWS (Amazon Web Services), Google Cloud Platform (GCP), Azure, and multi-cloud deployments. You can choose your preferred cloud provider during the setup process."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What technologies does Snapinfra use?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Snapinfra generates backends using TypeScript, Express.js, Node.js, PostgreSQL, Docker, AWS CDK, and Terraform. The frontend is built with Next.js 15, React 18, and Tailwind CSS."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there vendor lock-in with Snapinfra?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No, there is zero vendor lock-in. You own all generated code and can export it at any time. Snapinfra generates standard Infrastructure as Code (IaC) that works with industry-standard tools like Terraform and AWS CDK."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How long does it take to generate a backend?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Snapinfra can generate a complete backend infrastructure in minutes, compared to weeks of traditional development. The process involves describing your requirements in natural language, and the AI generates the complete infrastructure code."
+        }
+      }
+    ]
+  }
+
   return (
     <div className="w-full min-h-screen relative bg-gradient-to-br from-[#fafaf9] via-[#f5f3f0] to-[#ede9e3] overflow-x-hidden flex flex-col justify-start items-center">
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+
       {/* Flickering Grid Background */}
       <FlickeringGrid
         className="z-0 absolute inset-0 size-full"
@@ -693,10 +805,10 @@ export default function LandingPage() {
             <div className="pt-28 sm:pt-32 md:pt-36 lg:pt-[140px] pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-0 w-full">
               <div className="w-full max-w-[900px] flex flex-col justify-center items-center gap-2 sm:gap-3">
                 <div className="self-stretch rounded-[3px] flex flex-col justify-center items-center gap-3 sm:gap-4 md:gap-5">
-                  <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[36px] xs:text-[40px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-normal leading-[1.15] sm:leading-[1.15] md:leading-[1.15] font-serif px-2 sm:px-4 md:px-0" style={{ letterSpacing: '-0.02em' }}>
+                  <h1 className="w-full max-w-[700px] text-center flex justify-center flex-col text-[36px] xs:text-[40px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-normal leading-[1.15] sm:leading-[1.15] md:leading-[1.15] font-serif px-2 sm:px-4 md:px-0" style={{ letterSpacing: '-0.02em' }}>
                     <span className="text-[#1d1d1f]" style={{ letterSpacing: '-0.02em' }}>Enterprise infrastructure in{" "}
                     <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className} whitespace-nowrap`} style={{ letterSpacing: '-0.02em' }}>one prompt.</span></span>
-                  </div>
+                  </h1>
                   <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[rgba(55,50,47,0.80)] text-[15px] sm:text-[16px] leading-[1.6] font-sans px-2 sm:px-4 md:px-0 font-normal">
                     Multi-tenant architecture. Database schemas. API layers. Security built-in.
                     <br />
