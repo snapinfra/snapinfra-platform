@@ -44,7 +44,7 @@ export default function PricingSection() {
           </div>
 
           {/* Title */}
-          <div className="self-stretch text-center flex justify-center flex-col text-[#49423D] text-3xl md:text-5xl font-normal leading-tight md:leading-[60px] font-serif">
+          <div className="self-stretch text-center flex justify-center flex-col text-[#1d1d1f] text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif" style={{ letterSpacing: '-0.02em' }}>
             Simple, transparent pricing
           </div>
 

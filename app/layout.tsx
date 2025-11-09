@@ -76,7 +76,7 @@ export default function RootLayout({
         baseTheme: undefined
       }}
     >
-      <html lang="en">
+      <html lang="en" className="overflow-x-hidden">
         <body className={`font-sans ${geistMono.variable} ${tasaOrbiter.variable} antialiased tracking-tight`}>
           <ErrorBoundary>
             <EnterpriseQueryProvider>

@@ -23,7 +23,7 @@ export default function CTASection() {
 
         <div className="w-full max-w-[586px] px-6 py-5 md:py-8 overflow-hidden rounded-lg flex flex-col justify-start items-center gap-6 relative z-20">
           <div className="self-stretch flex flex-col justify-start items-start gap-3">
-            <div className="self-stretch text-center flex justify-center flex-col text-[#49423D] text-3xl md:text-5xl font-normal leading-tight md:leading-[56px] font-serif">
+            <div className="self-stretch text-center flex justify-center flex-col text-[#1d1d1f] text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif" style={{ letterSpacing: '-0.02em' }}>
               Stop building infrastructure.
               <br />
               Start building products.
