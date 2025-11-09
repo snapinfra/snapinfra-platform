@@ -4,8 +4,8 @@ export default function HowItWorksSection() {
   return (
     <div className="w-full max-w-[1100px] mt-32 px-4">
       <div className="text-center mb-16">
-        <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>From idea to production in 5 minutes</h2>
-        <p className="text-lg text-[#605A57]">Simple enough for solo devs. Powerful enough for unicorns.</p>
+        <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>From Platform Vision to Production Backend</h2>
+        <p className="text-lg text-[#605A57]">Architecture design + backend implementation in one workflow</p>
       </div>
       
       <div className="space-y-6">
@@ -16,17 +16,17 @@ export default function HowItWorksSection() {
               01
             </div>
             <div className="flex-1">
-              <h3 className="text-xl md:text-2xl font-bold text-[#1d1d1f] mb-3">Describe What You Want</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-[#1d1d1f] mb-3">Define Your Backend Requirements</h3>
               <p className="text-sm text-[#605A57] leading-relaxed mb-4">
-                Just describe your backend in plain English. No JSON schemas. No DSL syntax. No config hell.
+                Describe your platform architecture needs. Scale requirements, data patterns, compliance constraints. AI understands system design, not just code syntax.
               </p>
             </div>
           </div>
           
           <div className="bg-[rgba(55,50,47,0.03)] rounded-lg p-5 md:p-6 border border-[rgba(55,50,47,0.08)]">
-            <div className="text-xs font-semibold text-[#37322F] mb-3 uppercase tracking-wider">Example Prompt</div>
+            <div className="text-xs font-semibold text-[#37322F] mb-3 uppercase tracking-wider">Example Architecture Brief</div>
             <div className="text-sm md:text-base text-[#605A57] leading-relaxed">
-              "Build a SaaS backend with user authentication, subscription billing, file uploads to S3, and real-time notifications"
+              "Enterprise B2B SaaS. Multi-tenant architecture with row-level tenant isolation. Event-driven for 10M+ requests/day. RBAC with audit logging. PostgreSQL with read replicas + Redis caching. Stripe integration for usage-based billing. Must be SOC2 compliant."
             </div>
           </div>
         </div>
@@ -38,28 +38,28 @@ export default function HowItWorksSection() {
               02
             </div>
             <div className="flex-1">
-              <h3 className="text-xl md:text-2xl font-bold text-[#1d1d1f] mb-3">AI Generates Everything</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-[#1d1d1f] mb-3">AI Architects Your Backend System</h3>
               <p className="text-sm text-[#605A57] leading-relaxed mb-4">
-                Production-ready code, database schemas, and infrastructure. All generated in minutes.
+                AI proposes architecture patterns, evaluates trade-offs, implements security boundaries. Not templates. Complete backend systems with enterprise patterns baked in.
               </p>
             </div>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-[rgba(55,50,47,0.03)] rounded-lg p-5 border border-[rgba(55,50,47,0.08)]">
-              <div className="text-xs font-semibold text-[#37322F] mb-2 uppercase tracking-wider">Backend Code</div>
-              <div className="text-2xl font-bold text-[#1d1d1f] mb-1 font-mono">109</div>
-              <div className="text-xs text-[#605A57]">files generated</div>
+              <div className="text-xs font-semibold text-[#37322F] mb-2 uppercase tracking-wider">Architecture Design</div>
+              <div className="text-lg font-bold text-[#1d1d1f] mb-1">Multi-tenant + RBAC</div>
+              <div className="text-xs text-[#605A57]">with security boundaries</div>
             </div>
             <div className="bg-[rgba(55,50,47,0.03)] rounded-lg p-5 border border-[rgba(55,50,47,0.08)]">
-              <div className="text-xs font-semibold text-[#37322F] mb-2 uppercase tracking-wider">Database Schema</div>
-              <div className="text-2xl font-bold text-[#1d1d1f] mb-1 font-mono">4</div>
-              <div className="text-xs text-[#605A57]">tables + indexes</div>
+              <div className="text-xs font-semibold text-[#37322F] mb-2 uppercase tracking-wider">Database Design</div>
+              <div className="text-lg font-bold text-[#1d1d1f] mb-1">Optimized schema</div>
+              <div className="text-xs text-[#605A57]">+ indexes + migrations</div>
             </div>
             <div className="bg-[rgba(55,50,47,0.03)] rounded-lg p-5 border border-[rgba(55,50,47,0.08)]">
-              <div className="text-xs font-semibold text-[#37322F] mb-2 uppercase tracking-wider">Infrastructure</div>
-              <div className="text-2xl font-bold text-[#1d1d1f] mb-1 font-mono">CDK</div>
-              <div className="text-xs text-[#605A57]">ready to deploy</div>
+              <div className="text-xs font-semibold text-[#37322F] mb-2 uppercase tracking-wider">Production Code</div>
+              <div className="text-lg font-bold text-[#1d1d1f] mb-1">TypeScript Backend</div>
+              <div className="text-xs text-[#605A57]">+ IaC ready to deploy</div>
             </div>
           </div>
           
@@ -67,15 +67,15 @@ export default function HowItWorksSection() {
             <div className="flex flex-wrap gap-4 text-xs text-[#605A57]">
               <div className="flex items-center gap-2">
                 <Check className="w-3.5 h-3.5 text-[#37322F] flex-shrink-0" />
-                <span>TypeScript + Express.js</span>
+                <span>Event-driven patterns</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-3.5 h-3.5 text-[#37322F] flex-shrink-0" />
-                <span>Jest tests (80%+ coverage)</span>
+                <span>Scalability designed in</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-3.5 h-3.5 text-[#37322F] flex-shrink-0" />
-                <span>OpenAPI documentation</span>
+                <span>Security boundaries enforced</span>
               </div>
             </div>
           </div>
@@ -88,9 +88,9 @@ export default function HowItWorksSection() {
               03
             </div>
             <div className="flex-1">
-              <h3 className="text-xl md:text-2xl font-bold text-[#1d1d1f] mb-3">Deploy & Scale</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-[#1d1d1f] mb-3">Deploy to Your Infrastructure</h3>
               <p className="text-sm text-[#605A57] leading-relaxed mb-4">
-                Choose your deployment method. One-click hosted, your AWS, or self-hosted.
+                Choose your deployment target. One-click hosted, deploy to your AWS account, or self-hosted with full control.
               </p>
             </div>
           </div>
@@ -166,20 +166,20 @@ export default function HowItWorksSection() {
       {/* Stats Bar */}
       <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-5 md:p-6 border border-[rgba(55,50,47,0.12)] text-center">
-          <div className="text-2xl md:text-3xl font-bold text-[#1d1d1f] mb-1.5">5 min</div>
-          <div className="text-xs text-[#605A57]">Time to production</div>
+          <div className="text-2xl md:text-3xl font-bold text-[#1d1d1f] mb-1.5">Minutes</div>
+          <div className="text-xs text-[#605A57]">Architecture to production</div>
         </div>
         <div className="bg-white rounded-xl p-5 md:p-6 border border-[rgba(55,50,47,0.12)] text-center">
-          <div className="text-2xl md:text-3xl font-bold text-[#1d1d1f] mb-1.5">109</div>
-          <div className="text-xs text-[#605A57]">Files generated</div>
+          <div className="text-2xl md:text-3xl font-bold text-[#1d1d1f] mb-1.5">Enterprise</div>
+          <div className="text-xs text-[#605A57]">Patterns built-in</div>
         </div>
         <div className="bg-white rounded-xl p-5 md:p-6 border border-[rgba(55,50,47,0.12)] text-center">
-          <div className="text-2xl md:text-3xl font-bold text-[#1d1d1f] mb-1.5">30s</div>
-          <div className="text-xs text-[#605A57]">Deploy time</div>
+          <div className="text-2xl md:text-3xl font-bold text-[#1d1d1f] mb-1.5">Your Cloud</div>
+          <div className="text-xs text-[#605A57]">AWS, GCP, or Azure</div>
         </div>
         <div className="bg-white rounded-xl p-5 md:p-6 border border-[rgba(55,50,47,0.12)] text-center">
-          <div className="text-2xl md:text-3xl font-bold text-[#1d1d1f] mb-1.5">100%</div>
-          <div className="text-xs text-[#605A57]">Code ownership</div>
+          <div className="text-2xl md:text-3xl font-bold text-[#1d1d1f] mb-1.5">Zero</div>
+          <div className="text-xs text-[#605A57]">Vendor lock-in</div>
         </div>
       </div>
     </div>

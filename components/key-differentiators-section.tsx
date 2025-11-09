@@ -6,7 +6,7 @@ export default function KeyDifferentiatorsSection() {
   return (
     <div className="w-full max-w-[1100px] mt-32 px-4">
       <div className="text-center mb-16">
-        <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>Why Developers Choose SnapInfra</h2>
+        <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>Why Teams Choose SnapInfra for Backend Architecture</h2>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -16,10 +16,10 @@ export default function KeyDifferentiatorsSection() {
             <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center flex-shrink-0">
               <Code2 className="w-5 h-5 text-[#37322F]" />
             </div>
-            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Real Code, Real Control</h3>
+            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Complete Backend Architecture</h3>
           </div>
           <p className="text-sm text-[#605A57] mb-6 leading-relaxed flex-1">
-            Generate TypeScript/Python infrastructure that you own. Every resource, every config - inspect it, version it, customize it.
+            Not starter templates or code snippets. Complete production backend systems with multi-tenant architecture, security, and scalability designed from the start.
           </p>
           <div className="bg-[#1d1d1f] rounded-lg p-4 font-mono text-xs overflow-x-auto">
             <div className="text-[rgba(255,255,255,0.5)] mb-2">// Your generated API route</div>
@@ -39,10 +39,10 @@ export default function KeyDifferentiatorsSection() {
             <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center flex-shrink-0">
               <DoorOpen className="w-5 h-5 text-[#37322F]" />
             </div>
-            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Exit Strategy Included</h3>
+            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Own Your Backend Infrastructure</h3>
           </div>
           <p className="text-sm text-[#605A57] mb-6 leading-relaxed flex-1">
-            Export your entire backend as standard Terraform + Docker Compose. Migrate to AWS, GCP, or your own servers without rewriting a single line.
+            Full source code export. Deploy to your AWS/GCP/Azure. Your backend, your cloud, your control. Zero vendor lock-in.
           </p>
           <div className="bg-[#1d1d1f] rounded-lg p-4 font-mono text-xs overflow-x-auto">
             <div className="text-white mb-2">$ snapinfra export --format terraform</div>
@@ -123,10 +123,10 @@ export default function KeyDifferentiatorsSection() {
             <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center flex-shrink-0">
               <ShieldCheck className="w-5 h-5 text-[#37322F]" />
             </div>
-            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Production-Ready From Day One</h3>
+            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Enterprise Backend Patterns Built-In</h3>
           </div>
           <p className="text-sm text-[#605A57] mb-6 leading-relaxed max-w-3xl">
-            Transaction support. Full-text search. Row-level security. Automated backups. Everything Supabase charges extra for or "doesn't support yet."
+            Multi-tenant architecture, RBAC, audit logging, event sourcing. Production patterns your senior engineers will approve.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             <div className="space-y-2 text-sm text-[#605A57]">

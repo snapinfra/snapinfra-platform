@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
@@ -30,13 +30,13 @@ import SocialProofSection from "@/components/social-proof-section"
 import TechStackSection from "@/components/tech-stack-section"
 import SecurityComplianceSection from "@/components/security-compliance-section"
 
-// Streaming Code Component
-function StreamingCode() {
+// Streaming Code Component - Optimized with memoization
+const StreamingCode = memo(function StreamingCode() {
   const [currentLine, setCurrentLine] = useState(4) // Start at line 5 (index 4)
   const [currentChar, setCurrentChar] = useState(0)
   const mountedRef = useRef(true)
 
-  const codeLines = [
+  const codeLines = useMemo(() => [
     { num: 1, code: <><span className="text-purple-600">import</span> <span className="text-gray-700">&#123; validateToken, generateJWT &#125;</span> <span className="text-purple-600">from</span> <span className="text-blue-600">'@/lib/auth'</span>;</> },
     { num: 2, code: <><span className="text-purple-600">import</span> <span className="text-gray-700">&#123; TenantService &#125;</span> <span className="text-purple-600">from</span> <span className="text-blue-600">'@/services'</span>;</> },
     { num: 3, code: <></> },
@@ -45,9 +45,9 @@ function StreamingCode() {
     { num: 6, code: <span className="pl-4"><span className="text-purple-600">async</span> <span className="text-yellow-600">authenticate</span>(tenantId: <span className="text-blue-600">string</span>, credentials: <span className="text-blue-600">Credentials</span>) &#123;</span> },
     { num: 7, code: <span className="pl-8"><span className="text-purple-600">const</span> tenant = <span className="text-purple-600">await</span> TenantService.<span className="text-yellow-600">findById</span>(tenantId);</span> },
     { num: 8, code: <span className="pl-8"><span className="text-purple-600">if</span> (!tenant?.active) <span className="text-purple-600">throw</span> <span className="text-purple-600">new</span> <span className="text-yellow-600">UnauthorizedError</span>();</span> },
-  ]
+  ], [])
 
-  const lineTexts = [
+  const lineTexts = useMemo(() => [
     "import { validateToken, generateJWT } from '@/lib/auth';",
     "import { TenantService } from '@/services';",
     "",
@@ -56,9 +56,10 @@ function StreamingCode() {
     "  async authenticate(tenantId: string, credentials: Credentials) {",
     "    const tenant = await TenantService.findById(tenantId);",
     "    if (!tenant?.active) throw new UnauthorizedError();",
-  ]
+  ], [])
 
   useEffect(() => {
+    // Reduced from 50ms to 75ms for better performance
     const interval = setInterval(() => {
       if (!mountedRef.current) return
       
@@ -77,13 +78,13 @@ function StreamingCode() {
         }
         return prev + 1
       })
-    }, 50)
+    }, 75) // Reduced frequency for better performance
 
     return () => {
       clearInterval(interval)
       mountedRef.current = false
     }
-  }, [currentLine])
+  }, [currentLine, lineTexts])
 
   return (
     <div className="space-y-1.5">
@@ -110,36 +111,41 @@ function StreamingCode() {
       })}
     </div>
   )
-}
+})
 
-// Interactive Prompt Box Component
-function InteractivePromptBox() {
+// Interactive Prompt Box Component - Optimized
+const InteractivePromptBox = memo(function InteractivePromptBox() {
   const [prompt, setPrompt] = useState("")
   const [isFocused, setIsFocused] = useState(false)
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (prompt.trim()) {
       // Store the prompt in sessionStorage to pass to onboarding
       sessionStorage.setItem('backend-prompt', prompt)
       // Redirect to sign-up
       router.push('/sign-up')
     }
-  }
+  }, [prompt, router])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
     }
-  }
+  }, [handleSubmit])
 
+  // Debounced textarea height adjustment for better performance
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
-    }
+    const timeoutId = setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'
+        textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+      }
+    }, 50)
+    
+    return () => clearTimeout(timeoutId)
   }, [prompt])
 
   return (
@@ -162,7 +168,7 @@ function InteractivePromptBox() {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onKeyDown={handleKeyDown}
-            placeholder="multi-tenant SaaS with usage-based billing. need RBAC, audit logs, and analytics dashboards."
+            placeholder="Multi-tenant B2B SaaS. 10M+ requests/day. PostgreSQL + Redis. Event-driven architecture. RBAC. Must scale to 5M users."
             className="flex-1 bg-transparent text-white placeholder-[rgba(255,255,255,0.4)] text-sm sm:text-base resize-none outline-none min-h-[24px] overflow-hidden font-sans"
             rows={1}
           />
@@ -197,10 +203,10 @@ function InteractivePromptBox() {
       </div>
     </div>
   )
-}
+})
 
-// Badge Component
-function Badge({ icon, text }: { icon: React.ReactNode; text: string }) {
+// Badge Component - Optimized
+const Badge = memo(function Badge({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <div className="px-[14px] py-[6px] bg-white shadow-[0px_0px_0px_4px_rgba(55,50,47,0.05)] overflow-hidden rounded-[90px] flex justify-start items-center gap-[8px] border border-[rgba(2,6,23,0.08)] shadow-xs">
       <div className="w-[14px] h-[14px] relative overflow-hidden flex items-center justify-center">{icon}</div>
@@ -209,10 +215,10 @@ function Badge({ icon, text }: { icon: React.ReactNode; text: string }) {
       </div>
     </div>
   )
-}
+})
 
-// ROI Calculator Component
-function ROICalculator() {
+// ROI Calculator Component - Optimized with memoization
+const ROICalculator = memo(function ROICalculator() {
   const [teamSize, setTeamSize] = useState(5)
   const [projectsPerYear, setProjectsPerYear] = useState(3)
   const [complexity, setComplexity] = useState<'simple' | 'medium' | 'complex' | 'enterprise'>('medium')
@@ -220,9 +226,10 @@ function ROICalculator() {
   const [iacType, setIacType] = useState<'terraform' | 'kubernetes' | 'cloudformation' | 'manual'>('terraform')
   const [cloudProvider, setCloudProvider] = useState<'aws' | 'gcp' | 'azure' | 'multi'>('aws')
 
+  // Memoize static data structures to prevent re-creation on every render
   // Industry benchmarks based on market research and actual cloud provider pricing
   // Costs include: Database (RDS/Cloud SQL), Compute (EC2/VMs), API Gateway, Storage, Data Transfer
-  const complexityMultipliers = {
+  const complexityMultipliers = useMemo(() => ({
     simple: { 
       apis: 10, // Simple MVP: 5-15 APIs, average 10
       hoursPerAPI: 8, // Simple API: 4-8 hours, average 8
@@ -267,10 +274,10 @@ function ROICalculator() {
       },
       snapinfraSetupHours: 4
     }
-  }
+  }), [])
 
   // IaC setup time multipliers based on type and complexity
-  const iacSetupMultipliers = {
+  const iacSetupMultipliers = useMemo(() => ({
     terraform: {
       simple: 40,    // Terraform: 40-60 hours
       medium: 60,    // Terraform: 50-80 hours
@@ -295,65 +302,97 @@ function ROICalculator() {
       complex: 160,  // Manual setup: 150-200 hours
       enterprise: 240 // Manual setup: 200-300 hours
     }
-  }
+  }), [])
 
-  const multiplier = complexityMultipliers[complexity]
-  const iacMultiplier = iacSetupMultipliers[iacType][complexity]
-  
-  // Get actual cloud provider costs based on complexity
-  const traditionalMonthlyCost = multiplier.monthlyInfraCost[cloudProvider]
-  
-  // Calculate development time
-  const totalAPIs = multiplier.apis * projectsPerYear
-  const hoursPerAPI = multiplier.hoursPerAPI
-  const totalDevHours = totalAPIs * hoursPerAPI
-  
-  // Infrastructure setup time (traditional IaC vs SnapInfra)
-  // Multi-cloud adds 20% more setup time due to complexity
-  const cloudComplexityMultiplier = cloudProvider === 'multi' ? 1.2 : 1.0
-  const traditionalInfraHours = Math.round(iacMultiplier * cloudComplexityMultiplier * projectsPerYear)
-  const snapinfraInfraHours = multiplier.snapinfraSetupHours * projectsPerYear
-  const infraTimeSaved = traditionalInfraHours - snapinfraInfraHours
-  
-  // Total time saved (infrastructure + reduced API dev time with code generation)
-  // SnapInfra generates production-ready code, saving ~30% of API development time
-  const apiDevTimeSaved = totalDevHours * 0.30 // 30% time saved on API development
-  const totalHoursSaved = infraTimeSaved + apiDevTimeSaved
-  
-  // Cost calculations - SnapInfra includes all infrastructure
-  const snapinfraMonthlyCost = 99
-  const monthlyCostSaved = traditionalMonthlyCost - snapinfraMonthlyCost
-  const annualCostSaved = monthlyCostSaved * 12
-  
-  // Development cost savings (time saved * developer rate * team size)
-  const devCostSaved = totalHoursSaved * avgDeveloperRate * teamSize
-  
-  // Total annual savings
-  const totalCostSaved = annualCostSaved + devCostSaved
-  
-  // ROI Payback Period (months) = Annual SnapInfra cost / Monthly savings
-  const snapinfraAnnualCost = snapinfraMonthlyCost * 12
-  const monthlySavings = totalCostSaved / 12
-  const paybackMonths = monthlySavings > 0 ? Math.ceil(snapinfraAnnualCost / monthlySavings) : 0
+  // Memoize calculation results to prevent unnecessary recalculations
+  const calculations = useMemo(() => {
+    const multiplier = complexityMultipliers[complexity]
+    const iacMultiplier = iacSetupMultipliers[iacType][complexity]
+    
+    // Get actual cloud provider costs based on complexity
+    const traditionalMonthlyCost = multiplier.monthlyInfraCost[cloudProvider]
+    
+    // Calculate development time
+    const totalAPIs = multiplier.apis * projectsPerYear
+    const hoursPerAPI = multiplier.hoursPerAPI
+    const totalDevHours = totalAPIs * hoursPerAPI
+    
+    // Infrastructure setup time (traditional IaC vs SnapInfra)
+    // Multi-cloud adds 20% more setup time due to complexity
+    const cloudComplexityMultiplier = cloudProvider === 'multi' ? 1.2 : 1.0
+    const traditionalInfraHours = Math.round(iacMultiplier * cloudComplexityMultiplier * projectsPerYear)
+    const snapinfraInfraHours = multiplier.snapinfraSetupHours * projectsPerYear
+    const infraTimeSaved = traditionalInfraHours - snapinfraInfraHours
+    
+    // Total time saved (infrastructure + reduced API dev time with code generation)
+    // SnapInfra generates production-ready code, saving ~30% of API development time
+    const apiDevTimeSaved = totalDevHours * 0.30 // 30% time saved on API development
+    const totalHoursSaved = infraTimeSaved + apiDevTimeSaved
+    
+    // Cost calculations - SnapInfra includes all infrastructure
+    const snapinfraMonthlyCost = 99
+    const monthlyCostSaved = traditionalMonthlyCost - snapinfraMonthlyCost
+    const annualCostSaved = monthlyCostSaved * 12
+    
+    // Development cost savings (time saved * developer rate * team size)
+    const devCostSaved = totalHoursSaved * avgDeveloperRate * teamSize
+    
+    // Total annual savings
+    const totalCostSaved = annualCostSaved + devCostSaved
+    
+    // ROI Payback Period (months) = Annual SnapInfra cost / Monthly savings
+    const snapinfraAnnualCost = snapinfraMonthlyCost * 12
+    const monthlySavings = totalCostSaved / 12
+    const paybackMonths = monthlySavings > 0 ? Math.ceil(snapinfraAnnualCost / monthlySavings) : 0
 
-  const formatTime = (hours: number) => {
+    // Calculate percentage savings
+    const timeSavingsPercentage = traditionalInfraHours > 0 
+      ? Math.round((infraTimeSaved / traditionalInfraHours) * 100) 
+      : 0
+    
+    const costSavingsPercentage = traditionalMonthlyCost > 0
+      ? Math.round((monthlyCostSaved / traditionalMonthlyCost) * 100)
+      : 0
+
+    return {
+      multiplier,
+      totalAPIs,
+      totalHoursSaved,
+      infraTimeSaved,
+      apiDevTimeSaved,
+      totalCostSaved,
+      devCostSaved,
+      annualCostSaved,
+      paybackMonths,
+      snapinfraInfraHours,
+      traditionalInfraHours,
+      timeSavingsPercentage,
+      snapinfraMonthlyCost,
+      traditionalMonthlyCost,
+      monthlyCostSaved,
+      costSavingsPercentage
+    }
+  }, [teamSize, projectsPerYear, complexity, iacType, cloudProvider, avgDeveloperRate, complexityMultipliers, iacSetupMultipliers])
+
+  // Memoize helper functions
+  const formatTime = useCallback((hours: number) => {
     if (hours >= 1000) {
       return `~${Math.round(hours / 1000 * 10) / 10}K hours`
     }
     return `~${Math.round(hours)} hours`
-  }
+  }, [])
 
-  const formatCost = (cost: number) => {
+  const formatCost = useCallback((cost: number) => {
     if (cost >= 1000000) {
       return `$${Math.round(cost / 1000000 * 10) / 10}M`
     } else if (cost >= 1000) {
       return `$${Math.round(cost / 1000)}K`
     }
     return `$${Math.round(cost)}`
-  }
+  }, [])
 
   // Helper function to format provider names
-  const getProviderName = (provider: string) => {
+  const getProviderName = useCallback((provider: string) => {
     const names: Record<string, string> = {
       aws: 'AWS',
       gcp: 'GCP',
@@ -361,10 +400,10 @@ function ROICalculator() {
       multi: 'Multi-Cloud'
     }
     return names[provider] || provider
-  }
+  }, [])
 
   // Helper function to format IaC tool names
-  const getIacToolName = (tool: string) => {
+  const getIacToolName = useCallback((tool: string) => {
     const names: Record<string, string> = {
       terraform: 'Terraform',
       kubernetes: 'K8s',
@@ -372,16 +411,7 @@ function ROICalculator() {
       manual: 'Manual'
     }
     return names[tool] || tool
-  }
-
-  // Calculate percentage savings
-  const timeSavingsPercentage = traditionalInfraHours > 0 
-    ? Math.round((infraTimeSaved / traditionalInfraHours) * 100) 
-    : 0
-  
-  const costSavingsPercentage = traditionalMonthlyCost > 0
-    ? Math.round((monthlyCostSaved / traditionalMonthlyCost) * 100)
-    : 0
+  }, [])
 
   return (
     <div className="w-full max-w-[1100px] mt-16 px-4">
@@ -510,25 +540,25 @@ function ROICalculator() {
               <div className="space-y-4">
                 <div>
                   <div className="text-3xl md:text-4xl font-bold text-[#1d1d1f] mb-1">
-                    {formatTime(totalHoursSaved)}
+                    {formatTime(calculations.totalHoursSaved)}
                   </div>
                   <div className="text-sm text-[#605A57]">Time saved per year</div>
                   <div className="text-xs text-[#605A57]/70 mt-1">
-                    {formatTime(infraTimeSaved)} infrastructure + {formatTime(apiDevTimeSaved)} development
+                    {formatTime(calculations.infraTimeSaved)} infrastructure + {formatTime(calculations.apiDevTimeSaved)} development
                   </div>
                 </div>
                 <div className="pt-4 border-t border-[rgba(55,50,47,0.12)]">
                   <div className="text-3xl md:text-4xl font-bold text-[#1d1d1f] mb-1">
-                    {formatCost(totalCostSaved)}
+                    {formatCost(calculations.totalCostSaved)}
                   </div>
                   <div className="text-sm text-[#605A57]">Total cost savings</div>
                   <div className="text-xs text-[#605A57]/70 mt-1">
-                    {formatCost(devCostSaved)} dev time + {formatCost(annualCostSaved)} infrastructure
+                    {formatCost(calculations.devCostSaved)} dev time + {formatCost(calculations.annualCostSaved)} infrastructure
                   </div>
                 </div>
                 <div className="pt-4 border-t border-[rgba(55,50,47,0.12)]">
                   <div className="text-3xl md:text-4xl font-bold text-[#1d1d1f] mb-1">
-                    ~{totalAPIs} APIs
+                    ~{calculations.totalAPIs} APIs
                   </div>
                   <div className="text-sm text-[#605A57]">APIs generated per year</div>
                 </div>
@@ -540,41 +570,41 @@ function ROICalculator() {
               <div className="text-xs text-white/70 space-y-2">
                 <div className="flex justify-between items-center">
                   <span>Infrastructure setup ({getIacToolName(iacType)}):</span>
-                  <span className="font-semibold">{snapinfraInfraHours}h vs {traditionalInfraHours}h</span>
+                  <span className="font-semibold">{calculations.snapinfraInfraHours}h vs {calculations.traditionalInfraHours}h</span>
                 </div>
                 <div className="text-xs text-white/50 pl-2">
-                  ({timeSavingsPercentage}% time saved)
+                  ({calculations.timeSavingsPercentage}% time saved)
                 </div>
                 <div className="flex justify-between items-center pt-1">
                   <span>Monthly infrastructure cost ({getProviderName(cloudProvider)}):</span>
-                  <span className="font-semibold">${snapinfraMonthlyCost} vs ${traditionalMonthlyCost}</span>
+                  <span className="font-semibold">${calculations.snapinfraMonthlyCost} vs ${calculations.traditionalMonthlyCost}</span>
                 </div>
                 <div className="text-xs text-white/50 pl-2">
-                  (${monthlyCostSaved}/mo saved, {costSavingsPercentage}% reduction)
+                  (${calculations.monthlyCostSaved}/mo saved, {calculations.costSavingsPercentage}% reduction)
                 </div>
                 <div className="flex justify-between items-center pt-1">
                   <span>API development time:</span>
                   <span className="font-semibold">~30% faster</span>
                 </div>
                 <div className="text-xs text-white/50 pl-2">
-                  ({formatTime(apiDevTimeSaved)} saved per year)
+                  ({formatTime(calculations.apiDevTimeSaved)} saved per year)
                 </div>
                 <div className="flex justify-between items-center pt-1">
                   <span>Total APIs per year:</span>
-                  <span className="font-semibold">{totalAPIs} APIs</span>
+                  <span className="font-semibold">{calculations.totalAPIs} APIs</span>
                 </div>
                 <div className="text-xs text-white/50 pl-2">
-                  ({multiplier.apis} APIs × {projectsPerYear} projects)
+                  ({calculations.multiplier.apis} APIs × {projectsPerYear} projects)
                 </div>
                 <div className="pt-2 mt-2 border-t border-white/10">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">ROI Payback Period:</span>
                     <span className="font-semibold text-green-400">
-                      {paybackMonths > 0 ? `${paybackMonths} month${paybackMonths > 1 ? 's' : ''}` : 'Immediate'}
+                      {calculations.paybackMonths > 0 ? `${calculations.paybackMonths} month${calculations.paybackMonths > 1 ? 's' : ''}` : 'Immediate'}
                     </span>
                   </div>
                   <div className="text-xs text-white/50 mt-1">
-                    Based on ${formatCost(totalCostSaved)} annual savings
+                    Based on ${formatCost(calculations.totalCostSaved)} annual savings
                   </div>
                 </div>
               </div>
@@ -584,7 +614,7 @@ function ROICalculator() {
       </div>
     </div>
   )
-}
+})
 
 
 export default function LandingPage() {
@@ -628,14 +658,14 @@ export default function LandingPage() {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snapinfra.com'
 
-  // Structured Data (JSON-LD) for SEO
-  const organizationSchema = {
+  // Memoize JSON-LD schemas to prevent recreation on every render
+  const organizationSchema = useMemo(() => ({
     "@context": "https://schema.org",
     "@type": "Organization",
     "name": "Snapinfra",
     "url": baseUrl,
     "logo": `${baseUrl}/snapinfra-logo.svg`,
-    "description": "Generate production-ready backend infrastructure with AI. Multi-tenant architecture, database schemas, API layers, and security built-in.",
+    "description": "Generate production-ready backend architecture with AI. Complete backend systems with multi-tenant architecture, enterprise patterns, and production code.",
     "sameAs": [
       "https://github.com/manojmaheshwarjg/snapinfra"
     ],
@@ -643,9 +673,9 @@ export default function LandingPage() {
       "@type": "ContactPoint",
       "contactType": "Customer Service"
     }
-  }
+  }), [baseUrl])
 
-  const softwareApplicationSchema = {
+  const softwareApplicationSchema = useMemo(() => ({
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Snapinfra",
@@ -656,20 +686,20 @@ export default function LandingPage() {
       "price": "0",
       "priceCurrency": "USD"
     },
-    "description": "AI-powered backend infrastructure generator. Create production-ready backends with multi-tenant architecture, database schemas, API layers, and security built-in. Deploy to AWS, GCP, or Azure in minutes.",
+    "description": "AI-powered backend architecture platform. Generate complete production backend systems with multi-tenant architecture, enterprise patterns, and production code. Deploy to AWS, GCP, or Azure in minutes.",
     "featureList": [
+      "Backend architecture design",
+      "Production backend code generation",
       "Multi-tenant architecture",
-      "Database schema generation",
-      "API layer generation",
-      "Security built-in",
-      "Infrastructure as Code",
+      "Enterprise backend patterns",
+      "Complete backend systems",
       "Cloud deployment (AWS, GCP, Azure)",
-      "TypeScript backend generation"
+      "Zero vendor lock-in"
     ]
-  }
+  }), [])
 
   // FAQ Schema for AI models
-  const faqSchema = {
+  const faqSchema = useMemo(() => ({
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
@@ -678,7 +708,7 @@ export default function LandingPage() {
         "name": "What is Snapinfra?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Snapinfra is an AI-powered platform that generates production-ready backend infrastructure from natural language prompts. It creates multi-tenant architectures, database schemas, API layers, and security configurations, then deploys to cloud providers like AWS, GCP, and Azure."
+          "text": "Snapinfra is an AI-powered backend architecture platform that generates complete production backend systems from natural language prompts. It proposes backend architecture, generates production code with multi-tenant patterns, and deploys to cloud providers like AWS, GCP, and Azure."
         }
       },
       {
@@ -686,7 +716,7 @@ export default function LandingPage() {
         "name": "Does Snapinfra generate real code?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes, Snapinfra generates actual TypeScript code, not no-code solutions. You own all the generated code with no vendor lock-in. The code includes Infrastructure as Code (Terraform, AWS CDK), database schemas, API endpoints, and security configurations."
+          "text": "Yes, Snapinfra generates complete backend architecture and production code, not no-code solutions. You own all the generated backend code with no vendor lock-in. The platform proposes architecture, generates TypeScript backend code, database schemas, API endpoints, and enterprise patterns."
         }
       },
       {
@@ -722,7 +752,7 @@ export default function LandingPage() {
         }
       }
     ]
-  }
+  }), [])
 
   return (
     <div className="w-full min-h-screen relative bg-gradient-to-br from-[#fafaf9] via-[#f5f3f0] to-[#ede9e3] overflow-x-hidden flex flex-col justify-start items-center">
@@ -740,13 +770,13 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
-      {/* Flickering Grid Background */}
+      {/* Flickering Grid Background - Optimized for performance */}
       <FlickeringGrid
         className="z-0 absolute inset-0 size-full"
-        squareSize={4}
-        gridGap={6}
+        squareSize={6}
+        gridGap={8}
         color="#37322F"
-        maxOpacity={0.05}
+        maxOpacity={0.04}
         flickerChance={0.2}
       />
       <div className="relative flex flex-col justify-start items-center w-full">
@@ -806,13 +836,14 @@ export default function LandingPage() {
               <div className="w-full max-w-[900px] flex flex-col justify-center items-center gap-2 sm:gap-3">
                 <div className="self-stretch rounded-[3px] flex flex-col justify-center items-center gap-3 sm:gap-4 md:gap-5">
                   <h1 className="w-full max-w-[700px] text-center flex justify-center flex-col text-[36px] xs:text-[40px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-normal leading-[1.15] sm:leading-[1.15] md:leading-[1.15] font-serif px-2 sm:px-4 md:px-0" style={{ letterSpacing: '-0.02em' }}>
-                    <span className="text-[#1d1d1f]" style={{ letterSpacing: '-0.02em' }}>Enterprise infrastructure in{" "}
-                    <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className} whitespace-nowrap`} style={{ letterSpacing: '-0.02em' }}>one prompt.</span></span>
+                    <span className="text-[#1d1d1f]" style={{ letterSpacing: '-0.02em' }}>Your{" "}
+                    <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className}`} style={{ letterSpacing: '-0.02em' }}>AI Solutions Architect</span>
+                    <br />for Backend Systems</span>
                   </h1>
                   <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[rgba(55,50,47,0.80)] text-[15px] sm:text-[16px] leading-[1.6] font-sans px-2 sm:px-4 md:px-0 font-normal">
-                    Multi-tenant architecture. Database schemas. API layers. Security built-in.
+                    Evaluate architecture patterns. Make strategic trade-offs. Implement production backend code.
                     <br />
-                    Generated in minutes. Deployed to your cloud.
+                    Senior-level architecture expertise without the $300K hire.
                   </div>
                 </div>
               </div>
@@ -833,7 +864,7 @@ export default function LandingPage() {
                         <div className="relative flex items-center justify-center">
                           <div className="relative w-2 h-2 bg-[#1d1d1f] rounded-full"></div>
                         </div>
-                        <span className="text-[#1d1d1f] text-xs sm:text-sm font-medium font-sans">AI generating your backend...</span>
+                        <span className="text-[#1d1d1f] text-xs sm:text-sm font-medium font-sans">AI evaluating architecture patterns...</span>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-3 text-gray-500 text-[10px] sm:text-xs font-mono">
                         <span className="hidden sm:inline">auth.service.ts</span>
@@ -878,122 +909,122 @@ export default function LandingPage() {
               {/* The Problem Section */}
               <div className="w-full max-w-[1100px] mt-32 px-4">
                 <div className="text-center mb-20">
-                  <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>The $500K Backend Problem</h2>
-                  <p className="text-lg sm:text-xl text-[#605A57] max-w-2xl mx-auto">Why every alternative is broken</p>
+                  <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>Why Backend Architecture Fails</h2>
+                  <p className="text-lg sm:text-xl text-[#605A57] max-w-2xl mx-auto">Most teams make critical architecture decisions without senior-level expertise. Early patterns determine if your backend scales or becomes a rewrite.</p>
                 </div>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
-                  {/* Column 1: No-Code Trap */}
+                  {/* Column 1: Wrong Multi-Tenancy Pattern */}
                   <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
                     <div className="mb-6">
                       <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center mb-4">
                         <span className="text-[#1d1d1f] font-bold text-lg">01</span>
                       </div>
-                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">The No-Code Trap</h3>
-                      <p className="text-sm italic text-[#605A57] leading-relaxed">"We started with Firebase"</p>
+                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">Wrong Multi-Tenancy Pattern</h3>
+                      <p className="text-sm italic text-[#605A57] leading-relaxed">"We picked schema-per-tenant..."</p>
                     </div>
                     
                     <div className="flex-1 space-y-3.5 mb-8">
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">$30,000 surprise bill because one query went viral</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Database connection pool exhausted at 500 tenants</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">Can't do complex queries - NoSQL limitations hit hard</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Migrations take 8+ hours with 1000 schemas</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">Vendor lock-in nightmare - "Firebase doesn't provide any tools to migrate data"</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">$200K to rewrite to shared schema + RLS</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">Supabase "doesn't support transactions yet" - blocked our product launch</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">6 months of eng time lost</p>
                       </div>
                     </div>
                     
                     <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-lg font-bold text-[#1d1d1f]">61,161</span>
-                        <span className="text-xs text-[#605A57]">companies using Firebase</span>
+                        <span className="text-lg font-bold text-[#1d1d1f]">43%</span>
+                        <span className="text-xs text-[#605A57]">of B2B SaaS startups</span>
                       </div>
-                      <p className="text-xs text-[#605A57]">54% worried about lock-in</p>
+                      <p className="text-xs text-[#605A57]">Pick wrong multi-tenant pattern</p>
                     </div>
                   </div>
                   
-                  {/* Column 2: DevOps Nightmare */}
+                  {/* Column 2: No Scaling Strategy */}
                   <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
                     <div className="mb-6">
                       <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center mb-4">
                         <span className="text-[#1d1d1f] font-bold text-lg">02</span>
                       </div>
-                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">The DevOps Nightmare</h3>
-                      <p className="text-sm italic text-[#605A57] leading-relaxed">"We tried building it ourselves"</p>
+                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">No Scaling Strategy</h3>
+                      <p className="text-sm italic text-[#605A57] leading-relaxed">"We'll scale when we need to..."</p>
                     </div>
                     
                     <div className="flex-1 space-y-3.5 mb-8">
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">Terraform takes 3-6 months to learn before shipping</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Monolith can't handle 10K concurrent users</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">Kubernetes requires "an army of specialists" to manage</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">No read replicas = slow queries everywhere</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">CloudFormation's 15-minute feedback loops kill velocity</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Rewriting to microservices: $350K budget</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">"YAML hell" - endless config files nobody understands</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Lost 3 enterprise deals due to performance</p>
                       </div>
                     </div>
                     
                     <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-lg font-bold text-[#1d1d1f]">77%</span>
-                        <span className="text-xs text-[#605A57]">still struggle with K8s</span>
+                        <span className="text-lg font-bold text-[#1d1d1f]">68%</span>
+                        <span className="text-xs text-[#605A57]">of startups</span>
                       </div>
-                      <p className="text-xs text-[#605A57]">70% onboarding takes 1+ month</p>
+                      <p className="text-xs text-[#605A57]">Underestimate scaling needs</p>
                     </div>
                   </div>
                   
-                  {/* Column 3: Hidden Costs */}
+                  {/* Column 3: Poor Data Modeling */}
                   <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
                     <div className="mb-6">
                       <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center mb-4">
                         <span className="text-[#1d1d1f] font-bold text-lg">03</span>
                       </div>
-                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">The Hidden Costs</h3>
-                      <p className="text-sm italic text-[#605A57] leading-relaxed">"Costs spiraled out of control"</p>
+                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">Poor Data Modeling</h3>
+                      <p className="text-sm italic text-[#605A57] leading-relaxed">"NoSQL seemed easier..."</p>
                     </div>
                     
                     <div className="flex-1 space-y-3.5 mb-8">
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">Firebase's pay-per-read model becomes unsustainable</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Can't do joins = duplicated data everywhere</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">Supabase's PITR backup: $100/month regardless of DB size</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">No ACID transactions = data inconsistency bugs</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">"Empty EKS cluster costs are ridiculous" - baseline $150/mo</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Migration to PostgreSQL: 4 months of eng time</p>
                       </div>
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
-                        <p className="text-sm text-[#605A57] leading-relaxed">AWS egress fees make migration financially painful</p>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Analytics impossible without proper schema</p>
                       </div>
                     </div>
                     
                     <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-lg font-bold text-[#1d1d1f]">54%</span>
-                        <span className="text-xs text-[#605A57]">face steep learning curves</span>
+                        <span className="text-lg font-bold text-[#1d1d1f]">71%</span>
+                        <span className="text-xs text-[#605A57]">of teams</span>
                       </div>
-                      <p className="text-xs text-[#605A57]">89% use multi-cloud to avoid lock</p>
+                      <p className="text-xs text-[#605A57]">Regret early database choice</p>
                     </div>
                   </div>
                 </div>
@@ -1001,7 +1032,7 @@ export default function LandingPage() {
                 <div className="text-center">
                   <Link href="/sign-up">
                     <button className="px-8 py-4 bg-[#1d1d1f] text-white text-base sm:text-lg font-semibold rounded-lg transition-opacity hover:opacity-90">
-                      There has to be a better way →
+                      Get Architecture Consultation →
                     </button>
                   </Link>
                 </div>
@@ -1011,9 +1042,9 @@ export default function LandingPage() {
               <div className="w-full max-w-[1100px] mt-32 px-4">
                 <div className="text-center mb-16">
                   <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>
-                    Infrastructure that thinks like code,<br />feels like magic
+                    Senior-Level Architecture Intelligence
                   </h2>
-                  <p className="text-xl text-[#605A57] mt-6">We're the Goldilocks solution: Not too simple. Not too complex. Just right.</p>
+                  <p className="text-xl text-[#605A57] mt-6">Define your requirements. AI evaluates patterns and proposes architecture. You refine decisions. Deploy production code to your infrastructure.</p>
                 </div>
                 
                 <div className="bg-white rounded-2xl border border-[rgba(55,50,47,0.12)] overflow-hidden shadow-xl">
@@ -1021,7 +1052,7 @@ export default function LandingPage() {
                     <table className="w-full">
                       <thead className="bg-[#f8f8f8] border-b-2 border-[rgba(55,50,47,0.12)]">
                         <tr>
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-[#37322F]">What You Get</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-[#37322F]">Feature Comparison</th>
                           <th className="px-6 py-4 text-center text-sm font-semibold text-[#37322F]">No-Code<br/><span className="text-xs font-normal">(Firebase/Supabase)</span></th>
                           <th className="px-6 py-4 text-center text-sm font-bold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">SnapInfra</th>
                           <th className="px-6 py-4 text-center text-sm font-semibold text-[#37322F]">Raw IaC<br/><span className="text-xs font-normal">(Terraform/K8s)</span></th>
@@ -1053,7 +1084,19 @@ export default function LandingPage() {
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">Portable</td>
                         </tr>
                         <tr>
-                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Custom business logic</td>
+                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Architecture Design</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">❌</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">✅ AI proposes</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">❌</td>
+                        </tr>
+                        <tr>
+                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Backend Code</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">❌</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">✅ Complete</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">❌</td>
+                        </tr>
+                        <tr>
+                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Complete Backend System</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">Limited</td>
                           <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">Full code</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">Full code</td>
@@ -1065,7 +1108,7 @@ export default function LandingPage() {
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">Controlled</td>
                         </tr>
                         <tr>
-                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Production ready</td>
+                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Enterprise Backend Features</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">For prototypes</td>
                           <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">Day one</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">After weeks</td>
