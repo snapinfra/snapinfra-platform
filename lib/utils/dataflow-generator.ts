@@ -51,7 +51,7 @@ export interface DataFlowDiagram {
 }
 
 const groqProvider = createGroq({
-  apiKey: process.env.GROQ_API_KEY || 'REMOVED'
+  apiKey: process.env.GROQ_API_KEY || ''
 })
 
 // Enhanced layout configuration for better ReactFlow visualization

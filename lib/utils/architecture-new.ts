@@ -45,7 +45,7 @@ interface GroqArchitectureResponse {
 
 // Create Groq provider instance with API key
 const groqProvider = createGroq({
-  apiKey: 'REMOVED'
+  apiKey: process.env.GROQ_API_KEY || '',
 })
 
 async function generateArchitectureWithGroq(

@@ -49,7 +49,7 @@ interface GroqLLDResponse {
 
 // Create Groq provider instance
 const groqProvider = createGroq({
-  apiKey: 'REMOVED'
+  apiKey: process.env.GROQ_API_KEY || '',
 })
 
 async function generateLLDWithGroq(

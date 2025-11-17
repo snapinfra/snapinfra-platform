@@ -49,7 +49,7 @@ export interface APIEndpointsMap {
 }
 
 const groqProvider = createGroq({
-  apiKey: 'REMOVED'
+  apiKey: process.env.GROQ_API_KEY || '',
 })
 
 const API_LAYOUT = {

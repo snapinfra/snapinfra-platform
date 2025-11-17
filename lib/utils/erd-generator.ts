@@ -65,7 +65,7 @@ export interface ERDDiagram {
 }
 
 const groqProvider = createGroq({
-  apiKey: process.env.GROQ_API_KEY || 'REMOVED'
+  apiKey: process.env.GROQ_API_KEY || ''
 })
 
 // Enhanced ERD layout for better ReactFlow visualization
