@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
@@ -30,13 +30,13 @@ import SocialProofSection from "@/components/social-proof-section"
 import TechStackSection from "@/components/tech-stack-section"
 import SecurityComplianceSection from "@/components/security-compliance-section"
 
-// Streaming Code Component
-function StreamingCode() {
+// Streaming Code Component - Optimized with memoization
+const StreamingCode = memo(function StreamingCode() {
   const [currentLine, setCurrentLine] = useState(4) // Start at line 5 (index 4)
   const [currentChar, setCurrentChar] = useState(0)
   const mountedRef = useRef(true)
 
-  const codeLines = [
+  const codeLines = useMemo(() => [
     { num: 1, code: <><span className="text-purple-600">import</span> <span className="text-gray-700">&#123; validateToken, generateJWT &#125;</span> <span className="text-purple-600">from</span> <span className="text-blue-600">'@/lib/auth'</span>;</> },
     { num: 2, code: <><span className="text-purple-600">import</span> <span className="text-gray-700">&#123; TenantService &#125;</span> <span className="text-purple-600">from</span> <span className="text-blue-600">'@/services'</span>;</> },
     { num: 3, code: <></> },
@@ -45,9 +45,9 @@ function StreamingCode() {
     { num: 6, code: <span className="pl-4"><span className="text-purple-600">async</span> <span className="text-yellow-600">authenticate</span>(tenantId: <span className="text-blue-600">string</span>, credentials: <span className="text-blue-600">Credentials</span>) &#123;</span> },
     { num: 7, code: <span className="pl-8"><span className="text-purple-600">const</span> tenant = <span className="text-purple-600">await</span> TenantService.<span className="text-yellow-600">findById</span>(tenantId);</span> },
     { num: 8, code: <span className="pl-8"><span className="text-purple-600">if</span> (!tenant?.active) <span className="text-purple-600">throw</span> <span className="text-purple-600">new</span> <span className="text-yellow-600">UnauthorizedError</span>();</span> },
-  ]
+  ], [])
 
-  const lineTexts = [
+  const lineTexts = useMemo(() => [
     "import { validateToken, generateJWT } from '@/lib/auth';",
     "import { TenantService } from '@/services';",
     "",
@@ -56,9 +56,10 @@ function StreamingCode() {
     "  async authenticate(tenantId: string, credentials: Credentials) {",
     "    const tenant = await TenantService.findById(tenantId);",
     "    if (!tenant?.active) throw new UnauthorizedError();",
-  ]
+  ], [])
 
   useEffect(() => {
+    // Reduced from 50ms to 75ms for better performance
     const interval = setInterval(() => {
       if (!mountedRef.current) return
       
@@ -77,13 +78,13 @@ function StreamingCode() {
         }
         return prev + 1
       })
-    }, 50)
+    }, 75) // Reduced frequency for better performance
 
     return () => {
       clearInterval(interval)
       mountedRef.current = false
     }
-  }, [currentLine])
+  }, [currentLine, lineTexts])
 
   return (
     <div className="space-y-1.5">
@@ -95,14 +96,14 @@ function StreamingCode() {
         const visibleText = isActive ? lineText.substring(0, currentChar) : (isComplete ? lineText : '')
         
         return (
-          <div key={line.num} className="flex gap-6 text-[10px]" style={{ opacity }}>
-            <span className="w-6 text-right text-gray-400">{line.num}</span>
-            <div className="relative font-mono min-h-[14px]">
+          <div key={line.num} className="flex gap-3 sm:gap-4 md:gap-6 text-[8px] sm:text-[9px] md:text-[10px]" style={{ opacity }}>
+            <span className="w-5 sm:w-6 text-right text-gray-400 flex-shrink-0">{line.num}</span>
+            <div className="relative font-mono min-h-[12px] sm:min-h-[14px] break-words overflow-x-auto">
               {(isComplete || (isActive && currentChar > 0)) && (
                 <span>{line.code}</span>
               )}
               {isActive && currentChar < lineText.length && (
-                <span className="inline-block w-1.5 h-3.5 bg-[#005BE3] ml-0.5 animate-pulse"></span>
+                <span className="inline-block w-1 h-2.5 sm:w-1.5 sm:h-3.5 bg-[#37322F] ml-0.5 animate-pulse"></span>
               )}
             </div>
           </div>
@@ -110,49 +111,49 @@ function StreamingCode() {
       })}
     </div>
   )
-}
+})
 
-// Interactive Prompt Box Component
-function InteractivePromptBox() {
+// Interactive Prompt Box Component - Optimized
+const InteractivePromptBox = memo(function InteractivePromptBox() {
   const [prompt, setPrompt] = useState("")
   const [isFocused, setIsFocused] = useState(false)
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (prompt.trim()) {
       // Store the prompt in sessionStorage to pass to onboarding
       sessionStorage.setItem('backend-prompt', prompt)
       // Redirect to sign-up
       router.push('/sign-up')
     }
-  }
+  }, [prompt, router])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
     }
-  }
+  }, [handleSubmit])
 
+  // Debounced textarea height adjustment for better performance
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
-    }
+    const timeoutId = setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'
+        textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+      }
+    }, 50)
+    
+    return () => clearTimeout(timeoutId)
   }, [prompt])
 
   return (
     <div className="w-full relative">
       {/* Solid primary border */}
-      <div className="absolute inset-0 rounded-2xl p-[2px] bg-[#005BE3]">
+      <div className="absolute inset-0 rounded-2xl p-[2px] bg-[#1d1d1f]">
         <div className="w-full h-full rounded-2xl"></div>
       </div>
-      
-      {/* Background glow effect */}
-      <div className={`absolute -inset-2 bg-[#005BE3]/30 rounded-2xl blur-xl transition-opacity duration-300 ${
-        isFocused ? 'opacity-100' : 'opacity-40'
-      }`}></div>
       
       {/* Main input container */}
       <div className="relative rounded-2xl shadow-2xl transition-all duration-300 overflow-hidden" style={{ margin: '2px' }}>
@@ -167,7 +168,7 @@ function InteractivePromptBox() {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onKeyDown={handleKeyDown}
-            placeholder="multi-tenant SaaS with usage-based billing. need RBAC, audit logs, and analytics dashboards."
+            placeholder="Multi-tenant B2B SaaS. 10M+ requests/day. PostgreSQL + Redis. Event-driven architecture. RBAC. Must scale to 5M users."
             className="flex-1 bg-transparent text-white placeholder-[rgba(255,255,255,0.4)] text-sm sm:text-base resize-none outline-none min-h-[24px] overflow-hidden font-sans"
             rows={1}
           />
@@ -176,9 +177,9 @@ function InteractivePromptBox() {
           <button
             onClick={handleSubmit}
             disabled={!prompt.trim()}
-            className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${
+            className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
               prompt.trim()
-                ? 'bg-[#005BE3] hover:bg-[#004BC9] shadow-[0_2px_8px_rgba(0,91,227,0.4)] cursor-pointer hover:shadow-[0_4px_12px_rgba(0,91,227,0.5)] hover:scale-105'
+                ? 'bg-[#1d1d1f] cursor-pointer'
                 : 'bg-white/10 cursor-not-allowed'
             }`}
           >
@@ -202,10 +203,10 @@ function InteractivePromptBox() {
       </div>
     </div>
   )
-}
+})
 
-// Badge Component
-function Badge({ icon, text }: { icon: React.ReactNode; text: string }) {
+// Badge Component - Optimized
+const Badge = memo(function Badge({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <div className="px-[14px] py-[6px] bg-white shadow-[0px_0px_0px_4px_rgba(55,50,47,0.05)] overflow-hidden rounded-[90px] flex justify-start items-center gap-[8px] border border-[rgba(2,6,23,0.08)] shadow-xs">
       <div className="w-[14px] h-[14px] relative overflow-hidden flex items-center justify-center">{icon}</div>
@@ -214,80 +215,409 @@ function Badge({ icon, text }: { icon: React.ReactNode; text: string }) {
       </div>
     </div>
   )
-}
+})
 
+// ROI Calculator Component - Optimized with memoization
+const ROICalculator = memo(function ROICalculator() {
+  const [teamSize, setTeamSize] = useState(5)
+  const [projectsPerYear, setProjectsPerYear] = useState(3)
+  const [complexity, setComplexity] = useState<'simple' | 'medium' | 'complex' | 'enterprise'>('medium')
+  const [avgDeveloperRate, setAvgDeveloperRate] = useState(100) // $100/hour average
+  const [iacType, setIacType] = useState<'terraform' | 'kubernetes' | 'cloudformation' | 'manual'>('terraform')
+  const [cloudProvider, setCloudProvider] = useState<'aws' | 'gcp' | 'azure' | 'multi'>('aws')
 
-// Feature Card with Progress
-function FeatureCard({
-  title,
-  description,
-  isActive,
-  progress,
-  onClick,
-  icon,
-}: {
-  title: string
-  description: string
-  isActive: boolean
-  progress: number
-  onClick: () => void
-  icon: React.ReactNode
-}) {
+  // Memoize static data structures to prevent re-creation on every render
+  // Industry benchmarks based on market research and actual cloud provider pricing
+  // Costs include: Database (RDS/Cloud SQL), Compute (EC2/VMs), API Gateway, Storage, Data Transfer
+  const complexityMultipliers = useMemo(() => ({
+    simple: { 
+      apis: 10, // Simple MVP: 5-15 APIs, average 10
+      hoursPerAPI: 8, // Simple API: 4-8 hours, average 8
+      monthlyInfraCost: {
+        aws: 180,      // RDS db.t3.micro ($15) + EC2 t3.small ($15) + API Gateway ($5) + S3 ($10) + Data Transfer ($15) + misc ($120)
+        gcp: 165,      // Cloud SQL db-f1-micro ($7) + e2-small ($13) + Cloud Endpoints ($5) + Storage ($8) + Transfer ($12) + misc ($120)
+        azure: 190,    // Azure DB Basic ($5) + B1S VM ($15) + API Management ($10) + Blob ($8) + Transfer ($12) + misc ($140)
+        multi: 280     // Multi-cloud adds complexity and redundancy
+      },
+      snapinfraSetupHours: 1 // SnapInfra automated setup
+    },
+    medium: { 
+      apis: 30, // Medium SaaS: 20-40 APIs, average 30
+      hoursPerAPI: 12, // Medium API: 8-16 hours, average 12
+      monthlyInfraCost: {
+        aws: 450,      // RDS db.t3.medium ($60) + EC2 t3.medium ($30) + API Gateway ($20) + S3 ($25) + Data Transfer ($50) + misc ($265)
+        gcp: 420,      // Cloud SQL db-n1-standard-1 ($50) + e2-medium ($25) + Cloud Endpoints ($15) + Storage ($20) + Transfer ($40) + misc ($270)
+        azure: 480,    // Azure DB Standard ($55) + D2s v3 ($30) + API Management ($25) + Blob ($22) + Transfer ($48) + misc ($300)
+        multi: 680     // Multi-cloud with redundancy
+      },
+      snapinfraSetupHours: 2
+    },
+    complex: { 
+      apis: 65, // Complex: 50-80 APIs, average 65
+      hoursPerAPI: 20, // Complex API: 16-32 hours, average 20
+      monthlyInfraCost: {
+        aws: 1200,     // RDS db.t3.large ($120) + EC2 m5.large ($70) + API Gateway ($50) + S3 ($60) + Data Transfer ($150) + Load Balancer ($20) + misc ($730)
+        gcp: 1100,     // Cloud SQL db-n1-standard-2 ($100) + e2-standard-2 ($60) + Cloud Endpoints ($40) + Storage ($50) + Transfer ($120) + LB ($15) + misc ($715)
+        azure: 1250,   // Azure DB Premium ($130) + D4s v3 ($70) + API Management ($60) + Blob ($55) + Transfer ($140) + LB ($25) + misc ($770)
+        multi: 1800    // Multi-cloud enterprise setup
+      },
+      snapinfraSetupHours: 3
+    },
+    enterprise: { 
+      apis: 100, // Enterprise: 80-150 APIs, average 100
+      hoursPerAPI: 24, // Enterprise API: 20-40 hours, average 24
+      monthlyInfraCost: {
+        aws: 2800,     // RDS db.r5.xlarge ($350) + EC2 m5.xlarge ($150) + API Gateway ($100) + S3 ($150) + Data Transfer ($400) + Multi-AZ ($200) + misc ($1450)
+        gcp: 2600,     // Cloud SQL db-n1-highmem-4 ($320) + e2-standard-4 ($130) + Cloud Endpoints ($80) + Storage ($140) + Transfer ($350) + HA ($180) + misc ($1380)
+        azure: 2900,   // Azure DB Business Critical ($380) + D8s v3 ($160) + API Management ($120) + Blob ($150) + Transfer ($420) + HA ($220) + misc ($1450)
+        multi: 4200    // Multi-cloud with full redundancy and failover
+      },
+      snapinfraSetupHours: 4
+    }
+  }), [])
+
+  // IaC setup time multipliers based on type and complexity
+  const iacSetupMultipliers = useMemo(() => ({
+    terraform: {
+      simple: 40,    // Terraform: 40-60 hours
+      medium: 60,    // Terraform: 50-80 hours
+      complex: 80,   // Terraform: 70-100 hours
+      enterprise: 120 // Terraform: 100-150 hours
+    },
+    kubernetes: {
+      simple: 60,    // K8s: 60-80 hours (steep learning curve)
+      medium: 90,    // K8s: 80-120 hours
+      complex: 120,  // K8s: 100-150 hours
+      enterprise: 180 // K8s: 150-200 hours (with DevOps team)
+    },
+    cloudformation: {
+      simple: 50,    // CloudFormation: 50-70 hours
+      medium: 70,    // CloudFormation: 60-90 hours
+      complex: 100,  // CloudFormation: 90-120 hours
+      enterprise: 140 // CloudFormation: 120-160 hours
+    },
+    manual: {
+      simple: 80,    // Manual setup: 80-100 hours
+      medium: 120,   // Manual setup: 100-150 hours
+      complex: 160,  // Manual setup: 150-200 hours
+      enterprise: 240 // Manual setup: 200-300 hours
+    }
+  }), [])
+
+  // Memoize calculation results to prevent unnecessary recalculations
+  const calculations = useMemo(() => {
+    const multiplier = complexityMultipliers[complexity]
+    const iacMultiplier = iacSetupMultipliers[iacType][complexity]
+    
+    // Get actual cloud provider costs based on complexity
+    const traditionalMonthlyCost = multiplier.monthlyInfraCost[cloudProvider]
+    
+    // Calculate development time
+    const totalAPIs = multiplier.apis * projectsPerYear
+    const hoursPerAPI = multiplier.hoursPerAPI
+    const totalDevHours = totalAPIs * hoursPerAPI
+    
+    // Infrastructure setup time (traditional IaC vs SnapInfra)
+    // Multi-cloud adds 20% more setup time due to complexity
+    const cloudComplexityMultiplier = cloudProvider === 'multi' ? 1.2 : 1.0
+    const traditionalInfraHours = Math.round(iacMultiplier * cloudComplexityMultiplier * projectsPerYear)
+    const snapinfraInfraHours = multiplier.snapinfraSetupHours * projectsPerYear
+    const infraTimeSaved = traditionalInfraHours - snapinfraInfraHours
+    
+    // Total time saved (infrastructure + reduced API dev time with code generation)
+    // SnapInfra generates production-ready code, saving ~30% of API development time
+    const apiDevTimeSaved = totalDevHours * 0.30 // 30% time saved on API development
+    const totalHoursSaved = infraTimeSaved + apiDevTimeSaved
+    
+    // Cost calculations - SnapInfra includes all infrastructure
+    const snapinfraMonthlyCost = 99
+    const monthlyCostSaved = traditionalMonthlyCost - snapinfraMonthlyCost
+    const annualCostSaved = monthlyCostSaved * 12
+    
+    // Development cost savings (time saved * developer rate * team size)
+    const devCostSaved = totalHoursSaved * avgDeveloperRate * teamSize
+    
+    // Total annual savings
+    const totalCostSaved = annualCostSaved + devCostSaved
+    
+    // ROI Payback Period (months) = Annual SnapInfra cost / Monthly savings
+    const snapinfraAnnualCost = snapinfraMonthlyCost * 12
+    const monthlySavings = totalCostSaved / 12
+    const paybackMonths = monthlySavings > 0 ? Math.ceil(snapinfraAnnualCost / monthlySavings) : 0
+
+    // Calculate percentage savings
+    const timeSavingsPercentage = traditionalInfraHours > 0 
+      ? Math.round((infraTimeSaved / traditionalInfraHours) * 100) 
+      : 0
+    
+    const costSavingsPercentage = traditionalMonthlyCost > 0
+      ? Math.round((monthlyCostSaved / traditionalMonthlyCost) * 100)
+      : 0
+
+    return {
+      multiplier,
+      totalAPIs,
+      totalHoursSaved,
+      infraTimeSaved,
+      apiDevTimeSaved,
+      totalCostSaved,
+      devCostSaved,
+      annualCostSaved,
+      paybackMonths,
+      snapinfraInfraHours,
+      traditionalInfraHours,
+      timeSavingsPercentage,
+      snapinfraMonthlyCost,
+      traditionalMonthlyCost,
+      monthlyCostSaved,
+      costSavingsPercentage
+    }
+  }, [teamSize, projectsPerYear, complexity, iacType, cloudProvider, avgDeveloperRate, complexityMultipliers, iacSetupMultipliers])
+
+  // Memoize helper functions
+  const formatTime = useCallback((hours: number) => {
+    if (hours >= 1000) {
+      return `~${Math.round(hours / 1000 * 10) / 10}K hours`
+    }
+    return `~${Math.round(hours)} hours`
+  }, [])
+
+  const formatCost = useCallback((cost: number) => {
+    if (cost >= 1000000) {
+      return `$${Math.round(cost / 1000000 * 10) / 10}M`
+    } else if (cost >= 1000) {
+      return `$${Math.round(cost / 1000)}K`
+    }
+    return `$${Math.round(cost)}`
+  }, [])
+
+  // Helper function to format provider names
+  const getProviderName = useCallback((provider: string) => {
+    const names: Record<string, string> = {
+      aws: 'AWS',
+      gcp: 'GCP',
+      azure: 'Azure',
+      multi: 'Multi-Cloud'
+    }
+    return names[provider] || provider
+  }, [])
+
+  // Helper function to format IaC tool names
+  const getIacToolName = useCallback((tool: string) => {
+    const names: Record<string, string> = {
+      terraform: 'Terraform',
+      kubernetes: 'K8s',
+      cloudformation: 'CloudFormation',
+      manual: 'Manual'
+    }
+    return names[tool] || tool
+  }, [])
+
   return (
-    <div
-      className={`w-full md:flex-1 self-stretch px-6 py-6 rounded-2xl overflow-hidden flex flex-col justify-start items-start gap-4 cursor-pointer relative transition-all duration-500 group ${
-        isActive
-          ? "bg-white shadow-[0_8px_30px_rgba(0,91,227,0.15),0_0_0_2px_rgba(0,91,227,0.2)] scale-[1.02] md:scale-105"
-          : "bg-white/60 hover:bg-white hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:scale-[1.01]"
-      }`}
-      onClick={onClick}
-    >
-      {/* Progress bar */}
-      {isActive && (
-        <div className="absolute top-0 left-0 w-full h-1 bg-[#005BE3]/10 rounded-t-lg overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-[#005BE3] to-[#004BC9] transition-all duration-100 ease-linear shadow-[0_0_8px_rgba(0,91,227,0.6)]"
-            style={{ width: `${progress}%` }}
-          />
+    <div className="w-full max-w-[1100px] mt-16 px-4">
+      <div className="bg-white rounded-2xl border border-[rgba(55,50,47,0.12)] p-6 md:p-12 overflow-hidden">
+        {/* Header */}
+        <div className="text-center mb-8 md:mb-12">
+          <h3 className="text-xl md:text-2xl font-semibold text-[#1d1d1f] mb-2">Calculate Your Savings</h3>
+          <p className="text-sm md:text-base text-[#605A57]">See how much time and money SnapInfra can save your team</p>
         </div>
-      )}
 
-      {/* Icon */}
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-        isActive 
-          ? 'bg-[#005BE3] text-white shadow-[0_4px_12px_rgba(0,91,227,0.3)]' 
-          : 'bg-[#005BE3]/10 text-[#005BE3] group-hover:bg-[#005BE3]/20'
-      }`}>
-        {icon}
-      </div>
+        {/* Calculator */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+          {/* Input Section */}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-[#37322F] mb-2">
+                Team Size
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="50"
+                value={teamSize}
+                className="w-full h-2 bg-[rgba(55,50,47,0.1)] rounded-lg appearance-none cursor-pointer accent-[#1d1d1f]"
+                onChange={(e) => setTeamSize(parseInt(e.target.value))}
+              />
+              <div className="flex justify-between text-xs text-[#605A57] mt-1">
+                <span>1</span>
+                <span className="font-semibold text-[#1d1d1f]">{teamSize}</span>
+                <span>50+</span>
+              </div>
+            </div>
 
-      {/* Title */}
-      <div className={`self-stretch text-base md:text-lg font-semibold leading-tight font-sans transition-colors duration-300 ${
-        isActive ? 'text-[#005BE3]' : 'text-[#37322F] group-hover:text-[#005BE3]'
-      }`}>
-        {title}
-      </div>
-      
-      {/* Description */}
-      <div className="self-stretch text-[#605A57] text-sm font-normal leading-relaxed font-sans">
-        {description}
-      </div>
+            <div>
+              <label className="block text-sm font-medium text-[#37322F] mb-2">
+                Projects per Year
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={projectsPerYear}
+                className="w-full h-2 bg-[rgba(55,50,47,0.1)] rounded-lg appearance-none cursor-pointer accent-[#1d1d1f]"
+                onChange={(e) => setProjectsPerYear(parseInt(e.target.value))}
+              />
+              <div className="flex justify-between text-xs text-[#605A57] mt-1">
+                <span>1</span>
+                <span className="font-semibold text-[#1d1d1f]">{projectsPerYear}</span>
+                <span>20+</span>
+              </div>
+            </div>
 
-      {/* Active indicator */}
-      {isActive && (
-        <div className="flex items-center gap-2 text-[#005BE3] text-xs font-medium mt-auto">
-          <div className="w-2 h-2 rounded-full bg-[#005BE3] animate-pulse"></div>
-          <span>Active</span>
+            <div>
+              <label className="block text-sm font-medium text-[#37322F] mb-2">
+                Average Project Complexity
+              </label>
+              <select
+                value={complexity}
+                className="w-full px-4 py-2.5 border border-[rgba(55,50,47,0.12)] rounded-lg bg-white text-[#37322F] text-sm focus:outline-none focus:ring-2 focus:ring-[#1d1d1f] focus:border-transparent transition-colors"
+                onChange={(e) => setComplexity(e.target.value as typeof complexity)}
+              >
+                <option value="simple">Simple MVP (5-15 APIs)</option>
+                <option value="medium">Medium SaaS (20-40 APIs)</option>
+                <option value="complex">Complex Platform (50-80 APIs)</option>
+                <option value="enterprise">Enterprise (80+ APIs)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#37322F] mb-2">
+                Current IaC Tool
+              </label>
+              <select
+                value={iacType}
+                className="w-full px-4 py-2.5 border border-[rgba(55,50,47,0.12)] rounded-lg bg-white text-[#37322F] text-sm focus:outline-none focus:ring-2 focus:ring-[#1d1d1f] focus:border-transparent transition-colors"
+                onChange={(e) => setIacType(e.target.value as typeof iacType)}
+              >
+                <option value="terraform">Terraform</option>
+                <option value="kubernetes">Kubernetes</option>
+                <option value="cloudformation">AWS CloudFormation</option>
+                <option value="manual">Manual Setup</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#37322F] mb-2">
+                Cloud Provider
+              </label>
+              <select
+                value={cloudProvider}
+                className="w-full px-4 py-2.5 border border-[rgba(55,50,47,0.12)] rounded-lg bg-white text-[#37322F] text-sm focus:outline-none focus:ring-2 focus:ring-[#1d1d1f] focus:border-transparent transition-colors"
+                onChange={(e) => setCloudProvider(e.target.value as typeof cloudProvider)}
+              >
+                <option value="aws">AWS</option>
+                <option value="gcp">Google Cloud Platform</option>
+                <option value="azure">Microsoft Azure</option>
+                <option value="multi">Multi-Cloud</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#37322F] mb-2">
+                Average Developer Rate ($/hour)
+              </label>
+              <input
+                type="range"
+                min="50"
+                max="200"
+                step="10"
+                value={avgDeveloperRate}
+                className="w-full h-2 bg-[rgba(55,50,47,0.1)] rounded-lg appearance-none cursor-pointer accent-[#1d1d1f]"
+                onChange={(e) => setAvgDeveloperRate(parseInt(e.target.value))}
+              />
+              <div className="flex justify-between text-xs text-[#605A57] mt-1">
+                <span>$50</span>
+                <span className="font-semibold text-[#1d1d1f]">${avgDeveloperRate}</span>
+                <span>$200+</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Results Section */}
+          <div className="space-y-6">
+            <div className="bg-[rgba(55,50,47,0.03)] rounded-xl p-6 border border-[rgba(55,50,47,0.08)]">
+              <div className="text-xs font-medium text-[#605A57] uppercase tracking-wider mb-3">Estimated Annual Savings</div>
+              <div className="space-y-4">
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold text-[#1d1d1f] mb-1">
+                    {formatTime(calculations.totalHoursSaved)}
+                  </div>
+                  <div className="text-sm text-[#605A57]">Time saved per year</div>
+                  <div className="text-xs text-[#605A57]/70 mt-1">
+                    {formatTime(calculations.infraTimeSaved)} infrastructure + {formatTime(calculations.apiDevTimeSaved)} development
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-[rgba(55,50,47,0.12)]">
+                  <div className="text-3xl md:text-4xl font-bold text-[#1d1d1f] mb-1">
+                    {formatCost(calculations.totalCostSaved)}
+                  </div>
+                  <div className="text-sm text-[#605A57]">Total cost savings</div>
+                  <div className="text-xs text-[#605A57]/70 mt-1">
+                    {formatCost(calculations.devCostSaved)} dev time + {formatCost(calculations.annualCostSaved)} infrastructure
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-[rgba(55,50,47,0.12)]">
+                  <div className="text-3xl md:text-4xl font-bold text-[#1d1d1f] mb-1">
+                    ~{calculations.totalAPIs} APIs
+                  </div>
+                  <div className="text-sm text-[#605A57]">APIs generated per year</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#1d1d1f] rounded-xl p-6 text-white">
+              <div className="text-sm font-medium mb-3">Comparison Breakdown</div>
+              <div className="text-xs text-white/70 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span>Infrastructure setup ({getIacToolName(iacType)}):</span>
+                  <span className="font-semibold">{calculations.snapinfraInfraHours}h vs {calculations.traditionalInfraHours}h</span>
+                </div>
+                <div className="text-xs text-white/50 pl-2">
+                  ({calculations.timeSavingsPercentage}% time saved)
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <span>Monthly infrastructure cost ({getProviderName(cloudProvider)}):</span>
+                  <span className="font-semibold">${calculations.snapinfraMonthlyCost} vs ${calculations.traditionalMonthlyCost}</span>
+                </div>
+                <div className="text-xs text-white/50 pl-2">
+                  (${calculations.monthlyCostSaved}/mo saved, {calculations.costSavingsPercentage}% reduction)
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <span>API development time:</span>
+                  <span className="font-semibold">~30% faster</span>
+                </div>
+                <div className="text-xs text-white/50 pl-2">
+                  ({formatTime(calculations.apiDevTimeSaved)} saved per year)
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <span>Total APIs per year:</span>
+                  <span className="font-semibold">{calculations.totalAPIs} APIs</span>
+                </div>
+                <div className="text-xs text-white/50 pl-2">
+                  ({calculations.multiplier.apis} APIs × {projectsPerYear} projects)
+                </div>
+                <div className="pt-2 mt-2 border-t border-white/10">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">ROI Payback Period:</span>
+                    <span className="font-semibold text-green-400">
+                      {calculations.paybackMonths > 0 ? `${calculations.paybackMonths} month${calculations.paybackMonths > 1 ? 's' : ''}` : 'Immediate'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-white/50 mt-1">
+                    Based on ${formatCost(calculations.totalCostSaved)} annual savings
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
-}
+})
+
 
 export default function LandingPage() {
-  const [activeCard, setActiveCard] = useState(0)
-  const [progress, setProgress] = useState(0)
-  const mountedRef = useRef(true)
   const router = useRouter()
   const { isLoaded, isSignedIn, user } = useUser()
 
@@ -311,41 +641,13 @@ export default function LandingPage() {
     }
   }, [isLoaded, isSignedIn, user, router])
 
-
-  useEffect(() => {
-    const progressInterval = setInterval(() => {
-      if (!mountedRef.current) return
-
-      setProgress((prev) => {
-        if (prev >= 100) {
-          if (mountedRef.current) {
-            setActiveCard((current) => (current + 1) % 3)
-          }
-          return 0
-        }
-        return prev + 2
-      })
-    }, 100)
-
-    return () => {
-      clearInterval(progressInterval)
-      mountedRef.current = false
-    }
-  }, [])
-
-  const handleCardClick = (index: number) => {
-    if (!mountedRef.current) return
-    setActiveCard(index)
-    setProgress(0)
-  }
-
   // Show loading state if user is signed in to prevent flash
   if (isLoaded && isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#fafaf9] via-[#f5f3f0] to-[#ede9e3]">
         <div className="text-center">
           <div className="relative">
-            <div className="w-12 h-12 border-4 border-[rgba(55,50,47,0.1)] border-t-[#005BE3] rounded-full animate-spin"></div>
+            <div className="w-12 h-12 border-4 border-[rgba(55,50,47,0.1)] border-t-[#37322F] rounded-full animate-spin"></div>
           </div>
           <p className="mt-4 text-[#37322F] font-medium font-sans">Redirecting...</p>
           <p className="text-[#605A57] text-sm font-sans">Taking you to your dashboard</p>
@@ -354,27 +656,139 @@ export default function LandingPage() {
     )
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snapinfra.ai'
+
+  // Memoize JSON-LD schemas to prevent recreation on every render
+  const organizationSchema = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Snapinfra",
+    "url": baseUrl,
+    "logo": `${baseUrl}/snapinfra-logo.svg`,
+    "description": "Generate production-ready backend architecture with AI. Complete backend systems with multi-tenant architecture, enterprise patterns, and production code.",
+    "sameAs": [
+      "https://github.com/manojmaheshwarjg/snapinfra"
+    ],
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "Customer Service"
+    }
+  }), [baseUrl])
+
+  const softwareApplicationSchema = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Snapinfra",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": "AI-powered backend architecture platform. Generate complete production backend systems with multi-tenant architecture, enterprise patterns, and production code. Deploy to AWS, GCP, or Azure in minutes.",
+    "featureList": [
+      "Backend architecture design",
+      "Production backend code generation",
+      "Multi-tenant architecture",
+      "Enterprise backend patterns",
+      "Complete backend systems",
+      "Cloud deployment (AWS, GCP, Azure)",
+      "Zero vendor lock-in"
+    ]
+  }), [])
+
+  // FAQ Schema for AI models
+  const faqSchema = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Snapinfra?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Snapinfra is an AI-powered backend architecture platform that generates complete production backend systems from natural language prompts. It proposes backend architecture, generates production code with multi-tenant patterns, and deploys to cloud providers like AWS, GCP, and Azure."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Snapinfra generate real code?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, Snapinfra generates complete backend architecture and production code, not no-code solutions. You own all the generated backend code with no vendor lock-in. The platform proposes architecture, generates TypeScript backend code, database schemas, API endpoints, and enterprise patterns."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Which cloud providers does Snapinfra support?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Snapinfra supports AWS (Amazon Web Services), Google Cloud Platform (GCP), Azure, and multi-cloud deployments. You can choose your preferred cloud provider during the setup process."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What technologies does Snapinfra use?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Snapinfra generates backends using TypeScript, Express.js, Node.js, PostgreSQL, Docker, AWS CDK, and Terraform. The frontend is built with Next.js 15, React 18, and Tailwind CSS."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there vendor lock-in with Snapinfra?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No, there is zero vendor lock-in. You own all generated code and can export it at any time. Snapinfra generates standard Infrastructure as Code (IaC) that works with industry-standard tools like Terraform and AWS CDK."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How long does it take to generate a backend?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Snapinfra can generate a complete backend infrastructure in minutes, compared to weeks of traditional development. The process involves describing your requirements in natural language, and the AI generates the complete infrastructure code."
+        }
+      }
+    ]
+  }), [])
+
   return (
     <div className="w-full min-h-screen relative bg-gradient-to-br from-[#fafaf9] via-[#f5f3f0] to-[#ede9e3] overflow-x-hidden flex flex-col justify-start items-center">
-      {/* Flickering Grid Background */}
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+
+      {/* Flickering Grid Background - Optimized for performance */}
       <FlickeringGrid
         className="z-0 absolute inset-0 size-full"
-        squareSize={4}
-        gridGap={6}
-        color="#005BE3"
-        maxOpacity={0.1}
-        flickerChance={0.3}
+        squareSize={6}
+        gridGap={8}
+        color="#37322F"
+        maxOpacity={0.04}
+        flickerChance={0.2}
       />
       <div className="relative flex flex-col justify-start items-center w-full">
         {/* Main container with proper margins */}
-        <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-0 lg:max-w-[1060px] lg:w-[1060px] relative flex flex-col justify-start items-start min-h-screen">
+        <div className="w-full max-w-none px-4 sm:px-6 md:px-8 lg:px-0 lg:max-w-[1280px] lg:w-[1280px] relative flex flex-col justify-start items-start min-h-screen">
           {/* Left vertical line */}
           <div className="w-[1px] h-full absolute left-4 sm:left-6 md:left-8 lg:left-0 top-0 bg-[rgba(55,50,47,0.12)] shadow-[1px_0px_0px_white] z-0"></div>
 
           {/* Right vertical line */}
           <div className="w-[1px] h-full absolute right-4 sm:right-6 md:right-8 lg:right-0 top-0 bg-[rgba(55,50,47,0.12)] shadow-[1px_0px_0px_white] z-0"></div>
 
-          <div className="self-stretch overflow-hidden border-b border-[rgba(55,50,47,0.06)] flex flex-col justify-center items-center gap-4 sm:gap-6 md:gap-8 lg:gap-[66px] relative z-10">
+          <div className="self-stretch border-b border-[rgba(55,50,47,0.06)] flex flex-col justify-center items-center gap-4 sm:gap-6 md:gap-8 lg:gap-[66px] relative z-10">
             {/* Open Source Banner */}
             <div className="w-full fixed top-0 left-0 right-0 z-50">
               <OpenSourceBanner />
@@ -393,22 +807,7 @@ export default function LandingPage() {
                 {/* Right side - Nav Links and Auth Buttons */}
                 <div className="flex items-center gap-8">
                   <div className="hidden md:flex items-center gap-6">
-                    <a href="#pricing" className="text-[#37322F] text-sm font-medium font-sans hover:text-[#005BE3] transition-colors cursor-pointer">
-                      Pricing
-                    </a>
-                    <a href="#enterprise" className="text-[#37322F] text-sm font-medium font-sans hover:text-[#005BE3] transition-colors cursor-pointer">
-                      Enterprise
-                    </a>
-                    <a href="#resources" className="text-[#37322F] text-sm font-medium font-sans hover:text-[#005BE3] transition-colors cursor-pointer">
-                      Resources
-                    </a>
-                    <a href="#blog" className="text-[#37322F] text-sm font-medium font-sans hover:text-[#005BE3] transition-colors cursor-pointer">
-                      Blog
-                    </a>
-                    <a href="#docs" className="text-[#37322F] text-sm font-medium font-sans hover:text-[#005BE3] transition-colors cursor-pointer">
-                      Docs
-                    </a>
-                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-[#37322F] text-sm font-medium font-sans hover:text-[#005BE3] transition-colors cursor-pointer flex items-center gap-1.5">
+                    <a href="https://github.com/manojmaheshwarjg/snapinfra" target="_blank" rel="noopener noreferrer" className="text-[#37322F] text-sm font-medium font-sans cursor-pointer flex items-center gap-1.5">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                         <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd"></path>
                       </svg>
@@ -418,12 +817,12 @@ export default function LandingPage() {
                   
                   <div className="flex items-center gap-3">
                     <Link href="/sign-in">
-                      <button className="px-4 py-2 bg-[#1d1d1f] hover:bg-[#2d2d2f] text-white text-sm font-medium font-sans transition-colors">
+                      <button className="px-4 py-2 bg-[#1d1d1f] text-white text-sm font-medium font-sans">
                         Sign In
                       </button>
                     </Link>
                     <Link href="/sign-up">
-                      <button className="px-5 py-2 bg-[#005BE3] hover:bg-[#004BC9] text-white text-sm font-medium font-sans shadow-sm transition-all duration-200">
+                      <button className="px-5 py-2 bg-[#1d1d1f] text-white text-sm font-medium font-sans">
                         Sign Up
                       </button>
                     </Link>
@@ -436,14 +835,15 @@ export default function LandingPage() {
             <div className="pt-28 sm:pt-32 md:pt-36 lg:pt-[140px] pb-8 sm:pb-12 md:pb-16 flex flex-col justify-start items-center px-2 sm:px-4 md:px-8 lg:px-0 w-full">
               <div className="w-full max-w-[900px] flex flex-col justify-center items-center gap-2 sm:gap-3">
                 <div className="self-stretch rounded-[3px] flex flex-col justify-center items-center gap-3 sm:gap-4 md:gap-5">
-              <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[36px] xs:text-[40px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-normal leading-[1.15] sm:leading-[1.15] md:leading-[1.15] font-serif px-2 sm:px-4 md:px-0" style={{ letterSpacing: '-0.02em' }}>
-                    <span className="text-[#1d1d1f]" style={{ letterSpacing: '-0.02em' }}>Enterprise infrastructure in</span>
-                    <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className}`} style={{ letterSpacing: '-0.02em' }}>one prompt.</span>
-                  </div>
+                  <h1 className="w-full max-w-[700px] text-center flex justify-center flex-col text-[36px] xs:text-[40px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-normal leading-[1.15] sm:leading-[1.15] md:leading-[1.15] font-serif px-2 sm:px-4 md:px-0" style={{ letterSpacing: '-0.02em' }}>
+                    <span className="text-[#1d1d1f]" style={{ letterSpacing: '-0.02em' }}>Your{" "}
+                    <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className}`} style={{ letterSpacing: '-0.02em' }}>AI Solutions Architect</span>
+                    <br />for Backend Systems</span>
+                  </h1>
                   <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[rgba(55,50,47,0.80)] text-[15px] sm:text-[16px] leading-[1.6] font-sans px-2 sm:px-4 md:px-0 font-normal">
-                    Multi-tenant architecture. Database schemas. API layers. Security built-in.
+                    Evaluate architecture patterns. Make strategic trade-offs. Implement production backend code.
                     <br />
-                    Generated in minutes. Deployed to your cloud.
+                    Senior-level architecture expertise without the $300K hire.
                   </div>
                 </div>
               </div>
@@ -453,222 +853,198 @@ export default function LandingPage() {
                 <InteractivePromptBox />
               </div>
 
-              {/* MacBook UI Placeholder */}
+              {/* Code Editor Section */}
               <div className="w-full max-w-[1000px] lg:w-[1000px] mt-16 px-4">
-                <div className="relative">
-                  {/* MacBook Frame - Light Theme */}
-                  <div className="bg-gradient-to-b from-[#e5e5e7] to-[#d1d1d6] rounded-t-2xl p-3 shadow-2xl">
-                    {/* Top Bar with Traffic Lights */}
-                    <div className="flex items-center gap-2 mb-4 px-3">
-                      <div className="w-3 h-3 rounded-full bg-[#ff5f56] shadow-sm"></div>
-                      <div className="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-sm"></div>
-                      <div className="w-3 h-3 rounded-full bg-[#005BE3] shadow-sm"></div>
+                <div className="bg-white rounded-xl border border-[rgba(55,50,47,0.12)] overflow-hidden shadow-lg">
+                  {/* AI Code Generation Interface */}
+                  <div className="flex flex-col">
+                    {/* AI Generation Header */}
+                    <div className="flex items-center justify-between bg-[#f8f8f8] px-4 sm:px-6 py-2 sm:py-3 border-b border-gray-200">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="relative flex items-center justify-center">
+                          <div className="relative w-2 h-2 bg-[#1d1d1f] rounded-full"></div>
+                        </div>
+                        <span className="text-[#1d1d1f] text-xs sm:text-sm font-medium font-sans">AI evaluating architecture patterns...</span>
+                      </div>
+                      <div className="flex items-center gap-2 sm:gap-3 text-gray-500 text-[10px] sm:text-xs font-mono">
+                        <span className="hidden sm:inline">auth.service.ts</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="text-[10px] sm:text-xs">47 lines</span>
+                      </div>
                     </div>
                     
-                    {/* Screen Content */}
-                    <div className="bg-white rounded-xl overflow-hidden aspect-[16/10] shadow-inner border border-gray-100">
-                      <div className="w-full h-full bg-white">
-                        {/* AI Code Generation Interface */}
-                        <div className="h-full flex">
-                          {/* Main Content Area - Full Width */}
-                          <div className="flex-1 flex flex-col">
-                            {/* AI Generation Header */}
-                            <div className="flex items-center justify-between bg-[#f8f8f8] px-6 py-3 border-b border-gray-200">
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="relative flex items-center justify-center">
-                                    <div className="absolute inset-0 bg-[#005BE3]/20 rounded-full animate-ping"></div>
-                                    <div className="relative w-2 h-2 bg-[#005BE3] rounded-full"></div>
-                                  </div>
-                                  <span className="text-[#1d1d1f] text-sm font-medium font-sans">AI generating your backend...</span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3 text-gray-500 text-xs font-mono">
-                                <span>auth.service.ts</span>
-                                <span>•</span>
-                                <span>47 lines</span>
-                              </div>
-                            </div>
-                            
-                            {/* Code Editor with AI Streaming Effect */}
-                            <div className="flex-1 p-6 font-mono text-[11px] leading-relaxed overflow-hidden bg-white relative">
-                              {/* Streaming Code Component */}
-                              <StreamingCode />
-                              
-                              {/* AI Generation Indicator */}
-                              <div className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-[#005BE3]/10 rounded-full border border-[#005BE3]/20">
-                                <svg className="w-3 h-3 text-[#005BE3] animate-spin" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span className="text-[#005BE3] text-[10px] font-medium font-sans">Generating...</span>
-                              </div>
-                            </div>
-                            
-                            {/* Bottom Status Bar */}
-                            <div className="h-6 bg-[#005BE3] flex items-center justify-between px-4 text-[10px] text-white">
-                              <div className="flex items-center gap-4">
-                                <span className="font-mono">TypeScript</span>
-                                <span className="opacity-70">UTF-8</span>
-                              </div>
-                              <div className="flex items-center gap-4 opacity-70">
-                                <span>Ln 7, Col 48</span>
-                                <span>100%</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                    {/* Code Editor with AI Streaming Effect */}
+                    <div className="flex-1 p-4 sm:p-6 font-mono text-[9px] sm:text-[10px] md:text-[11px] leading-relaxed overflow-x-auto bg-white relative min-h-[200px] sm:min-h-[250px]">
+                      {/* Streaming Code Component */}
+                      <StreamingCode />
+                      
+                      {/* AI Generation Indicator */}
+                      <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(55,50,47,0.05)] rounded-full border border-[rgba(55,50,47,0.12)]">
+                        <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#37322F] animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-[#37322F] text-[8px] sm:text-[10px] font-medium font-sans">Generating...</span>
+                      </div>
+                    </div>
+                    
+                    {/* Bottom Status Bar */}
+                    <div className="h-5 sm:h-6 bg-[#1d1d1f] flex items-center justify-between px-3 sm:px-4 text-[9px] sm:text-[10px] text-white">
+                      <div className="flex items-center gap-2 sm:gap-4">
+                        <span className="font-mono hidden sm:inline">TypeScript</span>
+                        <span className="opacity-70 hidden sm:inline">UTF-8</span>
+                      </div>
+                      <div className="flex items-center gap-2 sm:gap-4 opacity-70">
+                        <span className="hidden sm:inline">Ln 7, Col 48</span>
+                        <span>100%</span>
                       </div>
                     </div>
                   </div>
-                  
-                  {/* MacBook Base - Light */}
-                  <div className="h-2 bg-gradient-to-b from-[#e5e5e7] to-[#d1d1d6] rounded-b-xl shadow-lg"></div>
-                  <div className="h-1 bg-gradient-to-b from-[#d1d1d6] to-[#b8b8bd] mx-auto" style={{ width: '60%' }}></div>
-                  
-                  {/* Subtle Glow Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#005BE3]/10 to-transparent rounded-xl blur-3xl -z-10"></div>
                 </div>
               </div>
 
-              {/* Stats Bar Section */}
-              <div className="w-full max-w-[1000px] mt-16 px-4">
-                <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-[rgba(0,91,227,0.2)] shadow-lg p-8 md:p-12">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="text-center">
-                      <div className="text-4xl md:text-5xl font-bold text-[#005BE3] mb-2">50,000+</div>
-                      <div className="text-sm text-[#605A57] font-medium">APIs Generated</div>
-                      <div className="text-xs text-[#605A57]/70 mt-1">by developers worldwide</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-4xl md:text-5xl font-bold text-[#005BE3] mb-2">95%</div>
-                      <div className="text-sm text-[#605A57] font-medium">Faster to Deploy</div>
-                      <div className="text-xs text-[#605A57]/70 mt-1">vs. Terraform</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-4xl md:text-5xl font-bold text-[#005BE3] mb-2">$2.1M</div>
-                      <div className="text-sm text-[#605A57] font-medium">Saved</div>
-                      <div className="text-xs text-[#605A57]/70 mt-1">in eng costs</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Stats Bar Section - Interactive ROI Calculator */}
+              <ROICalculator />
 
               {/* The Problem Section */}
-              <div className="w-full max-w-[1200px] mt-32 px-4">
-                <div className="text-center mb-16">
-                  <h2 className="text-4xl md:text-5xl font-bold text-[#1d1d1f] mb-4">The $500K Backend Problem</h2>
-                  <p className="text-xl text-[#605A57]">Why every alternative is broken</p>
+              <div className="w-full max-w-[1100px] mt-32 px-4">
+                <div className="text-center mb-20">
+                  <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>Why Backend Architecture Fails</h2>
+                  <p className="text-lg sm:text-xl text-[#605A57] max-w-2xl mx-auto">Most teams make critical architecture decisions without senior-level expertise. Early patterns determine if your backend scales or becomes a rewrite.</p>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Column 1: No-Code Trap */}
-                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-8 border border-blue-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="text-4xl mb-4">🔒</div>
-                    <h3 className="text-2xl font-bold text-[#1d1d1f] mb-4">The No-Code Trap</h3>
-                    <p className="text-sm italic text-[#605A57] mb-6">"We started with Firebase"</p>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
+                  {/* Column 1: Wrong Multi-Tenancy Pattern */}
+                  <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
+                    <div className="mb-6">
+                      <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center mb-4">
+                        <span className="text-[#1d1d1f] font-bold text-lg">01</span>
+                      </div>
+                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">Wrong Multi-Tenancy Pattern</h3>
+                      <p className="text-sm italic text-[#605A57] leading-relaxed">"We picked schema-per-tenant..."</p>
+                    </div>
                     
-                    <div className="space-y-4 text-sm text-[#605A57]">
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>$30,000 surprise bill because one query went viral</p>
+                    <div className="flex-1 space-y-3.5 mb-8">
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Database connection pool exhausted at 500 tenants</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>Can't do complex queries - NoSQL limitations hit hard</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Migrations take 8+ hours with 1000 schemas</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>Vendor lock-in nightmare - "Firebase doesn't provide any tools to migrate data"</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">$200K to rewrite to shared schema + RLS</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>Supabase "doesn't support transactions yet" - blocked our product launch</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">6 months of eng time lost</p>
                       </div>
                     </div>
                     
-                    <div className="mt-6 pt-6 border-t border-blue-200">
-                      <p className="text-xs text-[#605A57] font-medium">61,161 companies using Firebase</p>
-                      <p className="text-xs text-[#605A57]">54% worried about lock-in</p>
+                    <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-bold text-[#1d1d1f]">43%</span>
+                        <span className="text-xs text-[#605A57]">of B2B SaaS startups</span>
+                      </div>
+                      <p className="text-xs text-[#605A57]">Pick wrong multi-tenant pattern</p>
                     </div>
                   </div>
                   
-                  {/* Column 2: DevOps Nightmare */}
-                  <div className="bg-gradient-to-br from-sky-50 to-blue-50 rounded-2xl p-8 border border-sky-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="text-4xl mb-4">📄</div>
-                    <h3 className="text-2xl font-bold text-[#1d1d1f] mb-4">The DevOps Nightmare</h3>
-                    <p className="text-sm italic text-[#605A57] mb-6">"We tried building it ourselves"</p>
+                  {/* Column 2: No Scaling Strategy */}
+                  <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
+                    <div className="mb-6">
+                      <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center mb-4">
+                        <span className="text-[#1d1d1f] font-bold text-lg">02</span>
+                      </div>
+                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">No Scaling Strategy</h3>
+                      <p className="text-sm italic text-[#605A57] leading-relaxed">"We'll scale when we need to..."</p>
+                    </div>
                     
-                    <div className="space-y-4 text-sm text-[#605A57]">
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>Terraform takes 3-6 months to learn before shipping</p>
+                    <div className="flex-1 space-y-3.5 mb-8">
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Monolith can't handle 10K concurrent users</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>Kubernetes requires "an army of specialists" to manage</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">No read replicas = slow queries everywhere</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>CloudFormation's 15-minute feedback loops kill velocity</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Rewriting to microservices: $350K budget</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>"YAML hell" - endless config files nobody understands</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Lost 3 enterprise deals due to performance</p>
                       </div>
                     </div>
                     
-                    <div className="mt-6 pt-6 border-t border-sky-200">
-                      <p className="text-xs text-[#605A57] font-medium">77% still struggle with K8s</p>
-                      <p className="text-xs text-[#605A57]">70% onboarding takes 1+ month</p>
+                    <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-bold text-[#1d1d1f]">68%</span>
+                        <span className="text-xs text-[#605A57]">of startups</span>
+                      </div>
+                      <p className="text-xs text-[#605A57]">Underestimate scaling needs</p>
                     </div>
                   </div>
                   
-                  {/* Column 3: Hidden Costs */}
-                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-8 border border-indigo-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="text-4xl mb-4">💸</div>
-                    <h3 className="text-2xl font-bold text-[#1d1d1f] mb-4">The Hidden Costs</h3>
-                    <p className="text-sm italic text-[#605A57] mb-6">"Costs spiraled out of control"</p>
+                  {/* Column 3: Poor Data Modeling */}
+                  <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
+                    <div className="mb-6">
+                      <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center mb-4">
+                        <span className="text-[#1d1d1f] font-bold text-lg">03</span>
+                      </div>
+                      <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">Poor Data Modeling</h3>
+                      <p className="text-sm italic text-[#605A57] leading-relaxed">"NoSQL seemed easier..."</p>
+                    </div>
                     
-                    <div className="space-y-4 text-sm text-[#605A57]">
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>Firebase's pay-per-read model becomes unsustainable</p>
+                    <div className="flex-1 space-y-3.5 mb-8">
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Can't do joins = duplicated data everywhere</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>Supabase's PITR backup: $100/month regardless of DB size</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">No ACID transactions = data inconsistency bugs</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>"Empty EKS cluster costs are ridiculous" - baseline $150/mo</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Migration to PostgreSQL: 4 months of eng time</p>
                       </div>
-                      <div className="flex gap-2">
-                        <span className="shrink-0">😫</span>
-                        <p>AWS egress fees make migration financially painful</p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
+                        <p className="text-sm text-[#605A57] leading-relaxed">Analytics impossible without proper schema</p>
                       </div>
                     </div>
                     
-                    <div className="mt-6 pt-6 border-t border-indigo-200">
-                      <p className="text-xs text-[#605A57] font-medium">54% face steep learning curves</p>
-                      <p className="text-xs text-[#605A57]">89% use multi-cloud to avoid lock</p>
+                    <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-bold text-[#1d1d1f]">71%</span>
+                        <span className="text-xs text-[#605A57]">of teams</span>
+                      </div>
+                      <p className="text-xs text-[#605A57]">Regret early database choice</p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="text-center mt-12">
-                  <button className="px-8 py-4 bg-[#005BE3] hover:bg-[#004BC9] text-white text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
-                    There has to be a better way →
-                  </button>
+                <div className="text-center">
+                  <Link href="/sign-up">
+                    <button className="px-8 py-4 bg-[#1d1d1f] text-white text-base sm:text-lg font-semibold rounded-lg transition-opacity hover:opacity-90">
+                      Get Started for Free →
+                    </button>
+                  </Link>
                 </div>
               </div>
 
               {/* The Solution Section */}
-              <div className="w-full max-w-[1200px] mt-32 px-4">
+              <div className="w-full max-w-[1100px] mt-32 px-4">
                 <div className="text-center mb-16">
-                  <h2 className="text-4xl md:text-5xl font-bold text-[#1d1d1f] mb-4">Infrastructure that thinks like code,</h2>
-                  <h2 className="text-4xl md:text-5xl font-bold text-[#1d1d1f] mb-4">feels like magic</h2>
-                  <p className="text-xl text-[#605A57] mt-6">We're the Goldilocks solution: Not too simple. Not too complex. Just right.</p>
+                  <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>
+                    Senior-Level Architecture Intelligence
+                  </h2>
+                  <p className="text-xl text-[#605A57] mt-6">Define your requirements. AI evaluates patterns and proposes architecture. You refine decisions. Deploy production code to your infrastructure.</p>
                 </div>
                 
                 <div className="bg-white rounded-2xl border border-[rgba(55,50,47,0.12)] overflow-hidden shadow-xl">
@@ -676,59 +1052,71 @@ export default function LandingPage() {
                     <table className="w-full">
                       <thead className="bg-[#f8f8f8] border-b-2 border-[rgba(55,50,47,0.12)]">
                         <tr>
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-[#37322F]">What You Get</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-[#37322F]">Feature Comparison</th>
                           <th className="px-6 py-4 text-center text-sm font-semibold text-[#37322F]">No-Code<br/><span className="text-xs font-normal">(Firebase/Supabase)</span></th>
-                          <th className="px-6 py-4 text-center text-sm font-bold text-[#005BE3] bg-[#005BE3]/5">SnapInfra</th>
+                          <th className="px-6 py-4 text-center text-sm font-bold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">SnapInfra</th>
                           <th className="px-6 py-4 text-center text-sm font-semibold text-[#37322F]">Raw IaC<br/><span className="text-xs font-normal">(Terraform/K8s)</span></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[rgba(55,50,47,0.08)]">
-                        <tr className="hover:bg-[#fafaf9] transition-colors">
+                        <tr>
                           <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Time to first deploy</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">1 hour</td>
-                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#005BE3] bg-[#005BE3]/5">1 hour</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">1 hour</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">40+ hours</td>
                         </tr>
-                        <tr className="hover:bg-[#fafaf9] transition-colors">
+                        <tr>
                           <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Learning curve</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">Days</td>
-                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#005BE3] bg-[#005BE3]/5">2 weeks</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">2 weeks</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">3-6 months</td>
                         </tr>
-                        <tr className="hover:bg-[#fafaf9] transition-colors">
+                        <tr>
                           <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Transaction support</td>
-                          <td className="px-6 py-4 text-center text-sm text-red-500">❌ Missing (Supabase)</td>
-                          <td className="px-6 py-4 text-center text-sm font-semibold text-green-600 bg-[#005BE3]/5">✅ Built-in</td>
-                          <td className="px-6 py-4 text-center text-sm text-green-600">✅ Manual setup</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">Missing (Supabase)</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">Built-in</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">Manual setup</td>
                         </tr>
-                        <tr className="hover:bg-[#fafaf9] transition-colors">
+                        <tr>
                           <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Vendor lock-in</td>
-                          <td className="px-6 py-4 text-center text-sm text-red-500">❌ High risk</td>
-                          <td className="px-6 py-4 text-center text-sm font-semibold text-green-600 bg-[#005BE3]/5">✅ Full export</td>
-                          <td className="px-6 py-4 text-center text-sm text-green-600">✅ Portable</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">High risk</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">Full export</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">Portable</td>
                         </tr>
-                        <tr className="hover:bg-[#fafaf9] transition-colors">
-                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Custom business logic</td>
-                          <td className="px-6 py-4 text-center text-sm text-red-500">❌ Limited</td>
-                          <td className="px-6 py-4 text-center text-sm font-semibold text-green-600 bg-[#005BE3]/5">✅ Full code</td>
-                          <td className="px-6 py-4 text-center text-sm text-green-600">✅ Full code</td>
+                        <tr>
+                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Architecture Design</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">❌</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">✅ AI proposes</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">❌</td>
                         </tr>
-                        <tr className="hover:bg-[#fafaf9] transition-colors">
+                        <tr>
+                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Backend Code</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">❌</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">✅ Complete</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">❌</td>
+                        </tr>
+                        <tr>
+                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Complete Backend System</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">Limited</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">Full code</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">Full code</td>
+                        </tr>
+                        <tr>
                           <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Cost predictability</td>
-                          <td className="px-6 py-4 text-center text-sm text-red-500">❌ Surprise bills</td>
-                          <td className="px-6 py-4 text-center text-sm font-semibold text-green-600 bg-[#005BE3]/5">✅ Usage caps</td>
-                          <td className="px-6 py-4 text-center text-sm text-green-600">✅ Controlled</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">Surprise bills</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">Usage caps</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">Controlled</td>
                         </tr>
-                        <tr className="hover:bg-[#fafaf9] transition-colors">
-                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Production ready</td>
-                          <td className="px-6 py-4 text-center text-sm text-yellow-600">⚠️ For prototypes</td>
-                          <td className="px-6 py-4 text-center text-sm font-semibold text-green-600 bg-[#005BE3]/5">✅ Day one</td>
-                          <td className="px-6 py-4 text-center text-sm text-yellow-600">⚠️ After weeks</td>
+                        <tr>
+                          <td className="px-6 py-4 text-sm font-medium text-[#37322F]">Enterprise Backend Features</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">For prototypes</td>
+                          <td className="px-6 py-4 text-center text-sm font-semibold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">Day one</td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">After weeks</td>
                         </tr>
                         <tr className="bg-[#f8f8f8] font-semibold">
                           <td className="px-6 py-4 text-sm font-bold text-[#37322F]">Your monthly cost at 1M users</td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">$0-$2,847<br/><span className="text-xs font-normal">(volatile)</span></td>
-                          <td className="px-6 py-4 text-center text-sm font-bold text-[#005BE3] bg-[#005BE3]/10">$0-$299<br/><span className="text-xs font-normal">(capped)</span></td>
+                          <td className="px-6 py-4 text-center text-sm font-bold text-[#1d1d1f] bg-[rgba(55,50,47,0.10)]">$0-$299<br/><span className="text-xs font-normal">(capped)</span></td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">$280 + 3 engineers</td>
                         </tr>
                       </tbody>
@@ -752,124 +1140,16 @@ export default function LandingPage() {
               {/* Security & Compliance Section */}
               <SecurityComplianceSection />
 
-              {/* Benefits Section */}
-              <div className="w-full border-b border-[rgba(55,50,47,0.12)] flex flex-col justify-center items-center mt-16">
-                <div className="self-stretch px-4 sm:px-6 md:px-24 py-8 sm:py-12 md:py-16 border-b border-[rgba(55,50,47,0.12)] flex justify-center items-center gap-6">
-                  <div className="w-full max-w-[586px] px-4 sm:px-6 py-4 sm:py-5 shadow-[0px_2px_4px_rgba(50,45,43,0.06)] overflow-hidden rounded-lg flex flex-col justify-start items-center gap-3 sm:gap-4 shadow-none">
-                    <Badge
-                      icon={
-                        <svg width="12" height="10" viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect x="1" y="3" width="4" height="6" stroke="#37322F" strokeWidth="1" fill="none" />
-                          <rect x="7" y="1" width="4" height="8" stroke="#37322F" strokeWidth="1" fill="none" />
-                        </svg>
-                      }
-                      text="Why Snapinfra"
-                    />
-                    <div className="w-full max-w-[472.55px] text-center flex justify-center flex-col text-[#49423D] text-xl sm:text-2xl md:text-3xl lg:text-5xl font-normal leading-tight md:leading-[60px] font-serif">
-                      Move fast without breaking things
-                    </div>
-                    <div className="self-stretch text-center text-[#605A57] text-sm sm:text-base font-normal leading-6 sm:leading-7 font-sans">
-                      Your engineers shouldn't spend months rebuilding what already exists.
-                      <br className="hidden sm:block" />
-                      Generate enterprise-grade backends. Ship features that drive revenue.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Features Grid */}
-                <div className="self-stretch flex justify-center items-start border-t">
-                  <div className="w-4 sm:w-6 md:w-8 lg:w-12 self-stretch relative overflow-hidden hidden md:block">
-                    <div className="w-[162px] left-[-58px] top-[-120px] absolute flex flex-col justify-start items-start">
-                      {Array.from({ length: 100 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="self-stretch h-4 rotate-[-45deg] origin-top-left outline outline-[0.5px] outline-[rgba(3,7,18,0.08)] outline-offset-[-0.25px]"
-                        ></div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 border-l border-r border-[rgba(55,50,47,0.12)]">
-                    {[
-                      { icon: <Zap className="w-6 h-6" />, title: "10x faster iteration", desc: "Ship MVPs in days, not quarters. Validate product-market fit before burning through your Series A." },
-                      { icon: <Code2 className="w-6 h-6" />, title: "Production-grade code", desc: "Enterprise patterns, comprehensive testing, full documentation. Code your senior engineers will approve." },
-                      { icon: <Database className="w-6 h-6" />, title: "Scale-ready architecture", desc: "Optimized queries, proper indexing, efficient caching. Built to handle millions of users from day one." },
-                      { icon: <Lock className="w-6 h-6" />, title: "Security & compliance", desc: "SOC 2, HIPAA, GDPR controls. Encryption, audit logs, access management. Enterprise security by default." },
-                      { icon: <Boxes className="w-6 h-6" />, title: "Modular & maintainable", desc: "Clean architecture patterns. Easy to extend, simple to maintain. Onboard new engineers in hours, not weeks." },
-                      { icon: <Server className="w-6 h-6" />, title: "Your infrastructure", desc: "Deploy to your AWS, GCP, or Azure. Full source code ownership. No vendor lock-in, ever." },
-                    ].map((feature, index) => (
-                      <div
-                        key={index}
-                        className="p-6 md:p-8 lg:p-10 border-b border-r border-[rgba(55,50,47,0.12)] last:border-r-0 flex flex-col gap-4 group hover:bg-white/50 transition-all duration-300"
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-[#005BE3]/10 flex items-center justify-center text-[#005BE3] group-hover:bg-[#005BE3]/20 group-hover:shadow-[0_4px_12px_rgba(0,91,227,0.15)] transition-all duration-300">
-                          {feature.icon}
-                        </div>
-                        <div>
-                          <h3 className="text-[#37322F] text-lg font-semibold leading-tight font-sans mb-2">
-                            {feature.title}
-                          </h3>
-                          <p className="text-[#605A57] text-sm font-normal leading-relaxed font-sans">
-                            {feature.desc}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="w-4 sm:w-6 md:w-8 lg:w-12 self-stretch relative overflow-hidden hidden md:block">
-                    <div className="w-[162px] left-[-58px] top-[-120px] absolute flex flex-col justify-start items-start">
-                      {Array.from({ length: 100 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="self-stretch h-4 rotate-[-45deg] origin-top-left outline outline-[0.5px] outline-[rgba(3,7,18,0.08)] outline-offset-[-0.25px]"
-                        ></div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer Section */}
-              <div className="self-stretch flex justify-center items-center mt-16 px-4 sm:px-6 md:px-8 lg:px-0">
-                <div className="w-full max-w-[1000px] flex flex-col md:flex-row justify-center items-stretch gap-4 md:gap-6">
-                  <FeatureCard
-                    title="Enterprise-grade architecture"
-                    description="Not starter templates. Production-ready systems with scalability, observability, and security baked in from the start."
-                    isActive={activeCard === 0}
-                    progress={activeCard === 0 ? progress : 0}
-                    onClick={() => handleCardClick(0)}
-                    icon={<Boxes className="w-6 h-6" />}
-                  />
-                  <FeatureCard
-                    title="Own your infrastructure"
-                    description="Full source code export. Deploy to your cloud. Customize everything. No vendor lock-in, no compromises."
-                    isActive={activeCard === 1}
-                    progress={activeCard === 1 ? progress : 0}
-                    onClick={() => handleCardClick(1)}
-                    icon={<Server className="w-6 h-6" />}
-                  />
-                  <FeatureCard
-                    title="Accelerate time-to-market"
-                    description="Your team focuses on differentiated features. We handle auth, APIs, compliance. Ship 10x faster."
-                    isActive={activeCard === 2}
-                    progress={activeCard === 2 ? progress : 0}
-                    onClick={() => handleCardClick(2)}
-                    icon={<Zap className="w-6 h-6" />}
-                  />
-                </div>
-              </div>
-
 
               {/* Final CTA Section */}
               <FinalCTASection />
-
-              {/* Footer Section */}
-              <FooterSection />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Footer Section - Full Width */}
+      <FooterSection />
     </div>
   )
 }

@@ -4,205 +4,186 @@ import { Code2, DoorOpen, ShieldCheck, Tag } from 'lucide-react'
 
 export default function KeyDifferentiatorsSection() {
   return (
-    <div className="w-full max-w-[1200px] mt-32 px-4">
+    <div className="w-full max-w-[1100px] mt-32 px-4">
       <div className="text-center mb-16">
-        <h2 className="text-4xl md:text-5xl font-bold text-[#1d1d1f] mb-4">Why Developers Choose SnapInfra</h2>
+        <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>Why Teams Choose SnapInfra for Backend Architecture</h2>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Card 1: Real Code, Real Control */}
-        <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
-          <div className="w-14 h-14 rounded-xl bg-[#005BE3] text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <Code2 className="w-7 h-7" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Real Code - Large */}
+        <div className="md:col-span-2 lg:col-span-2 bg-white rounded-xl p-6 lg:p-8 border border-[rgba(55,50,47,0.12)] flex flex-col">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center flex-shrink-0">
+              <Code2 className="w-5 h-5 text-[#37322F]" />
+            </div>
+            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Complete Backend Architecture</h3>
           </div>
-          
-          <h3 className="text-2xl font-bold text-[#1d1d1f] mb-4">Real Code, Real Control</h3>
-          <p className="text-[#605A57] mb-6 leading-relaxed">
-            Generate TypeScript/Python infrastructure that you own. Every resource, every config - inspect it, version it, customize it. No proprietary formats. No magic black boxes.
+          <p className="text-sm text-[#605A57] mb-6 leading-relaxed flex-1">
+            Not starter templates or code snippets. Complete production backend systems with multi-tenant architecture, security, and scalability designed from the start.
           </p>
-          
-          <div className="bg-[#1d1d1f] rounded-lg p-4 mb-6 font-mono text-xs overflow-x-auto">
-            <div className="text-gray-500 mb-2">// Your generated API route</div>
-            <div className="text-purple-400">export <span className="text-purple-400">const</span> <span className="text-yellow-400">createTask</span> = <span className="text-purple-400">async</span> (req) =&gt; &#123;</div>
-            <div className="pl-4 text-white">  <span className="text-purple-400">const</span> task = <span className="text-purple-400">await</span> db.tasks.<span className="text-yellow-400">create</span>(&#123;</div>
-            <div className="pl-8 text-white">    userId: req.user.id,</div>
-            <div className="pl-8 text-white">    title: req.body.title,</div>
-            <div className="pl-8 text-gray-500">    // Full TypeScript - edit as needed</div>
-            <div className="pl-4 text-white">  &#125;);</div>
-            <div className="pl-4 text-purple-400">  return <span className="text-white">task</span>;</div>
+          <div className="bg-[#1d1d1f] rounded-lg p-4 font-mono text-xs overflow-x-auto">
+            <div className="text-[rgba(255,255,255,0.5)] mb-2">// Your generated API route</div>
+            <div className="text-white mb-1"><span className="text-[rgba(255,255,255,0.7)]">export</span> <span className="text-[rgba(255,255,255,0.7)]">const</span> <span className="text-white">createTask</span> = <span className="text-[rgba(255,255,255,0.7)]">async</span> (req) =&gt; &#123;</div>
+            <div className="pl-4 text-white mb-1">  <span className="text-[rgba(255,255,255,0.7)]">const</span> task = <span className="text-[rgba(255,255,255,0.7)]">await</span> db.tasks.<span className="text-white">create</span>(&#123;</div>
+            <div className="pl-8 text-[rgba(255,255,255,0.8)] mb-1">    userId: req.user.id,</div>
+            <div className="pl-8 text-[rgba(255,255,255,0.8)] mb-1">    title: req.body.title</div>
+            <div className="pl-4 text-white mb-1">  &#125;);</div>
+            <div className="pl-4 text-white">  <span className="text-[rgba(255,255,255,0.7)]">return</span> task;</div>
             <div className="text-white">&#125;</div>
           </div>
-          
-          <div className="space-y-2 text-sm text-[#605A57]">
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>TypeScript with full type safety</span>
+        </div>
+
+        {/* Card 2: Exit Strategy - Medium */}
+        <div className="md:col-span-2 lg:col-span-2 bg-white rounded-xl p-6 lg:p-8 border border-[rgba(55,50,47,0.12)] flex flex-col">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center flex-shrink-0">
+              <DoorOpen className="w-5 h-5 text-[#37322F]" />
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Standard Express.js patterns</span>
+            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Own Your Backend Infrastructure</h3>
+          </div>
+          <p className="text-sm text-[#605A57] mb-6 leading-relaxed flex-1">
+            Full source code export. Deploy to your AWS/GCP/Azure. Your backend, your cloud, your control. Zero vendor lock-in.
+          </p>
+          <div className="bg-[#1d1d1f] rounded-lg p-4 font-mono text-xs overflow-x-auto">
+            <div className="text-white mb-2">$ snapinfra export --format terraform</div>
+            <div className="text-[rgba(255,255,255,0.7)] mb-3">Exporting...</div>
+            <div className="text-white mb-1">✓ main.tf</div>
+            <div className="text-white mb-1">✓ variables.tf</div>
+            <div className="text-white mb-1">✓ docker-compose.yml</div>
+            <div className="text-white mb-1">✓ README.md</div>
+            <div className="text-[rgba(255,255,255,0.7)] mt-2">Done! Deploy anywhere.</div>
+          </div>
+        </div>
+
+        {/* Card 3: No Surprise Bills - Large with pricing */}
+        <div className="md:col-span-2 lg:col-span-3 bg-white rounded-xl p-6 lg:p-8 border border-[rgba(55,50,47,0.12)]">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center flex-shrink-0">
+              <Tag className="w-5 h-5 text-[#37322F]" />
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>ESLint + Prettier configured</span>
+            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">No $30K Surprise Bills</h3>
+          </div>
+          <p className="text-sm text-[#605A57] mb-6 leading-relaxed">
+            Usage caps prevent Firebase nightmares. See exactly what you'll pay at 10x scale before you deploy.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-[rgba(55,50,47,0.03)] rounded-lg p-4 border border-[rgba(55,50,47,0.08)]">
+              <div className="text-xs text-[#605A57] mb-2">10K users</div>
+              <div className="text-2xl font-bold text-[#1d1d1f]">$49/mo</div>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Read it, own it, extend it</span>
+            <div className="bg-[rgba(55,50,47,0.03)] rounded-lg p-4 border border-[rgba(55,50,47,0.08)]">
+              <div className="text-xs text-[#605A57] mb-2">100K users</div>
+              <div className="text-2xl font-bold text-[#1d1d1f]">$99/mo</div>
+            </div>
+            <div className="bg-[rgba(55,50,47,0.03)] rounded-lg p-4 border border-[rgba(55,50,47,0.08)]">
+              <div className="text-xs text-[#605A57] mb-2">1M users</div>
+              <div className="text-2xl font-bold text-[#1d1d1f]">$249/mo</div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-[rgba(55,50,47,0.12)]">
+            <div className="text-xs text-[#605A57]">
+              Compare: Firebase ~$2,847/mo • Supabase ~$419/mo
             </div>
           </div>
         </div>
-        
-        {/* Card 2: Exit Strategy Included */}
-        <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-2xl p-8 border border-green-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
-          <div className="w-14 h-14 rounded-xl bg-[#10B981] text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <DoorOpen className="w-7 h-7" />
-          </div>
-          
-          <h3 className="text-2xl font-bold text-[#1d1d1f] mb-4">Exit Strategy Included</h3>
-          <p className="text-[#605A57] mb-6 leading-relaxed">
-            Export your entire backend as standard Terraform + Docker Compose. Migrate to AWS, GCP, or your own servers without rewriting a single line. We compete on quality, not lock-in.
-          </p>
-          
-          <div className="bg-[#1d1d1f] rounded-lg p-4 mb-6 font-mono text-xs overflow-x-auto">
-            <div className="text-green-400">$ snapinfra export --format terraform</div>
-            <div className="text-white mt-2">Exporting your infrastructure...</div>
-            <div className="text-green-400 mt-1">✓ main.tf</div>
-            <div className="text-green-400">✓ variables.tf</div>
-            <div className="text-green-400">✓ docker-compose.yml</div>
-            <div className="text-green-400">✓ README.md (migration guide)</div>
-            <div className="text-white mt-2">Done! Deploy anywhere.</div>
-          </div>
-          
-          <div className="space-y-2 text-sm text-[#605A57]">
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Standard Terraform (no vendor DSL)</span>
+
+        {/* Card 4: Benefits List - Small */}
+        <div className="md:col-span-2 lg:col-span-1 bg-white rounded-xl p-6 border border-[rgba(55,50,47,0.12)] flex flex-col">
+          <div className="space-y-3 text-sm text-[#605A57] flex-1">
+            <div className="flex items-center gap-2.5">
+              <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+              <span>TypeScript type safety</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Docker Compose for local dev</span>
+            <div className="flex items-center gap-2.5">
+              <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+              <span>Express.js patterns</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Full migration documentation</span>
+            <div className="flex items-center gap-2.5">
+              <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+              <span>ESLint + Prettier</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Zero lock-in, ever</span>
+            <div className="flex items-center gap-2.5">
+              <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+              <span>Standard Terraform</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+              <span>Docker Compose</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+              <span>Usage caps</span>
             </div>
           </div>
         </div>
-        
-        {/* Card 3: No $30K Surprise Bills */}
-        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-8 border border-yellow-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
-          <div className="w-14 h-14 rounded-xl bg-[#F59E0B] text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <Tag className="w-7 h-7" />
+
+        {/* Card 5: Production Ready - Full Width */}
+        <div className="md:col-span-2 lg:col-span-4 bg-white rounded-xl p-6 lg:p-8 border border-[rgba(55,50,47,0.12)]">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-[rgba(55,50,47,0.05)] flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="w-5 h-5 text-[#37322F]" />
+            </div>
+            <h3 className="text-xl lg:text-2xl font-bold text-[#1d1d1f]">Enterprise Backend Patterns Built-In</h3>
           </div>
-          
-          <h3 className="text-2xl font-bold text-[#1d1d1f] mb-4">No $30K Surprise Bills</h3>
-          <p className="text-[#605A57] mb-6 leading-relaxed">
-            Usage caps prevent Firebase nightmares. See exactly what you'll pay at 10x scale before you deploy. No hidden egress fees. No per-read pricing traps.
+          <p className="text-sm text-[#605A57] mb-6 leading-relaxed max-w-3xl">
+            Multi-tenant architecture, RBAC, audit logging, event sourcing. Production patterns your senior engineers will approve.
           </p>
-          
-          <div className="bg-white rounded-lg p-6 mb-6 border border-[rgba(55,50,47,0.12)]">
-            <div className="text-sm font-semibold text-[#37322F] mb-4">Your cost at scale:</div>
-            
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-[#605A57]">Current: 10K users</span>
-                <span className="font-semibold text-[#005BE3]">$49/mo</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="space-y-2 text-sm text-[#605A57]">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>ACID transactions</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#605A57]">100K users</span>
-                <span className="font-semibold text-[#005BE3]">$99/mo</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#605A57]">1M users</span>
-                <span className="font-semibold text-[#005BE3]">$249/mo (capped at $299)</span>
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>Full-text search</span>
               </div>
             </div>
-            
-            <div className="mt-4 pt-4 border-t border-[rgba(55,50,47,0.12)] space-y-2 text-xs text-[#605A57]">
-              <div>Compare:</div>
-              <div>Firebase at 1M: ~$2,847/mo</div>
-              <div>Supabase Pro: ~$419/mo</div>
-              <div>AWS DIY: ~$280/mo + 3 engineers</div>
+            <div className="space-y-2 text-sm text-[#605A57]">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>Row-level security</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>Point-in-time recovery</span>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm text-[#605A57]">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>Automated backups</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>Real-time subscriptions</span>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm text-[#605A57]">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>Auto-generated APIs</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>Edge Functions</span>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm text-[#605A57]">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>File storage</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-[#37322F] flex-shrink-0" />
+                <span>Authentication</span>
+              </div>
             </div>
           </div>
-          
-          <div className="space-y-2 text-sm text-[#605A57]">
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Usage caps included</span>
+          <div className="mt-6 pt-6 border-t border-[rgba(55,50,47,0.12)]">
+            <div className="inline-block px-5 py-2.5 bg-[rgba(55,50,47,0.05)] rounded-lg text-sm font-medium text-[#37322F] border border-[rgba(55,50,47,0.08)]">
+              Enterprise features, startup pricing
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>No surprise bills, ever</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Cancel anytime</span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Card 4: Production-Ready From Day One */}
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-8 border border-purple-200/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
-          <div className="w-14 h-14 rounded-xl bg-[#8B5CF6] text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <ShieldCheck className="w-7 h-7" />
-          </div>
-          
-          <h3 className="text-2xl font-bold text-[#1d1d1f] mb-4">Production-Ready From Day One</h3>
-          <p className="text-[#605A57] mb-6 leading-relaxed">
-            Transaction support. Full-text search. Row-level security. Automated backups. Everything Supabase charges extra for or "doesn't support yet."
-          </p>
-          
-          <div className="space-y-2.5 text-sm text-[#605A57] mb-6">
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>ACID transactions (not in Supabase)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Full-text search (no Algolia needed)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Row-level security (PostgreSQL RLS)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Point-in-time recovery (included)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Automated backups (daily)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Real-time subscriptions (WebSockets)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Auto-generated APIs (REST + GraphQL)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Edge Functions (faster than Supabase)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>File storage (S3-compatible)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-green-600" />
-              <span>Authentication (OAuth + passwordless)</span>
-            </div>
-          </div>
-          
-          <div className="inline-block px-4 py-2 bg-[#8B5CF6]/10 rounded-lg text-sm font-medium text-[#8B5CF6]">
-            Enterprise features, startup pricing
           </div>
         </div>
       </div>

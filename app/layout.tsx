@@ -53,9 +53,82 @@ const tasaOrbiter = localFont({
 })
 
 export const metadata: Metadata = {
-  title: "Snapinfra - AI Backend Builder",
-  description: "Build backends that absolutely slap with AI",
-  generator: "Snapinfra",
+  title: {
+    default: "Snapinfra - Enterprise Backend Infrastructure in One Prompt",
+    template: "%s | Snapinfra"
+  },
+  description: "Generate production-ready backend infrastructure with AI. Multi-tenant architecture, database schemas, API layers, and security built-in. Deploy to AWS, GCP, or Azure in minutes.",
+  keywords: [
+    "AI backend generator",
+    "infrastructure as code",
+    "backend as a service",
+    "multi-tenant architecture",
+    "API generator",
+    "database schema generator",
+    "AWS CDK",
+    "Terraform",
+    "TypeScript backend",
+    "enterprise backend",
+    "production-ready infrastructure",
+    "cloud infrastructure",
+    "backend automation",
+    "infrastructure automation"
+  ],
+  authors: [{ name: "Snapinfra" }],
+  creator: "Snapinfra",
+  publisher: "Snapinfra",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://snapinfra.ai"),
+  alternates: {
+    canonical: "/",
+  },
+  other: {
+    "llms.txt": "/llms.txt",
+  },
+  icons: {
+    icon: [
+      { url: "/icon.png", sizes: "any" },
+      { url: "/snap-icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icon.png",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://snapinfra.ai",
+    siteName: "Snapinfra",
+    title: "Snapinfra - Enterprise Backend Infrastructure in One Prompt",
+    description: "Generate production-ready backend infrastructure with AI. Multi-tenant architecture, database schemas, API layers, and security built-in. Deploy to AWS, GCP, or Azure in minutes.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Snapinfra - Enterprise Backend Infrastructure Generator",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Snapinfra - Enterprise Backend Infrastructure in One Prompt",
+    description: "Generate production-ready backend infrastructure with AI. Multi-tenant architecture, database schemas, API layers, and security built-in.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 }
 
 export const viewport: Viewport = {
@@ -76,7 +149,7 @@ export default function RootLayout({
         baseTheme: undefined
       }}
     >
-      <html lang="en">
+      <html lang="en" className="overflow-x-hidden">
         <body className={`font-sans ${geistMono.variable} ${tasaOrbiter.variable} antialiased tracking-tight`}>
           <ErrorBoundary>
             <EnterpriseQueryProvider>

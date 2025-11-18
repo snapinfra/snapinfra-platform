@@ -113,3 +113,6 @@ reference/
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Landing page content (markdown)
+landing-page-content.md
