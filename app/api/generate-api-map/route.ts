@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateEnhancedAPIMap } from '@/lib/utils/api-map-generator'
+import { generateNodeExplanations } from '@/lib/ai/node-explanation-generator'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { endpoints, projectName, schemas } = body
+    const { endpoints, projectName, schemas, description } = body
 
     if (!endpoints || !projectName) {
       return NextResponse.json(
@@ -22,15 +23,28 @@ export async function POST(request: NextRequest) {
     console.log('  Groups:', apiMap.groups.length)
     console.log('  Total Endpoints:', apiMap.metadata.totalEndpoints)
 
+    // Generate AI explanations for nodes (if apiMap has nodes)
+    let enhancedAPIMap = apiMap
+    if (apiMap.nodes && apiMap.nodes.length > 0) {
+      console.log('🤖 Generating AI explanations for API Map nodes...')
+      const nodesWithExplanations = await generateNodeExplanations({
+        nodes: apiMap.nodes,
+        projectContext: { name: projectName, description, schemas, apiEndpoints: endpoints },
+        diagramType: 'APIMap',
+      })
+      enhancedAPIMap = { ...apiMap, nodes: nodesWithExplanations }
+      console.log('✅ AI explanations generated successfully')
+    }
+
     return NextResponse.json({
       success: true,
-      apiMap,
+      apiMap: enhancedAPIMap,
       metadata: {
         generatedAt: new Date().toISOString(),
-        totalEndpoints: apiMap.metadata.totalEndpoints,
-        totalGroups: apiMap.metadata.totalGroups,
-        authEndpoints: apiMap.metadata.authEndpoints,
-        publicEndpoints: apiMap.metadata.publicEndpoints
+        totalEndpoints: enhancedAPIMap.metadata.totalEndpoints,
+        totalGroups: enhancedAPIMap.metadata.totalGroups,
+        authEndpoints: enhancedAPIMap.metadata.authEndpoints,
+        publicEndpoints: enhancedAPIMap.metadata.publicEndpoints
       }
     })
 

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { memo } from 'react'
+import React, { memo, useState, useEffect, useRef } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -44,8 +44,9 @@ import {
   GitPullRequest,
   GitBranch
 } from "lucide-react"
-import { ArchitectureNode } from '@/lib/types/architecture'
+import { ArchitectureNode, NodeAIExplanation } from '@/lib/types/architecture'
 import { getNodeTypeColor, getNodeTypeIcon } from '@/lib/utils/architecture'
+import { NodeExplanationTooltip } from '@/components/node-explanation-tooltip'
 
 export interface ArchitectureNodeData {
   name: string
@@ -53,6 +54,7 @@ export interface ArchitectureNodeData {
   icon?: string
   color?: string
   metadata?: Record<string, any>
+  aiExplanation?: NodeAIExplanation
   onEdit?: () => void
   onDelete?: () => void
   onDuplicate?: () => void
@@ -88,9 +90,49 @@ const iconComponents = {
   GitBranch
 }
 
-function ArchitectureNodeComponent({ data, selected, type }: NodeProps<ArchitectureNodeData>) {
+// Global event to close all tooltips
+const CLOSE_ALL_TOOLTIPS_EVENT = 'closeAllTooltips'
+
+function ArchitectureNodeComponent({ data, selected, type, id }: NodeProps<ArchitectureNodeData>) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [nodeRect, setNodeRect] = useState<DOMRect | null>(null)
+  const nodeRef = useRef<HTMLDivElement>(null)
+
   const IconComponent = iconComponents[getNodeTypeIcon(type as ArchitectureNode['type']) as keyof typeof iconComponents] || Box
   const nodeColor = data.color || getNodeTypeColor(type as ArchitectureNode['type'])
+
+  // Listen for global close event
+  useEffect(() => {
+    const handleCloseAll = (e: CustomEvent) => {
+      // Only close if it's not this node opening
+      if (e.detail?.nodeId !== id) {
+        setShowTooltip(false)
+      }
+    }
+
+    window.addEventListener(CLOSE_ALL_TOOLTIPS_EVENT as any, handleCloseAll as any)
+    return () => {
+      window.removeEventListener(CLOSE_ALL_TOOLTIPS_EVENT as any, handleCloseAll as any)
+    }
+  }, [id])
+
+  // Handle node click to show tooltip
+  const handleNodeClick = (e: React.MouseEvent) => {
+    if (!data.aiExplanation) return
+
+    e.stopPropagation()
+    e.preventDefault()
+
+    // Close all other tooltips first
+    window.dispatchEvent(new CustomEvent(CLOSE_ALL_TOOLTIPS_EVENT, { detail: { nodeId: id } }))
+
+    // Get node position and show this tooltip
+    if (nodeRef.current) {
+      const rect = nodeRef.current.getBoundingClientRect()
+      setNodeRect(rect)
+      setShowTooltip(true)
+    }
+  }
 
   const handleMenuAction = (action: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -152,16 +194,21 @@ function ArchitectureNodeComponent({ data, selected, type }: NodeProps<Architect
   const hasEndpoints = data.metadata?.endpoints && Array.isArray(data.metadata.endpoints) && data.metadata.endpoints.length > 0
 
   return (
-    <div style={{ width: hasEndpoints ? 320 : 256, height: 'auto' }}>
-      <Card
-        className={`w-full shadow-md hover:shadow-xl transition-all duration-200 bg-white border ${
-          selected ? 'ring-2 ring-[#005BE3] border-[#005BE3]' : 'border-[rgba(55,50,47,0.12)] hover:border-[rgba(55,50,47,0.2)]'
-        }`}
-        style={{
-          borderTopColor: nodeColor,
-          borderTopWidth: '4px'
-        }}
+    <>
+      <div
+        ref={nodeRef}
+        style={{ width: hasEndpoints ? 320 : 256, height: 'auto' }}
+        onClick={handleNodeClick}
       >
+        <Card
+          className={`w-full shadow-md hover:shadow-xl transition-all duration-200 bg-white border ${
+            selected ? 'ring-2 ring-[#005BE3] border-[#005BE3]' : 'border-[rgba(55,50,47,0.12)] hover:border-[rgba(55,50,47,0.2)]'
+          } ${data.aiExplanation ? 'cursor-pointer' : ''}`}
+          style={{
+            borderTopColor: nodeColor,
+            borderTopWidth: '4px'
+          }}
+        >
       {/* Connection handles */}
       <Handle
         type="target"
@@ -335,7 +382,19 @@ function ArchitectureNodeComponent({ data, selected, type }: NodeProps<Architect
         </div>
       </CardContent>
     </Card>
-    </div>
+      </div>
+
+      {/* AI Explanation Tooltip */}
+      {showTooltip && data.aiExplanation && nodeRect && (
+        <NodeExplanationTooltip
+          nodeName={data.name}
+          nodeType={getNodeTypeLabel(type as string)}
+          explanation={data.aiExplanation}
+          onClose={() => setShowTooltip(false)}
+          nodeRect={nodeRect}
+        />
+      )}
+    </>
   )
 }
 

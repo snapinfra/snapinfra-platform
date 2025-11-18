@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateEnhancedDataFlow } from '@/lib/utils/dataflow-generator'
+import { generateNodeExplanations } from '@/lib/ai/node-explanation-generator'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { schemas, endpoints, projectName } = body
+    const { schemas, endpoints, projectName, description } = body
 
     if (!schemas || !endpoints || !projectName) {
       return NextResponse.json(
@@ -23,14 +24,25 @@ export async function POST(request: NextRequest) {
     console.log('  Nodes:', dataFlow.nodes.length)
     console.log('  Flows:', dataFlow.edges.length)
 
+    // Generate AI explanations
+    console.log('🤖 Generating AI explanations for DataFlow nodes...')
+    const nodesWithExplanations = await generateNodeExplanations({
+      nodes: dataFlow.nodes,
+      projectContext: { name: projectName, description, schemas, apiEndpoints: endpoints },
+      diagramType: 'DataFlow',
+    })
+
+    const enhancedDataFlow = { ...dataFlow, nodes: nodesWithExplanations }
+    console.log('✅ AI explanations generated successfully')
+
     return NextResponse.json({
       success: true,
-      dataFlow,
+      dataFlow: enhancedDataFlow,
       metadata: {
         generatedAt: new Date().toISOString(),
-        totalNodes: dataFlow.metadata.totalNodes,
-        totalFlows: dataFlow.metadata.totalFlows,
-        encryptedFlows: dataFlow.metadata.encryptedFlows
+        totalNodes: enhancedDataFlow.metadata.totalNodes,
+        totalFlows: enhancedDataFlow.metadata.totalFlows,
+        encryptedFlows: enhancedDataFlow.metadata.encryptedFlows
       }
     })
 

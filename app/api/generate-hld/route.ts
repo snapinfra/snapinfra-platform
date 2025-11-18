@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateArchitectureFromData } from '@/lib/utils/architecture-new'
 import { DatabaseSchemaToArchitecture, ApiEndpointsToArchitecture } from '@/lib/types/architecture'
+import { generateNodeExplanations } from '@/lib/ai/node-explanation-generator'
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,14 +47,34 @@ export async function POST(request: NextRequest) {
     console.log('  Components:', architecture.nodes.length)
     console.log('  Connections:', architecture.edges.length)
 
+    // Generate AI explanations for each node
+    console.log('🤖 Generating AI explanations for nodes...')
+    const nodesWithExplanations = await generateNodeExplanations({
+      nodes: architecture.nodes,
+      projectContext: {
+        name: projectName,
+        description: description,
+        schemas: schemas,
+        apiEndpoints: endpoints,
+      },
+      diagramType: 'HLD',
+    })
+
+    const enhancedArchitecture = {
+      ...architecture,
+      nodes: nodesWithExplanations,
+    }
+
+    console.log('✅ AI explanations generated successfully')
+
     return NextResponse.json({
       success: true,
-      architecture,
+      architecture: enhancedArchitecture,
       metadata: {
         generatedAt: new Date().toISOString(),
-        componentsCount: architecture.nodes.length,
-        connectionsCount: architecture.edges.length,
-        complexity: architecture.metadata?.complexity || 'Moderate'
+        componentsCount: enhancedArchitecture.nodes.length,
+        connectionsCount: enhancedArchitecture.edges.length,
+        complexity: enhancedArchitecture.metadata?.complexity || 'Moderate'
       }
     })
 

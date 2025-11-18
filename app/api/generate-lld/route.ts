@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateLLDFromData } from '@/lib/utils/lld-generator'
 import { DatabaseSchemaToArchitecture, ApiEndpointsToArchitecture } from '@/lib/types/architecture'
+import { generateNodeExplanations } from '@/lib/ai/node-explanation-generator'
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,27 +47,47 @@ export async function POST(request: NextRequest) {
     console.log('  Components:', lld.nodes.length)
     console.log('  Connections:', lld.edges.length)
 
+    // Generate AI explanations for each node
+    console.log('🤖 Generating AI explanations for LLD nodes...')
+    const nodesWithExplanations = await generateNodeExplanations({
+      nodes: lld.nodes,
+      projectContext: {
+        name: projectName,
+        description: description,
+        schemas: schemas,
+        apiEndpoints: endpoints,
+      },
+      diagramType: 'LLD',
+    })
+
+    const enhancedLLD = {
+      ...lld,
+      nodes: nodesWithExplanations,
+    }
+
+    console.log('✅ AI explanations generated successfully')
+
     // Extract component statistics
-    const componentsByLayer = lld.nodes.reduce((acc: any, node: any) => {
+    const componentsByLayer = enhancedLLD.nodes.reduce((acc: any, node: any) => {
       const layer = node.data.metadata?.layer || 'Unknown'
       acc[layer] = (acc[layer] || 0) + 1
       return acc
     }, {})
 
-    const methodCount = lld.nodes.reduce((sum: number, node: any) => {
+    const methodCount = enhancedLLD.nodes.reduce((sum: number, node: any) => {
       return sum + (node.data.metadata?.methods?.length || 0)
     }, 0)
 
     return NextResponse.json({
       success: true,
-      lld,
+      lld: enhancedLLD,
       metadata: {
         generatedAt: new Date().toISOString(),
-        componentsCount: lld.nodes.length,
-        connectionsCount: lld.edges.length,
+        componentsCount: enhancedLLD.nodes.length,
+        connectionsCount: enhancedLLD.edges.length,
         methodsCount: methodCount,
-        complexity: lld.metadata?.complexity || 'Detailed',
-        designPattern: lld.metadata?.scalingStrategy || 'Layered Architecture',
+        complexity: enhancedLLD.metadata?.complexity || 'Detailed',
+        designPattern: enhancedLLD.metadata?.scalingStrategy || 'Layered Architecture',
         componentsByLayer
       }
     })

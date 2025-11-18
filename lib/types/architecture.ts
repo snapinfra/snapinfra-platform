@@ -1,3 +1,10 @@
+export interface NodeAIExplanation {
+  whyChosen: string
+  howItFits: string
+  tradeoffs: string
+  bestPractices: string
+}
+
 export interface ArchitectureNode {
   id: string
   type: 'database' | 'api-service' | 'authentication' | 'frontend' | 'external-service' | 'load-balancer' | 'cache' | 'queue' |
@@ -12,6 +19,7 @@ export interface ArchitectureNode {
     icon?: string
     color?: string
     metadata?: Record<string, any>
+    aiExplanation?: NodeAIExplanation
   }
   style?: {
     width?: number
@@ -20,7 +28,7 @@ export interface ArchitectureNode {
     border?: string
     borderRadius?: string
     zIndex?: number
-  }
+    }
 }
 
 export interface ArchitectureEdge {

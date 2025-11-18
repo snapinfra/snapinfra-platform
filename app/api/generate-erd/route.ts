@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateEnhancedERD } from '@/lib/utils/erd-generator'
+import { generateNodeExplanations } from '@/lib/ai/node-explanation-generator'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,19 +23,30 @@ export async function POST(request: NextRequest) {
     console.log('  Tables (Nodes):', erd.nodes.length)
     console.log('  Relationships (Edges):', erd.edges.length)
 
+    // Generate AI explanations
+    console.log('🤖 Generating AI explanations for ERD entities...')
+    const nodesWithExplanations = await generateNodeExplanations({
+      nodes: erd.nodes,
+      projectContext: { name: projectName, description, schemas },
+      diagramType: 'ERD',
+    })
+
+    const enhancedERD = { ...erd, nodes: nodesWithExplanations }
+    console.log('✅ AI explanations generated successfully')
+
     return NextResponse.json({
       success: true,
       erd: {
-        nodes: erd.nodes,
-        edges: erd.edges,
-        metadata: erd.metadata,
-        aiInsights: (erd as any).aiInsights
+        nodes: enhancedERD.nodes,
+        edges: enhancedERD.edges,
+        metadata: enhancedERD.metadata,
+        aiInsights: (enhancedERD as any).aiInsights
       },
       metadata: {
         generatedAt: new Date().toISOString(),
-        totalTables: erd.nodes.length,
-        totalRelationships: erd.edges.length,
-        totalFields: erd.metadata.totalFields
+        totalTables: enhancedERD.nodes.length,
+        totalRelationships: enhancedERD.edges.length,
+        totalFields: enhancedERD.metadata.totalFields
       }
     })
 
