@@ -48,7 +48,7 @@ export function StepOne({ onComplete }: StepOneProps) {
   }
 
   const updateStageStatus = (stageId: string, status: 'pending' | 'loading' | 'completed') => {
-    setGenerationStages(prev => prev.map(stage => 
+    setGenerationStages(prev => prev.map(stage =>
       stage.id === stageId ? { ...stage, status } : stage
     ))
   }
@@ -60,7 +60,7 @@ export function StepOne({ onComplete }: StepOneProps) {
   const loadExample = (index: number) => {
     const example = architecturalExamples[index]
     if (!example) return
-    
+
     setFormFields({
       platformType: example.platformType,
       businessDomain: example.businessDomain,
@@ -75,27 +75,63 @@ export function StepOne({ onComplete }: StepOneProps) {
   // MAIN GENERATION LOGIC
   // ============================================
 
-  const handleGenerate = async () => {
-    const architecturalInput = buildArchitecturalInput(formFields)
-    
-    if (!validateMinimumFields(formFields)) {
-      alert('Please fill in at least the platform type and business domain to continue.')
-      return
+  // Helper function to safely extract diagram data without duplication
+  const extractDiagramData = (result: any, fallbackKeys: string[] = ['diagram', 'architecture']) => {
+    if (!result?.success) return null;
+
+    // Try to find the first non-null value from the fallback keys
+    for (const key of fallbackKeys) {
+      if (result[key]) return result[key];
     }
 
-    setIsGenerating(true)
-    resetAllStages()
+    return null;
+  };
+
+  // Helper function to normalize analysis data
+  const normalizeAnalysisData = (
+    dbRecs: any,
+    smartRecs: any,
+    optimizations: any,
+    security: any,
+    scaling: any
+  ) => {
+    return {
+      useCase: dbRecs?.useCase || 'General Purpose',
+      databaseRecommendations: dbRecs?.recommendations || [],
+      smartRecommendations: smartRecs?.recommendations || [],
+      optimizationSuggestions: optimizations?.suggestions || [],
+      securityRecommendations: security?.recommendations || [],
+      scalingInsights: scaling?.insights || {
+        expectedLoad: 'Medium',
+        readWriteRatio: '70:30',
+        cachingStrategy: 'Application-level',
+        indexingPriority: []
+      },
+      performanceMetrics: scaling?.metrics || []
+    };
+  };
+
+  const handleGenerate = async () => {
+    const architecturalInput = buildArchitecturalInput(formFields);
+
+    if (!validateMinimumFields(formFields)) {
+      alert('Please fill in at least the platform type and business domain to continue.');
+      return;
+    }
+
+    setIsGenerating(true);
+    resetAllStages();
 
     try {
-      // Stage 1: Backend Schema Generation
-      updateStageStatus('backend', 'loading')
-      updateStageStatus('endpoints', 'loading')
-      
+      // ============================================
+      // STAGE 1: BACKEND SCHEMA GENERATION
+      // ============================================
+      updateStageStatus('backend', 'loading');
+      updateStageStatus('endpoints', 'loading');
+
       const backendResponse = await fetch('/api/generate-backend', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: architecturalInput,
           options: {
@@ -103,258 +139,206 @@ export function StepOne({ onComplete }: StepOneProps) {
             maxTokens: 6000,
           },
         }),
-      })
+      });
 
-      const backendResult = await backendResponse.json()
-      
+      const backendResult = await backendResponse.json();
+
       if (!backendResult.success) {
-        console.error('Backend generation failed:', backendResult)
-        throw new Error(backendResult.error || 'Failed to generate backend')
+        console.error('Backend generation failed:', backendResult);
+        throw new Error(backendResult.error || 'Failed to generate backend');
       }
 
-      console.log('Backend Generation Success:', backendResult)
-      
-      // Complete backend stages
-      updateStageStatus('backend', 'completed')
-      updateStageStatus('endpoints', 'completed')
+      console.log('✅ Backend Generation Success');
+      updateStageStatus('backend', 'completed');
+      updateStageStatus('endpoints', 'completed');
 
-      // Start all analysis stages
-      updateStageStatus('recommendations', 'loading')
-      updateStageStatus('smart', 'loading')
-      updateStageStatus('performance', 'loading')
-      updateStageStatus('security', 'loading')
-      
-      // Call all analysis APIs in parallel
-      const analysisRequests = [
+      // ============================================
+      // STAGE 2: PARALLEL ANALYSIS GENERATION
+      // ============================================
+      updateStageStatus('recommendations', 'loading');
+      updateStageStatus('smart', 'loading');
+      updateStageStatus('performance', 'loading');
+      updateStageStatus('security', 'loading');
+
+      const analysisPayload = {
+        description: architecturalInput,
+        schemas: backendResult.schemas
+      };
+
+      // Run all analysis APIs in parallel
+      const [dbRecs, smartRecs, optimizations, security, scaling] = await Promise.all([
         fetch('/api/database-recommendations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: architecturalInput,
-            schemas: backendResult.schemas
-          })
-        }).then(async (res) => {
-          const result = await res.json()
-          updateStageStatus('recommendations', 'completed')
-          return result
-        }),
+          body: JSON.stringify(analysisPayload)
+        }).then(res => res.json()).finally(() => updateStageStatus('recommendations', 'completed')),
+
         fetch('/api/smart-recommendations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: architecturalInput,
-            schemas: backendResult.schemas
-          })
-        }).then(async (res) => {
-          const result = await res.json()
-          updateStageStatus('smart', 'completed')
-          return result
-        }),
+          body: JSON.stringify(analysisPayload)
+        }).then(res => res.json()).finally(() => updateStageStatus('smart', 'completed')),
+
         fetch('/api/optimization-suggestions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: architecturalInput,
-            schemas: backendResult.schemas
-          })
-        }).then(async (res) => {
-          const result = await res.json()
-          updateStageStatus('performance', 'completed')
-          return result
-        }),
+          body: JSON.stringify(analysisPayload)
+        }).then(res => res.json()).finally(() => updateStageStatus('performance', 'completed')),
+
         fetch('/api/security-recommendations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: architecturalInput,
-            schemas: backendResult.schemas
-          })
-        }).then(async (res) => {
-          const result = await res.json()
-          updateStageStatus('security', 'completed')
-          return result
-        }),
+          body: JSON.stringify(analysisPayload)
+        }).then(res => res.json()).finally(() => updateStageStatus('security', 'completed')),
+
         fetch('/api/scaling-insights', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: architecturalInput,
-            schemas: backendResult.schemas
-          })
-        })
-      ]
+          body: JSON.stringify(analysisPayload)
+        }).then(res => res.json())
+      ]);
 
-      const [dbRecs, smartRecs, optimizations, security, scalingRes] = await Promise.all(analysisRequests)
-      const scaling = await scalingRes.json()
-
-      console.log('Database Recommendations:', dbRecs)
-      console.log('Smart Recommendations:', smartRecs)
-      console.log('Optimizations:', optimizations)
-      console.log('Security:', security)
-      console.log('Scaling:', scaling)
-
-      const projectName = generateProjectName(architecturalInput)
+      console.log('✅ All Analysis Complete');
 
       // ============================================
-      // NEW: GENERATE HLD AND LLD IN PARALLEL
+      // STAGE 3: PARALLEL DIAGRAM GENERATION
       // ============================================
-      updateStageStatus('hld', 'loading')
+      updateStageStatus('hld', 'loading');
 
-      const analysisData = {
-        useCase: dbRecs.useCase,
-        databaseRecommendations: dbRecs.recommendations || [],
-        smartRecommendations: smartRecs.recommendations || [],
-        optimizationSuggestions: optimizations.suggestions || [],
-        securityRecommendations: security.recommendations || [],
-        scalingInsights: scaling.insights || {},
-        performanceMetrics: scaling.metrics || []
-      }
+      const projectName = generateProjectName(architecturalInput);
+      const analysisData = normalizeAnalysisData(dbRecs, smartRecs, optimizations, security, scaling);
 
       const diagramPayload = {
         schemas: backendResult.schemas,
         endpoints: backendResult.endpoints,
-        projectName: projectName,
+        projectName,
         description: architecturalInput,
         analysis: analysisData
-      }
+      };
 
-      const [hldResponse, lldResponse, dataflowResponse, erdResponse, apiMapResponse] = await Promise.all([
-        // Generate HLD
+      // Generate all diagrams in parallel
+      const [hldResult, lldResult, dataflowResult, erdResult, apiMapResult] = await Promise.all([
         fetch('/api/generate-hld', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(diagramPayload),
-        }),
-        // Generate LLD
+        }).then(res => res.json()),
+
         fetch('/api/generate-lld', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(diagramPayload),
-        }),
-        // Generate Data Flow
+        }).then(res => res.json()),
+
         fetch('/api/generate-dataflow', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(diagramPayload),
-        }),
-        // Generate ERD
+        }).then(res => res.json()),
+
         fetch('/api/generate-erd', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(diagramPayload),
-        }),
-        // Generate API Map
+        }).then(res => res.json()),
+
         fetch('/api/generate-api-map', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(diagramPayload),
-        })
-      ])
+        }).then(res => res.json())
+      ]);
 
-      const hldResult = await hldResponse.json()
-      const lldResult = await lldResponse.json()
-      const dataflowResult = await dataflowResponse.json()
-      const erdResult = await erdResponse.json()
-      const apiMapResult = await apiMapResponse.json()
-
-      // Handle HLD result
-      if (!hldResult.success) {
-        console.error('HLD generation failed:', hldResult)
-        console.warn('Continuing without HLD data')
+      // Log results (only once per diagram type)
+      if (hldResult.success) {
+        console.log('✅ HLD Generation Success');
+        updateStageStatus('hld', 'completed');
       } else {
-        console.log('HLD Generation Success:', hldResult)
-        updateStageStatus('hld', 'completed')
+        console.warn('⚠️ HLD generation failed, continuing without HLD');
       }
 
-      // Handle LLD result
-      if (!lldResult.success) {
-        console.error('LLD generation failed:', lldResult)
-        console.warn('Continuing without LLD data')
+      if (lldResult.success) {
+        console.log('✅ LLD Generation Success');
       } else {
-        console.log('LLD Generation Success:', lldResult)
+        console.warn('⚠️ LLD generation failed, continuing without LLD');
       }
 
-      // Handle Data Flow result
-      if (!dataflowResult.success) {
-        console.error('Data Flow generation failed:', dataflowResult)
-        console.warn('Continuing without Data Flow data')
+      if (dataflowResult.success) {
+        console.log('✅ Data Flow Generation Success');
       } else {
-        console.log('Data Flow Generation Success:', dataflowResult)
+        console.warn('⚠️ Data Flow generation failed, continuing without Data Flow');
       }
 
-      // Handle ERD result
-      if (!erdResult.success) {
-        console.error('ERD generation failed:', erdResult)
-        console.warn('Continuing without ERD data')
+      if (erdResult.success) {
+        console.log('✅ ERD Generation Success');
       } else {
-        console.log('ERD Generation Success:', erdResult)
+        console.warn('⚠️ ERD generation failed, continuing without ERD');
       }
 
-      // Handle API Map result
-      if (!apiMapResult.success) {
-        console.error('API Map generation failed:', apiMapResult)
-        console.warn('Continuing without API Map data')
+      if (apiMapResult.success) {
+        console.log('✅ API Map Generation Success');
       } else {
-        console.log('API Map Generation Success:', apiMapResult)
+        console.warn('⚠️ API Map generation failed, continuing without API Map');
       }
 
       // ============================================
-      // COMPLETE RESULT WITH BOTH HLD AND LLD
+      // STAGE 4: BUILD FINAL RESULT (NO DUPLICATES)
       // ============================================
-       const completeResult = {
-        ...backendResult,
+      const completeResult = {
+        // Core backend data
+        success: true,
+        schemas: backendResult.schemas,
+        endpoints: backendResult.endpoints,
         projectName,
         description: architecturalInput,
-        analysis: {
-          success: true,
-          useCase: dbRecs.useCase,
-          databaseRecommendations: dbRecs.recommendations || [],
-          smartRecommendations: smartRecs.recommendations || [],
-          optimizationSuggestions: optimizations.suggestions || [],
-          securityRecommendations: security.recommendations || [],
-          scalingInsights: scaling.insights || { 
-            expectedLoad: 'Medium', 
-            readWriteRatio: '70:30', 
-            cachingStrategy: 'Application-level', 
-            indexingPriority: [] 
-          },
-          performanceMetrics: scaling.metrics || []
-        },
-        // Add HLD data
-        architecture: hldResult.success ? hldResult.architecture : null,
-        hldMetadata: hldResult.success ? hldResult.metadata : null,
-        // Add all diagram data
-        diagrams: {
-          lld: lldResult.success ? (lldResult.lld || lldResult.diagram || lldResult.architecture) : null,
-          dataflow: dataflowResult.success ? (dataflowResult.dataFlow || dataflowResult.dataflow || dataflowResult.diagram || dataflowResult.architecture) : null,
-          erd: erdResult.success ? (erdResult.erd || erdResult.diagram || erdResult.architecture) : null,
-          apiMap: apiMapResult.success ? (apiMapResult.apiMap || apiMapResult.diagram || apiMapResult.architecture) : null
-        },
-        // Keep legacy LLD data for backward compatibility
-        lld: lldResult.success ? (lldResult.lld || lldResult.diagram || lldResult.architecture) : null,
-        lldMetadata: lldResult.success ? lldResult.metadata : null
-      }
 
-      console.log('Complete Result with HLD & LLD:', completeResult)
-      onComplete(completeResult)
-      
+        // Analysis data (normalized, no duplicates)
+        analysis: analysisData,
+
+        // HLD architecture (single source)
+        architecture: extractDiagramData(hldResult, ['architecture']),
+
+        // All diagrams in one place (no duplication)
+        diagrams: {
+          hld: extractDiagramData(hldResult, ['architecture']),
+          lld: extractDiagramData(lldResult, ['lld', 'diagram', 'architecture']),
+          dataflow: extractDiagramData(dataflowResult, ['dataFlow', 'dataflow', 'diagram', 'architecture']),
+          erd: extractDiagramData(erdResult, ['erd', 'diagram', 'architecture']),
+          apiMap: extractDiagramData(apiMapResult, ['apiMap', 'diagram', 'architecture'])
+        },
+
+        // Metadata (lightweight, no diagram data duplication)
+        metadata: {
+          hld: hldResult.success ? (hldResult.metadata || null) : null,
+          lld: lldResult.success ? (lldResult.metadata || null) : null,
+          dataflow: dataflowResult.success ? (dataflowResult.metadata || null) : null,
+          erd: erdResult.success ? (erdResult.metadata || null) : null,
+          apiMap: apiMapResult.success ? (apiMapResult.metadata || null) : null
+        }
+      };
+
+      console.log('✅ Complete Result Generated (No Duplicates)');
+      console.log('Data size estimate:', JSON.stringify(completeResult).length, 'bytes');
+
+      onComplete(completeResult);
+
     } catch (error) {
-      console.error('Backend generation error:', error)
-      resetAllStages()
-      
-      const errorMessage = formatErrorMessage(error)
-      
+      console.error('❌ Backend generation error:', error);
+      resetAllStages();
+
+      const errorMessage = formatErrorMessage(error);
+
       console.error('Full error details:', {
         error,
         architecturalInput: architecturalInput.substring(0, 200),
         timestamp: new Date().toISOString()
-      })
-      
-      alert(errorMessage)
+      });
+
+      alert(errorMessage);
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
-  }
+  };
 
   // ============================================
   // COMPUTED VALUES
@@ -388,15 +372,15 @@ export function StepOne({ onComplete }: StepOneProps) {
           <div className="absolute inset-0 rounded-2xl p-[2px] bg-[#005BE3]">
             <div className="w-full h-full rounded-2xl"></div>
           </div>
-          
+
           {/* Background glow effect */}
           <div className="absolute -inset-2 bg-[#005BE3]/30 rounded-2xl blur-xl opacity-40"></div>
-          
+
           {/* Main input container */}
           <div className="relative rounded-2xl shadow-2xl transition-all duration-300 overflow-hidden" style={{ margin: '2px' }}>
             {/* Semi-transparent dark background */}
             <div className="absolute inset-0 bg-[#1d1d1f]/90 backdrop-blur-sm z-0"></div>
-            
+
             {/* Inline Fill-in-the-Blanks Sentence */}
             <div className="p-6 relative z-10">
               <div className="text-white text-[16px] leading-relaxed flex flex-wrap items-center gap-2">
@@ -458,7 +442,7 @@ export function StepOne({ onComplete }: StepOneProps) {
                 />
                 <span className="text-[rgba(255,255,255,0.7)]">compliance.</span>
               </div>
-              
+
               {/* Progress Indicator */}
               <div className="mt-6 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -466,9 +450,8 @@ export function StepOne({ onComplete }: StepOneProps) {
                     {Object.values(formFields).map((field, idx) => (
                       <div
                         key={idx}
-                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          field.trim() ? 'bg-[#005BE3] scale-100' : 'bg-[rgba(255,255,255,0.2)] scale-75'
-                        }`}
+                        className={`w-2 h-2 rounded-full transition-all duration-300 ${field.trim() ? 'bg-[#005BE3] scale-100' : 'bg-[rgba(255,255,255,0.2)] scale-75'
+                          }`}
                       />
                     ))}
                   </div>
@@ -476,17 +459,16 @@ export function StepOne({ onComplete }: StepOneProps) {
                     {completedFieldsCount}/6 fields completed
                   </span>
                 </div>
-                
+
                 {/* Submit Button */}
                 <div>
                   <button
                     onClick={handleGenerate}
                     disabled={!validateMinimumFields(formFields) || isGenerating}
-                    className={`px-6 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-200 ${
-                      validateMinimumFields(formFields)
+                    className={`px-6 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-200 ${validateMinimumFields(formFields)
                         ? 'bg-[#005BE3] hover:bg-[#004BC9] shadow-[0_2px_8px_rgba(0,91,227,0.4)] cursor-pointer hover:shadow-[0_4px_12px_rgba(0,91,227,0.5)] hover:scale-105'
                         : 'bg-white/10 cursor-not-allowed opacity-50'
-                    }`}
+                      }`}
                   >
                     {isGenerating ? (
                       <>
@@ -538,7 +520,7 @@ export function StepOne({ onComplete }: StepOneProps) {
                   <span className="text-[#1d1d1f] text-base font-medium">Generating your enterprise backend...</span>
                 </div>
               </div>
-              
+
               {/* Progress Bar */}
               <div className="space-y-2">
                 <Progress value={progressPercentage} className="h-2 bg-muted" />
@@ -546,7 +528,7 @@ export function StepOne({ onComplete }: StepOneProps) {
                   {completedStages} of {totalStages} components completed
                 </p>
               </div>
-              
+
               {/* Status List */}
               <div className="space-y-2">
                 {generationStages.map((stage) => {
@@ -554,13 +536,12 @@ export function StepOne({ onComplete }: StepOneProps) {
                   return (
                     <div
                       key={stage.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
-                        stage.status === 'completed'
+                      className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${stage.status === 'completed'
                           ? 'bg-[#005BE3]/5 text-[#005BE3]'
                           : stage.status === 'loading'
                             ? 'bg-[#005BE3]/10 text-[#005BE3]'
                             : 'bg-transparent text-[#605A57] opacity-40'
-                      }`}
+                        }`}
                     >
                       <div className="flex-shrink-0">
                         {stage.status === 'completed' ? (

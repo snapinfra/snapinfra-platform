@@ -8,6 +8,8 @@ import { ReactFlowProvider } from '@xyflow/react'
 
 import { SystemArchitectureEditor } from '@/components/architecture/system-architecture-editor'
 import { SystemArchitecture } from '@/lib/types/architecture'
+import { useDecisions, useOnboardingData } from "@/lib/app-context"
+import { SystemDecisionsSummary } from "@/lib/types/system-decisions"
 
 interface StepFourProps {
   data: {
@@ -28,6 +30,8 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const architectureCanvasRef = useRef<HTMLDivElement>(null)
+  const { updateData } = useOnboardingData();
+  const { setDecisions, updateDecision, loadDecisions } = useDecisions()
 
   // If no architecture was provided, show error
   useEffect(() => {
@@ -35,6 +39,78 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
       console.error('No architecture data found. It should have been generated in step-one.')
     }
   }, [data.architecture])
+
+
+  const generateDecisions = async () => {
+    // Check if decisions are already cached in localStorage
+    const cachedData = loadDecisions()
+    if (!cachedData || Object.keys(cachedData).length === 0) {
+      localStorage.removeItem('onboarding-decisions')
+    }
+    if (cachedData) {
+      try {
+        console.log('✅ Using cached decisions:', cachedData)
+        setDecisions(cachedData.decisions, cachedData.selectedTools)
+        return
+      } catch (error) {
+        console.warn('Failed to use cached decisions:', error)
+        localStorage.removeItem('onboarding-decisions')
+      }
+    }
+
+    try {
+      if (!data.architecture) {
+        throw new Error('Architecture data is required to generate system decisions')
+      }
+
+      // Make real HTTP request to AI-powered API endpoint
+      const response = await fetch('/api/generate-system-decisions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          architecture: data.architecture,
+          projectData: {
+            projectName: data.projectName,
+            description: data.description,
+            schemas: data.schemas,
+            endpoints: data.endpoints,
+            analysis: data.analysis,
+          },
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to generate system decisions')
+      }
+
+      const decisionsSummary: SystemDecisionsSummary = await response.json()
+
+      // Strict validation - no fallback to mock data
+      if (!decisionsSummary.decisions || decisionsSummary.decisions.length === 0) {
+        throw new Error('AI did not generate any system decisions')
+      }
+
+      // Initialize selected tools with recommendations
+      const initialSelections: Record<string, string> = {}
+      decisionsSummary.decisions.forEach(decision => {
+        initialSelections[decision.id] = decision.selectedTool
+      })
+
+      // Save to both localStorage and context using the hook
+      console.log('💾 Saving decisions to localStorage and context')
+      setDecisions(decisionsSummary, initialSelections)
+
+    } catch (error) {
+      console.error('Failed to generate system decisions:', error)
+      alert(
+        `Failed to generate system decisions: ${error instanceof Error ? error.message : 'Unknown error'
+        }. Please try again.`
+      )
+    }
+  }
 
   const handleArchitectureChange = (updatedArchitecture: SystemArchitecture) => {
     setArchitecture(updatedArchitecture)
@@ -44,6 +120,45 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
   const handleSaveArchitecture = () => {
     console.log('Saving architecture:', architecture)
     setHasUnsavedChanges(false)
+  }
+
+  const handleContinue = async () => {
+    if (!architecture) return
+
+    try {
+      // Clean the architecture data before saving
+      const cleanArchitecture = {
+        id: architecture.id,
+        name: architecture.name,
+        description: architecture.description,
+        nodes: architecture.nodes?.map(node => ({
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: node.data
+        })) || [],
+        edges: architecture.edges?.map(edge => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          label: edge.label
+        })) || [],
+        metadata: architecture.metadata
+      }
+
+      // Save to context directly
+      await updateData({
+        architecture: cleanArchitecture
+      })
+
+      await generateDecisions();
+
+      // Call onComplete with absolutely no arguments
+      onComplete()
+    } catch (error) {
+      console.error('Error saving architecture:', error)
+      alert('Failed to save architecture. Please try again.')
+    }
   }
 
   const handleExportPNG = async () => {
@@ -254,6 +369,7 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
           <div ref={architectureCanvasRef} className="h-[600px]">
             <ReactFlowProvider>
               <SystemArchitectureEditor
+                type={"hld"}
                 architecture={architecture}
                 onArchitectureChange={handleArchitectureChange}
                 onSave={handleSaveArchitecture}
@@ -482,7 +598,7 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
             Back
           </button>
           <Button
-            onClick={() => onComplete(architecture)}
+            onClick={handleContinue}
             size="lg"
             className="px-8 py-6 bg-gradient-to-r from-primary to-primary/80 hover:shadow-xl transition-all hover:scale-105 text-base font-semibold"
           >

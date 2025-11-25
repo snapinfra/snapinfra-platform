@@ -63,13 +63,14 @@ export function StepTwo({ data, onComplete, onBack }: StepTwoProps) {
 
   // Check if we have real AI-generated analysis
   const hasAnalysis = data.analysis?.success
+  console.log(data.analysis,'AI Analysis Data in Step Two')
   
   const getAnalysis = () => {
-    if (hasAnalysis) {
-      console.log('Step Two Analysis Data:', data.analysis)
-      return data.analysis
-    }
-    
+    // if (hasAnalysis) {
+    //   // console.log('Step Two Analysis Data:', data.analysis)
+    //   return data.analysis
+    // }
+    return data.analysis
     // Return null if no analysis - we'll show error state
     return null
   }

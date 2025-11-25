@@ -1,3 +1,4 @@
+import { extractArchitectureDecisions } from "./code-generator";
 import { CodeGenOptions, GeneratedFile, Project, toCamelCase, toPascalCase } from "./code-generator-analysis";
 
 export const EXPORT_STANDARDS = `
@@ -1720,37 +1721,113 @@ export function addConditionalDependencies(
   dependencies: Record<string, string>,
   devDependencies: Record<string, string>
 ) {
-  // Existing dependencies...
+  // Existing dependencies
+  if (options.includeAuth) {
+    dependencies['jsonwebtoken'] = '^9.0.2';
+    dependencies['bcrypt'] = '^5.1.1';
+  }
   
-  // 🆕 ADD DEPENDENCIES BASED ON SELECTED TOOLS
-  if (project.decisions?.selectedTools) {
-    const tools = project.decisions.selectedTools;
+  if (options.includeTests) {
+    devDependencies['jest'] = '^29.7.0';
+    devDependencies['supertest'] = '^6.3.3';
+    devDependencies['@jest/globals'] = '^29.7.0';
+  }
+  
+  // ============================================================================
+  // ADD DEPENDENCIES BASED ON ARCHITECTURE DECISIONS
+  // ============================================================================
+  if (project.decisions?.selectedTools || project.decisions?.decisions) {
+    const decisions = extractArchitectureDecisions(project);
     
     // Cache layer
-    if (tools['decision-cache'] === 'redis') {
-      dependencies['redis'] = '^4.6.0';
-      dependencies['ioredis'] = '^5.3.0';
+    if (decisions.has('cache')) {
+      const cache = decisions.get('cache');
+      if (cache.tool === 'redis') {
+        dependencies['redis'] = '^4.6.0';
+        dependencies['ioredis'] = '^5.3.0';
+        console.log('   ✅ Added Redis dependencies (from architecture decision)');
+      }
     }
     
-    // API Gateway
-    if (tools['decision-api-gateway'] === 'kong') {
-      // Add Kong-related dependencies
+    // Database
+    if (decisions.has('database')) {
+      const db = decisions.get('database');
+      if (db.tool === 'postgresql') {
+        dependencies['pg'] = '^8.11.3';
+        console.log('   ✅ Confirmed PostgreSQL dependency (from architecture decision)');
+      } else if (db.tool === 'mongodb') {
+        dependencies['mongodb'] = '^6.3.0';
+        dependencies['mongoose'] = '^8.0.3';
+        console.log('   ✅ Added MongoDB dependencies (from architecture decision)');
+      }
+    }
+    
+    // CI/CD
+    if (decisions.has('deployment')) {
+      const cicd = decisions.get('deployment');
+      if (cicd.tool === 'github-actions') {
+        devDependencies['@actions/core'] = '^1.10.1';
+        devDependencies['@actions/github'] = '^6.0.0';
+        console.log('   ✅ Added GitHub Actions dependencies (from architecture decision)');
+      }
     }
     
     // Monitoring
-    if (tools['decision-monitoring']) {
+    if (decisions.has('monitoring')) {
       dependencies['prom-client'] = '^15.0.0';
+      console.log('   ✅ Added Prometheus monitoring (from architecture decision)');
     }
   }
   
-  // Add dependencies based on smart recommendations
-  if (project.onboardingContext?.analysis?.smartRecommendations) {
-    project.onboardingContext.analysis.smartRecommendations.forEach(rec => {
-      if (rec.priority === 'High' && rec.type === 'security') {
-        dependencies['helmet'] = '^7.1.0';
-        dependencies['express-rate-limit'] = '^7.1.0';
+  // ============================================================================
+  // ADD DEPENDENCIES BASED ON SMART RECOMMENDATIONS
+  // ============================================================================
+  if (project.analysis?.smartRecommendations) {
+    project.analysis.smartRecommendations.forEach((rec: any) => {
+      if (rec.priority === 'High') {
+        // JWT Authentication
+        if (rec.title.includes('JWT') && !dependencies['jsonwebtoken']) {
+          dependencies['jsonwebtoken'] = '^9.0.2';
+          console.log('   ✅ Added JWT (from smart recommendation)');
+        }
+        
+        // Rate Limiting
+        if (rec.title.includes('Rate Limit') || rec.title.includes('Load Balancing')) {
+          dependencies['express-rate-limit'] = '^7.1.0';
+          console.log('   ✅ Added rate limiting (from smart recommendation)');
+        }
+        
+        // Encryption
+        if (rec.title.includes('Encrypt')) {
+          dependencies['crypto'] = '^1.0.1';
+          console.log('   ✅ Added encryption support (from smart recommendation)');
+        }
       }
     });
+  }
+  
+  // ============================================================================
+  // ADD DEPENDENCIES FOR HIGH-LEVEL ARCHITECTURE COMPONENTS
+  // ============================================================================
+  if (project.diagrams?.hld?.nodes) {
+    const hasWebSocket = project.diagrams.hld.nodes.some((node: any) => 
+      node.type === 'websocket' || node.id.includes('websocket')
+    );
+    
+    if (hasWebSocket) {
+      dependencies['socket.io'] = '^4.6.1';
+      console.log('   ✅ Added WebSocket support (from HLD diagram)');
+    }
+    
+    const hasQueue = project.diagrams.hld.nodes.some((node: any) => 
+      node.type === 'queue'
+    );
+    
+    if (hasQueue) {
+      dependencies['bull'] = '^4.11.5';
+      dependencies['bullmq'] = '^5.0.0';
+      console.log('   ✅ Added Queue support (from HLD diagram)');
+    }
   }
 }
 

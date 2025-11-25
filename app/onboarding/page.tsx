@@ -1,5 +1,5 @@
 "use client"
-import { OnboardingFlow } from "@/components/onboarding-flow"
+import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 import { Button } from "@/components/ui/button"
 import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs"
 

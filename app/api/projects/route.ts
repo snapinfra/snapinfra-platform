@@ -60,11 +60,13 @@ export async function POST(request: NextRequest) {
     console.log('POST /api/projects - Creating project for user:', userId);
     console.log('Project name:', body.name);
 
-    const project = await DynamoService.createProject(userId, {
+   const project = await DynamoService.createProject(userId, {
       name: body.name,
       description: body.description,
       schema: body.schema,
       status: 'draft' as ProjectStatus,
+      ...(body.specialParam && { specialParam: body.specialParam }), // ← ADD THIS
+      ...(body.diagrams && { diagrams: body.diagrams }), // ← ADD THIS
       ...(body.endpoints && { endpoints: body.endpoints }),
       ...(body.database && { database: body.database }),
       ...(body.architecture && { architecture: body.architecture }),
