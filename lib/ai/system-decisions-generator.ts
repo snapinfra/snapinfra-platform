@@ -921,7 +921,7 @@ async function generateIntegrationPlan(
   options: GenerateSystemDecisionsOptions
 ) {
   const decisionTitles = decisions.map(d => `${d.title} (${d.urgency})`);
-  
+
   const prompt = `Create a 3-phase integration plan.
 
 Decisions:
@@ -958,7 +958,7 @@ async function generateRiskAssessment(
   options: GenerateSystemDecisionsOptions
 ) {
   const selectedTools = decisions.map(d => `${d.component}: ${d.selectedTool}`);
-  
+
   const prompt = `Assess risks for this technology stack.
 
 Project: ${projectContext.projectName}
@@ -1004,7 +1004,7 @@ export async function generateSystemDecisions(
     const { architecture, projectData, options = {} } = request;
 
     console.log('Generating complete system decisions in one AI call...');
-    
+
     const context = {
       architecture: {
         nodes: architecture.nodes.map(n => ({ id: n.id, type: n.type, label: n.data.label })),
@@ -1025,7 +1025,7 @@ export async function generateSystemDecisions(
       model: groq(AI_CONFIG.model),
       prompt,
       temperature: options.temperature ?? 0.7,
-      maxTokens: options.maxTokens ?? 8192,
+      maxTokens: options.maxTokens ?? 32768, // Increased from 8192
     });
 
     const cleanedText = text.trim()
