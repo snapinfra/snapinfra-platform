@@ -1,15 +1,17 @@
-// lib/utils/dataflow-generator.ts
 import { generateText } from 'ai'
 import { createGroq } from '@ai-sdk/groq'
 
+// --- Types ---
+
 export interface DataFlowNode {
   id: string
-  type: 'external-entity' | 'process' | 'data-store' | 'data-flow'
+  type: 'external-entity' | 'process' | 'data-store' | 'gateway'
   position: { x: number; y: number }
   data: {
     label: string
     description: string
     color: string
+    nodeType: string
     metadata?: {
       technology?: string
       dataTypes?: string[]
@@ -22,13 +24,17 @@ export interface DataFlowEdge {
   id: string
   source: string
   target: string
-  label: string
+  label?: string
   type: 'smoothstep' | 'step' | 'default'
   animated?: boolean
   style?: {
     stroke?: string
     strokeWidth?: number
     strokeDasharray?: string
+  }
+  markerEnd?: {
+    type: string
+    color?: string
   }
   data?: {
     dataType?: string
@@ -48,381 +54,280 @@ export interface DataFlowDiagram {
     encryptedFlows: number
     createdAt: string
   }
+  aiInsights?: {
+    bottlenecks: string[]
+    securityIssues: string[]
+    cachingOpportunities: string[]
+    transformationPoints: string[]
+  }
 }
+
+// --- Configuration ---
 
 const groqProvider = createGroq({
   apiKey: process.env.GROQ_API_KEY || ''
 })
 
-// Enhanced layout configuration for better ReactFlow visualization
-const DFD_LAYOUT = {
-  horizontalSpacing: 450,
-  verticalSpacing: 200,
-  startX: 50,
-  startY: 50,
-  layerConfig: {
-    'external-entity': { x: 0, spacing: 250 },
-    'gateway': { x: 500, spacing: 200 },
-    'process': { x: 1000, spacing: 180 },
-    'data-store': { x: 1500, spacing: 180 },
-    'external-service': { x: 2000, spacing: 200 }
-  }
+const LAYOUT = {
+  layers: {
+    externalEntity: { x: 0, spacing: 200 },
+    gateway: { x: 400, spacing: 250 },
+    service: { x: 900, spacing: 200 },
+    database: { x: 1400, spacing: 200 },
+    external: { x: 1400, spacing: 400 } // Align with DBs but offset vertically if needed
+  },
+  startY: 50
 }
 
 function getNodeColor(type: string): string {
   const colors = {
     'external-entity': '#3B82F6', // Blue
+    'gateway': '#10B981',         // Green
     'process': '#8B5CF6',         // Purple
     'data-store': '#EF4444',      // Red
-    'gateway': '#10B981'          // Green
+    'external-service': '#F59E0B' // Amber
   }
   return colors[type as keyof typeof colors] || '#6B7280'
 }
 
-function calculateLayeredPosition(
-  layerType: string, 
-  indexInLayer: number, 
-  totalInLayer: number
+function calculatePosition(
+  layer: keyof typeof LAYOUT.layers,
+  index: number,
+  total: number
 ): { x: number; y: number } {
-  const layerConfig = DFD_LAYOUT.layerConfig[layerType as keyof typeof DFD_LAYOUT.layerConfig]
-  
-  if (!layerConfig) {
-    return { 
-      x: DFD_LAYOUT.startX, 
-      y: DFD_LAYOUT.startY + (indexInLayer * DFD_LAYOUT.verticalSpacing) 
-    }
-  }
+  const config = LAYOUT.layers[layer]
+  // Center the layer vertically based on total items
+  const totalHeight = (total - 1) * config.spacing
+  const centerY = LAYOUT.startY + Math.max(0, (600 - totalHeight) / 2)
 
-  // Center nodes vertically within their layer
-  const totalHeight = (totalInLayer - 1) * layerConfig.spacing
-  const startY = DFD_LAYOUT.startY + (totalHeight > 800 ? 0 : (800 - totalHeight) / 2)
-  
   return {
-    x: layerConfig.x,
-    y: startY + (indexInLayer * layerConfig.spacing)
+    x: config.x,
+    y: centerY + (index * config.spacing)
   }
 }
 
-export async function generateDataFlowFromSystem(
-  schemas: any[],
-  endpoints: any[],
-  projectName: string
-): Promise<DataFlowDiagram> {
-  console.log('🗺️ Generating Enhanced Data Flow Diagram...')
-  console.log(`  Tables: ${schemas.length}, Endpoint Groups: ${endpoints.length}`)
-  
-  const nodes: DataFlowNode[] = []
-  const edges: DataFlowEdge[] = []
-  let encryptedFlows = 0
+// --- Generation Logic ---
 
-  // === LAYER 0: External Entities (Clients) ===
+/**
+ * Creates the base nodes for the system. 
+ * This runs regardless of AI availability to ensure the UI always has content.
+ */
+function createBaseNodes(schemas: any[], endpoints: any[]) {
+  const nodes: DataFlowNode[] = []
+
+  // 1. External Entities (Clients)
   const externalEntities = [
-    {
-      id: 'client-web',
-      label: 'Web Client',
-      description: 'Browser-based users accessing the application',
-      operations: ['Browse', 'Create Tasks', 'Manage Data']
-    },
-    {
-      id: 'client-mobile',
-      label: 'Mobile App',
-      description: 'Mobile users with iOS/Android apps',
-      operations: ['View Tasks', 'Quick Actions', 'Notifications']
-    },
-    {
-      id: 'client-admin',
-      label: 'Admin Panel',
-      description: 'System administrators managing the platform',
-      operations: ['Configure', 'Monitor', 'User Management']
-    }
+    { id: 'client-web', label: 'Web Browser', desc: 'React Client', ops: ['HTTPS'] },
+    { id: 'client-mobile', label: 'Mobile App', desc: 'iOS/Android', ops: ['HTTPS'] }
   ]
 
   externalEntities.forEach((entity, idx) => {
     nodes.push({
       id: entity.id,
       type: 'external-entity',
-      position: calculateLayeredPosition('external-entity', idx, externalEntities.length),
+      position: calculatePosition('externalEntity', idx, externalEntities.length),
       data: {
         label: entity.label,
-        description: entity.description,
+        description: entity.desc,
         color: getNodeColor('external-entity'),
-        metadata: {
-          technology: 'HTTP/HTTPS Client',
-          operations: entity.operations
-        }
+        nodeType: 'external-entity',
+        metadata: { technology: 'Client', operations: entity.ops }
       }
     })
   })
 
-  // === LAYER 1: Gateway Layer ===
-  const gatewayNodes = [
-    {
-      id: 'load-balancer',
-      label: 'Load Balancer',
-      description: 'Distributes incoming traffic across services',
-      technology: 'Nginx / AWS ALB'
-    },
-    {
-      id: 'api-gateway',
-      label: 'API Gateway',
-      description: 'Central entry point for all API requests',
-      technology: 'Express.js / Kong'
-    },
-    {
-      id: 'auth-service',
-      label: 'Authentication Service',
-      description: 'Handles user authentication and JWT validation',
-      technology: 'JWT / OAuth2'
-    }
+  // 2. Gateways
+  const gateways = [
+    { id: 'api-gateway', label: 'API Gateway', desc: 'Load Balancer / Ingress', tech: 'Nginx/Kong' },
+    { id: 'auth-service', label: 'Auth Service', desc: 'Identity Provider', tech: 'OAuth2' }
   ]
 
-  gatewayNodes.forEach((gw, idx) => {
+  gateways.forEach((gw, idx) => {
     nodes.push({
       id: gw.id,
-      type: 'process',
-      position: calculateLayeredPosition('gateway', idx, gatewayNodes.length),
+      type: 'gateway',
+      position: calculatePosition('gateway', idx, gateways.length),
       data: {
         label: gw.label,
         description: gw.description,
         color: getNodeColor('gateway'),
-        metadata: {
-          technology: gw.technology,
-          operations: ['Route', 'Validate', 'Authenticate']
-        }
+        nodeType: 'gateway',
+        metadata: { technology: gw.tech, operations: ['Route', 'Verify'] }
       }
     })
   })
 
-  // === LAYER 2: Business Logic / API Services ===
-  const endpointServices = endpoints.slice(0, 6).map((group, idx) => {
-    const serviceId = `service-${group.group.toLowerCase().replace(/\s+/g, '-')}`
-    const endpointMethods = group.endpoints.map((ep: any) => ep.method).filter((v: any, i: any, a: any) => a.indexOf(v) === i)
-    
+  // 3. Services (From Endpoints)
+  // If no endpoints provided, create a default one
+  const safeEndpoints = endpoints.length > 0 ? endpoints : [{ group: 'Core', endpoints: [{ method: 'ALL' }] }]
+
+  const services = safeEndpoints.slice(0, 6).map((group, idx) => {
+    const safeName = group.group || `Service-${idx}`
+    const serviceId = `svc-${safeName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+
     nodes.push({
       id: serviceId,
       type: 'process',
-      position: calculateLayeredPosition('process', idx, Math.min(endpoints.length, 6)),
+      position: calculatePosition('service', idx, Math.min(safeEndpoints.length, 6)),
       data: {
-        label: `${group.group} Service`,
-        description: `Handles ${group.group.toLowerCase()} business logic`,
+        label: `${safeName} Service`,
+        description: `Handles ${safeName} logic`,
         color: getNodeColor('process'),
+        nodeType: 'process',
         metadata: {
-          technology: 'Node.js / TypeScript',
-          operations: endpointMethods,
-          dataTypes: ['JSON', 'REST API']
+          technology: 'Node.js',
+          operations: group.endpoints?.map((e: any) => e.method).slice(0, 3) || ['REST']
         }
       }
     })
-
     return serviceId
   })
 
-  // === LAYER 3: Data Storage Layer ===
-  const mainTables = schemas.slice(0, 6)
-  const dataStores: string[] = []
+  // 4. Data Stores (From Schemas)
+  // If no schemas, create a default one
+  const safeSchemas = schemas.length > 0 ? schemas : [{ name: 'MainDB', fields: [] }]
 
-  mainTables.forEach((schema, idx) => {
-    const storeId = `db-${schema.name.toLowerCase()}`
-    dataStores.push(storeId)
-    
+  const databases = safeSchemas.slice(0, 6).map((schema, idx) => {
+    const safeName = schema.name || `DB-${idx}`
+    const dbId = `db-${safeName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+
     nodes.push({
-      id: storeId,
+      id: dbId,
       type: 'data-store',
-      position: calculateLayeredPosition('data-store', idx, mainTables.length),
+      position: calculatePosition('database', idx, Math.min(safeSchemas.length, 6)),
       data: {
-        label: `${schema.name} Table`,
-        description: schema.comment || `Stores ${schema.name.toLowerCase()} records`,
+        label: safeName,
+        description: 'Relational Data Store',
         color: getNodeColor('data-store'),
+        nodeType: 'data-store',
         metadata: {
-          technology: 'PostgreSQL',
-          operations: ['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
-          dataTypes: schema.fields.slice(0, 3).map((f: any) => f.type)
+          technology: 'Postgres',
+          dataTypes: schema.fields?.slice(0, 3).map((f: any) => f.type) || ['mixed']
         }
       }
     })
+    return dbId
   })
 
-  // === LAYER 4: External Services ===
-  const externalServices = [
-    {
-      id: 'cache-redis',
-      label: 'Redis Cache',
-      description: 'High-speed caching layer for frequently accessed data',
-      technology: 'Redis'
-    },
-    {
-      id: 'file-storage',
-      label: 'File Storage',
-      description: 'Cloud storage for uploads and static files',
-      technology: 'AWS S3 / CloudFlare R2'
-    },
-    {
-      id: 'notification-service',
-      label: 'Notification Service',
-      description: 'Sends email and push notifications',
-      technology: 'SendGrid / FCM'
-    }
+  // 5. External Services (Static)
+  const externalSvcs = [
+    { id: 'ext-email', label: 'Email Provider', desc: 'SendGrid/SES' },
+    { id: 'ext-cache', label: 'Redis Cache', desc: 'Session Store' }
   ]
 
-  externalServices.forEach((svc, idx) => {
+  externalSvcs.forEach((svc, idx) => {
     nodes.push({
       id: svc.id,
-      type: 'data-store',
-      position: calculateLayeredPosition('external-service', idx, externalServices.length),
+      type: 'data-store', // Using data-store shape for external svcs usually works well
+      position: calculatePosition('external', idx, externalSvcs.length),
       data: {
         label: svc.label,
-        description: svc.description,
-        color: '#F59E0B', // Orange for external services
-        metadata: {
-          technology: svc.technology,
-          operations: ['GET', 'SET', 'PUBLISH']
-        }
+        description: svc.desc,
+        color: getNodeColor('external-service'),
+        nodeType: 'external-service',
+        metadata: { technology: 'SaaS', operations: ['API'] }
       }
     })
   })
 
-  // === CREATE EDGES (Data Flows) ===
+  return { nodes, serviceIds: services, dbIds: databases }
+}
 
-  // External entities -> Load Balancer
-  externalEntities.forEach((entity, idx) => {
-    edges.push({
-      id: `flow-${entity.id}-lb`,
-      source: entity.id,
-      target: 'load-balancer',
-      label: 'HTTPS Request',
-      type: 'smoothstep',
-      animated: true,
-      style: { stroke: '#10B981', strokeWidth: 2 },
-      data: {
-        dataType: 'JSON',
-        isEncrypted: true,
-        isBidirectional: true
-      }
-    })
-    encryptedFlows++
-  })
+/**
+ * Generates a fallback set of edges if AI fails.
+ * Connects layers sequentially: Client -> Gateway -> Service -> (DB + Cache)
+ */
+function createFallbackEdges(nodes: DataFlowNode[]) {
+  const edges: DataFlowEdge[] = []
 
-  // Load Balancer -> API Gateway
-  edges.push({
-    id: 'flow-lb-gateway',
-    source: 'load-balancer',
-    target: 'api-gateway',
-    label: 'Routed Traffic',
-    type: 'smoothstep',
-    style: { stroke: '#3B82F6', strokeWidth: 2 }
-  })
+  const getNodesByType = (t: string) => nodes.filter(n => n.type === t || n.data.nodeType === t)
 
-  // API Gateway -> Auth Service
-  edges.push({
-    id: 'flow-gateway-auth',
-    source: 'api-gateway',
-    target: 'auth-service',
-    label: 'Auth Check',
-    type: 'smoothstep',
-    style: { stroke: '#F59E0B', strokeWidth: 2, strokeDasharray: '5,5' },
-    data: {
-      dataType: 'JWT Token',
-      isEncrypted: true
-    }
-  })
-  encryptedFlows++
+  const clients = getNodesByType('external-entity')
+  const gateways = getNodesByType('gateway')
+  const services = getNodesByType('process')
+  const stores = getNodesByType('data-store')
+  const external = getNodesByType('external-service')
 
-  // API Gateway -> Services
-  endpointServices.forEach((serviceId, idx) => {
-    edges.push({
-      id: `flow-gateway-${serviceId}`,
-      source: 'api-gateway',
-      target: serviceId,
-      label: `API Calls`,
-      type: 'smoothstep',
-      style: { stroke: '#8B5CF6', strokeWidth: 2 }
-    })
-  })
-
-  // Services -> Databases
-  endpointServices.forEach((serviceId, idx) => {
-    if (dataStores[idx]) {
+  // 1. Clients -> Main Gateway
+  const mainGateway = gateways.find(g => g.id === 'api-gateway') || gateways[0]
+  if (mainGateway) {
+    clients.forEach(client => {
       edges.push({
-        id: `flow-${serviceId}-db`,
-        source: serviceId,
-        target: dataStores[idx],
-        label: 'SQL Queries',
+        id: `e-${client.id}-${mainGateway.id}`,
+        source: client.id,
+        target: mainGateway.id,
+        label: 'HTTPS',
         type: 'smoothstep',
         animated: true,
-        style: { stroke: '#EF4444', strokeWidth: 2 },
-        data: {
-          dataType: 'SQL',
-          isBidirectional: true
-        }
+        style: { stroke: '#9CA3AF', strokeWidth: 2 }
+      })
+    })
+  }
+
+  // 2. Gateway -> Services
+  if (mainGateway) {
+    services.forEach(svc => {
+      edges.push({
+        id: `e-${mainGateway.id}-${svc.id}`,
+        source: mainGateway.id,
+        target: svc.id,
+        type: 'smoothstep',
+        animated: true,
+        style: { stroke: '#10B981', strokeWidth: 2 }
+      })
+    })
+  }
+
+  // 3. Gateway <-> Auth
+  const authService = gateways.find(g => g.id === 'auth-service')
+  if (mainGateway && authService) {
+    edges.push({
+      id: `e-${mainGateway.id}-${authService.id}`,
+      source: mainGateway.id,
+      target: authService.id,
+      label: 'Validate',
+      type: 'smoothstep',
+      style: { strokeDasharray: '5,5', stroke: '#F59E0B' }
+    })
+  }
+
+  // 4. Services -> Databases (Heuristic: Connect Svc to DB if they share a name part, else Round Robin)
+  services.forEach((svc, idx) => {
+    // Try to find a matching DB
+    const svcName = svc.data.label.toLowerCase()
+    let targetDB = stores.find(db => svcName.includes(db.data.label.toLowerCase()))
+
+    // Fallback: Connect to DB at same index, or first DB
+    if (!targetDB && stores.length > 0) {
+      targetDB = stores[idx % stores.length]
+    }
+
+    if (targetDB) {
+      edges.push({
+        id: `e-${svc.id}-${targetDB.id}`,
+        source: svc.id,
+        target: targetDB.id,
+        label: 'Query',
+        type: 'smoothstep',
+        style: { stroke: '#EF4444' }
       })
     }
   })
 
-  // Services -> Cache
-  if (endpointServices[0]) {
+  // 5. Services -> Cache (First service usually connects to cache)
+  const cache = external.find(e => e.id.includes('cache'))
+  if (services.length > 0 && cache) {
     edges.push({
-      id: 'flow-service-cache',
-      source: endpointServices[0],
-      target: 'cache-redis',
-      label: 'Cache Operations',
+      id: `e-${services[0].id}-${cache.id}`,
+      source: services[0].id,
+      target: cache.id,
+      label: 'Cache Hit/Miss',
       type: 'smoothstep',
-      style: { stroke: '#F59E0B', strokeWidth: 2, strokeDasharray: '3,3' },
-      data: {
-        dataType: 'Key-Value',
-        isBidirectional: true
-      }
+      style: { strokeDasharray: '5,5', stroke: '#F59E0B' }
     })
   }
 
-  // Services -> File Storage
-  if (endpointServices[0]) {
-    edges.push({
-      id: 'flow-service-files',
-      source: endpointServices[0],
-      target: 'file-storage',
-      label: 'Upload/Download',
-      type: 'smoothstep',
-      style: { stroke: '#06B6D4', strokeWidth: 2 },
-      data: {
-        dataType: 'Binary',
-        isEncrypted: true
-      }
-    })
-    encryptedFlows++
-  }
-
-  // Services -> Notifications
-  if (endpointServices[1]) {
-    edges.push({
-      id: 'flow-service-notifications',
-      source: endpointServices[1],
-      target: 'notification-service',
-      label: 'Send Alerts',
-      type: 'smoothstep',
-      style: { stroke: '#EC4899', strokeWidth: 2 },
-      data: {
-        dataType: 'Message',
-        isEncrypted: true
-      }
-    })
-    encryptedFlows++
-  }
-
-  console.log('✅ Data Flow Diagram Generated')
-  console.log(`  Nodes: ${nodes.length}, Edges: ${edges.length}, Encrypted: ${encryptedFlows}`)
-
-  return {
-    id: `dfd-${Date.now()}`,
-    name: `${projectName} - Data Flow Diagram`,
-    nodes,
-    edges,
-    metadata: {
-      totalNodes: nodes.length,
-      totalFlows: edges.length,
-      encryptedFlows,
-      createdAt: new Date().toISOString()
-    }
-  }
+  return edges
 }
 
 export async function generateEnhancedDataFlow(
@@ -430,58 +335,176 @@ export async function generateEnhancedDataFlow(
   endpoints: any[],
   projectName: string
 ): Promise<DataFlowDiagram> {
-  try {
-    const systemPrompt = `You are a data flow architect. Analyze the system and identify:
-1. Critical data bottlenecks
-2. Security vulnerabilities in data transmission
-3. Caching opportunities
-4. Data transformation points
-5. High-traffic endpoints
+  console.log('🗺️ Generating Enhanced Data Flow...')
 
-Return as valid JSON only.`
-    
-    const userPrompt = `Analyze data flow for "${projectName}":
+  // 1. Generate Nodes Deterministically (This ensures visual consistency)
+  const { nodes } = createBaseNodes(schemas, endpoints)
 
-Database Tables: ${schemas.slice(0, 5).map((s: any) => s.name).join(', ')}
-API Endpoints: ${endpoints.slice(0, 5).map((e: any) => `${e.group} (${e.endpoints?.length || 0} endpoints)`).join(', ')}
+  // 2. Prepare Context for AI
+  const nodeSummary = nodes.map(n => ({
+    id: n.id,
+    label: n.data.label,
+    type: n.data.nodeType
+  }))
 
-Provide JSON response with this structure:
+  const systemPrompt = `
+You are a Senior System Architect designing data flow connections for a software system.
+
+CRITICAL RULES FOR EDGE CONNECTIONS:
+1. ALL External Entities (clients) → API Gateway (use id 'api-gateway')
+2. API Gateway → Auth Service (use id 'auth-service') for token validation
+3. API Gateway → ALL Process/Service nodes (these handle business logic)
+4. Each Service node → Matching Database node (match by name similarity)
+   - Example: 'svc-user' connects to 'db-user'
+   - Example: 'svc-orders' connects to 'db-orders'
+5. At least ONE Service → Cache (id contains 'cache') for session/data caching
+6. Services that send notifications → Email service (id contains 'email')
+7. Auth Service → User Database for credential verification
+
+CONNECTION PATTERNS:
+- Client to Gateway: label "HTTPS Request"
+- Gateway to Service: label "Route"
+- Service to Database: label "Query/Update"
+- Service to Cache: label "Cache Read/Write"
+- Service to Email: label "Send Notification"
+- Gateway to Auth: label "Verify Token"
+
+OUTPUT FORMAT (strict JSON):
 {
-  "bottlenecks": ["description of bottleneck 1", "description 2"],
-  "securityIssues": ["issue 1", "issue 2"],
-  "cachingOpportunities": ["opportunity 1", "opportunity 2"],
-  "transformationPoints": ["point 1", "point 2"]
-}`
+  "edges": [
+    {"source": "exact-node-id", "target": "exact-node-id", "label": "Action"},
+    ...
+  ],
+  "insights": {
+    "bottlenecks": ["Specific bottleneck observations"],
+    "cachingOpportunities": ["Specific caching suggestions"],
+    "securityIssues": ["Security concerns if any"],
+    "transformationPoints": ["Data transformation notes"]
+  }
+}
 
+ENSURE: Every node should have at least one connection. Use EXACT node IDs from the provided list.
+`
+
+  const userPrompt = `
+System: ${projectName}
+
+Available Nodes:
+${JSON.stringify(nodeSummary, null, 2)}
+
+Create a complete, logical data flow by connecting:
+1. All clients to api-gateway
+2. api-gateway to all services
+3. Each service to its corresponding database (match names)
+4. Auth flows and external service integrations
+5. Provide specific architectural insights based on the actual node names and types present
+`
+
+  let edges: DataFlowEdge[] = []
+  let insights = {
+    bottlenecks: [] as string[],
+    securityIssues: [] as string[],
+    cachingOpportunities: [] as string[],
+    transformationPoints: [] as string[]
+  }
+
+  try {
     const response = await generateText({
       model: groqProvider('llama-3.3-70b-versatile'),
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.3,
-      maxTokens: 1500
+      temperature: 0.1, // Low temp for strict JSON
+      responseFormat: { type: 'json' } // Enforce JSON mode if supported or parsed manually
     })
 
-    const dfd = await generateDataFlowFromSystem(schemas, endpoints, projectName)
-    
-    // Parse AI insights
-    try {
-      let aiInsights = response.text.trim()
-      // Remove markdown code blocks if present
-      aiInsights = aiInsights.replace(/^```(?:json)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '').trim()
-      const insights = JSON.parse(aiInsights)
-      ;(dfd as any).aiInsights = insights
-      console.log('✅ AI insights added to Data Flow Diagram')
-    } catch (e) {
-      console.warn('⚠️ Could not parse AI insights, using base DFD')
+    // Parse AI Response
+    let aiText = response.text.trim()
+    // Cleanup markdown code blocks if present
+    // ... continuing from previous code ...
+    if (aiText.startsWith('```')) {
+      aiText = aiText.replace(/^```(json)?\s*/, '').replace(/\s*```$/, '')
     }
-    
-    return dfd
-    
+
+    const aiData = JSON.parse(aiText)
+
+    // Process Edges from AI
+    if (aiData.edges && Array.isArray(aiData.edges)) {
+      edges = aiData.edges.map((e: any) => {
+        // Look up nodes to apply consistent styling based on connection type
+        const sourceNode = nodes.find(n => n.id === e.source)
+        const targetNode = nodes.find(n => n.id === e.target)
+
+        // Default styling
+        let strokeColor = '#9CA3AF' // Gray
+        let isDashed = false
+        let isAnimated = true
+
+        // Apply Heuristic Styling based on Node Types
+        if (sourceNode?.type === 'gateway') {
+          strokeColor = '#10B981' // Green (Success/Flow)
+        } else if (targetNode?.type === 'data-store') {
+          strokeColor = '#EF4444' // Red (Database ops)
+        } else if (targetNode?.type === 'external-service') {
+          strokeColor = '#F59E0B' // Amber (External/Async)
+          isDashed = true
+          isAnimated = false
+        } else if (sourceNode?.type === 'external-entity') {
+          strokeColor = '#3B82F6' // Blue (Client traffic)
+        }
+
+        return {
+          id: `e-${e.source}-${e.target}`,
+          source: e.source,
+          target: e.target,
+          label: e.label || 'Connects',
+          type: 'smoothstep',
+          animated: isAnimated,
+          style: {
+            stroke: strokeColor,
+            strokeWidth: 2,
+            strokeDasharray: isDashed ? '5,5' : undefined
+          },
+          markerEnd: {
+            type: 'arrowclosed',
+            color: strokeColor
+          },
+          data: {
+            isEncrypted: e.label === 'HTTPS',
+            dataType: 'JSON'
+          }
+        } as DataFlowEdge
+      })
+    }
+
+    // Process Insights
+    if (aiData.insights) {
+      insights = { ...insights, ...aiData.insights }
+    }
+
   } catch (error) {
-    console.error('❌ Enhanced Data Flow generation failed:', error)
-    // Fallback to basic generation
-    return generateDataFlowFromSystem(schemas, endpoints, projectName)
+    console.warn('⚠️ AI Edge Generation failed, falling back to heuristic engine.', error)
+
+    // Fallback: Use the deterministic edge generator
+    edges = createFallbackEdges(nodes)
+
+    // Add a specific insight noting that AI failed
+    insights.bottlenecks.push('Diagram generated using fallback heuristics due to AI timeout/error.')
+  }
+
+  // 3. Construct Final Diagram
+  return {
+    id: `dfd-${Date.now()}`,
+    name: `${projectName} Data Flow`,
+    nodes,
+    edges,
+    metadata: {
+      totalNodes: nodes.length,
+      totalFlows: edges.length,
+      encryptedFlows: edges.filter(e => e.label === 'HTTPS' || e.data?.isEncrypted).length,
+      createdAt: new Date().toISOString()
+    },
+    aiInsights: insights
   }
 }

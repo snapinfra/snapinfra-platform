@@ -29,7 +29,7 @@ import {
   Upload,
   List
 } from "lucide-react"
-import { FieldSchema, FieldType, ValidationRule } from "@/lib/app-context"
+import { FieldSchema, FieldType, ValidationRule } from "@/lib/appContext/app-context"
 
 interface FieldConfigPanelProps {
   field?: FieldSchema

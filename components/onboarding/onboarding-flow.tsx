@@ -9,8 +9,8 @@ import { StepFive } from "@/components/onboarding/step-five"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Sparkles, Database, Rocket, Network, Settings, FileCode } from "lucide-react"
 import { GridPattern } from "@/components/ui/shadcn-io/grid-pattern"
-import { useAppContext, useOnboardingData } from "@/lib/app-context"
-import type { Project, TableSchema, ChatMessage } from "@/lib/app-context"
+import { useAppContext, useOnboardingData } from "@/lib/appContext/app-context"
+import type { Project, TableSchema, ChatMessage } from "@/lib/appContext/app-context"
 import { createProject as createProjectAPI, isBackendAvailable } from "@/lib/api-client"
 import { markOnboardingComplete } from "@/lib/storage"
 import { ProjectNameDialog } from "@/components/project-name-dialog"
@@ -21,43 +21,148 @@ import { LLDStep } from "./lld-step"
 export function OnboardingFlow() {
   const [isLoading, setIsLoading] = useState(true)
   const [showNameDialog, setShowNameDialog] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { state, dispatch } = useAppContext()
   const { data: generatedData, step: currentStep, setData, setStep, updateData, clearData } = useOnboardingData()
   const totalSteps = 6
 
-  console.log(generatedData, 'this is generated data')
+  console.log('OnboardingFlow render:', { currentStep, hasData: !!generatedData, isInitialized })
 
-  // Initialize state from URL and AppContext on component mount
+  // Initialize state from AppContext and URL - WAIT for data to load
   useEffect(() => {
-    const stepFromUrl = searchParams.get('step')
-    const stepNumber = stepFromUrl ? parseInt(stepFromUrl, 10) : currentStep
-    const isNewProjectFlag = searchParams.get('new') === 'true'
-    console.log(stepNumber, 'step from url')
+    // Prevent double initialization
+    if (isInitialized) return
 
-    
-      
-    // Validate step number
-    const validStep = stepNumber >= 1 && stepNumber <= totalSteps ? stepNumber : 1
-    setStep(validStep)
+    // Wait a tick to ensure AppProvider has loaded data from storage
+    const initTimer = setTimeout(async () => {
+      const stepFromUrl = searchParams.get('step')
+      const stepNumber = stepFromUrl ? parseInt(stepFromUrl, 10) : null
 
-    console.log('this is generated data onboarding',generatedData)
+      console.log('Initializing onboarding:', {
+        stepFromUrl: stepNumber,
+        contextStep: currentStep,
+        hasData: !!generatedData
+      })
 
-    // If we're on step 2+ but don't have data, redirect to step 1
-    if (validStep > 1 && !generatedData) {
-      updateStep(1)
+      // Determine the correct step
+      let validStep: number
+
+      if (stepNumber && stepNumber >= 1 && stepNumber <= totalSteps) {
+        // URL has explicit step - validate against data
+        if (stepNumber > 1 && !generatedData) {
+          console.log('URL step > 1 but no data, resetting to step 1')
+          validStep = 1
+        } else {
+          validStep = stepNumber
+        }
+      } else {
+        // No URL step, use context step
+        if (currentStep > 1 && !generatedData) {
+          console.log('Context step > 1 but no data, resetting to step 1')
+          validStep = 1
+        } else {
+          validStep = currentStep
+        }
+      }
+
+      console.log('Final validated step:', validStep)
+
+      // Update step in context if needed
+      if (validStep !== currentStep) {
+        setStep(validStep)
+      }
+
+      // Update URL to match
+      const url = new URL(window.location.href)
+      url.searchParams.set('step', validStep.toString())
+      router.replace(url.pathname + url.search, { scroll: false })
+
+      setIsInitialized(true)
+      setIsLoading(false)
+    }, 100) // Small delay to let AppProvider finish loading
+
+    return () => clearTimeout(initTimer)
+  }, []) // Run ONCE on mount
+
+  // Sync URL when step changes (but only after initialization)
+  useEffect(() => {
+    if (!isInitialized) return
+
+    const url = new URL(window.location.href)
+    const currentUrlStep = url.searchParams.get('step')
+
+    if (currentUrlStep !== currentStep.toString()) {
+      url.searchParams.set('step', currentStep.toString())
+      router.replace(url.pathname + url.search, { scroll: false })
+    }
+  }, [currentStep, isInitialized, router])
+
+  // Function to update step in context
+  const updateStep = (step: number) => {
+    console.log('Updating step to:', step)
+    setStep(step)
+  }
+
+  const handleStepComplete = async (data?: any) => {
+    console.log('Step complete:', { currentStep, hasData: !!data })
+
+    // Filter out React synthetic events
+    const isValidData = data &&
+      typeof data === 'object' &&
+      !data.nativeEvent &&
+      !data._reactName &&
+      Object.keys(data).length > 0
+
+    if (currentStep === 1 && isValidData) {
+      // Save generated data from AI - force immediate sync
+      console.log('Saving step 1 data:', data)
+      setData(data)
+
+      // Force localStorage save immediately
+      try {
+        localStorage.setItem("onboardingData", JSON.stringify(data))
+        localStorage.setItem("onboardingStep", "2")
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error)
+      }
+    } else if (currentStep === 6 && isValidData) {
+      console.log('Saving final decisions:', data.decisions)
+      await updateData({
+        decisions: data.decisions,
+        selectedTools: data.selectedTools
+      })
+
+      // Force save before showing dialog
+      try {
+        const currentData = JSON.parse(localStorage.getItem("onboardingData") || "{}")
+        const updated = {
+          ...currentData,
+          decisions: data.decisions,
+          selectedTools: data.selectedTools
+        }
+        localStorage.setItem("onboardingData", JSON.stringify(updated))
+      } catch (error) {
+        console.error('Failed to save decisions:', error)
+      }
+
+      setShowNameDialog(true)
+      return
+    } else if (isValidData) {
+      console.log('Updating data for step:', currentStep)
+      await updateData(data)
     }
 
-    setIsLoading(false)
-  }, [searchParams])
+    if (currentStep < totalSteps) {
+      updateStep(currentStep + 1)
+    }
+  }
 
-  // Function to update step in both AppContext and URL
-  const updateStep = (step: number) => {
-    setStep(step)
-    const url = new URL(window.location.href)
-    url.searchParams.set('step', step.toString())
-    router.push(url.pathname + url.search, { scroll: false })
+  const handleBack = () => {
+    if (currentStep > 1) {
+      updateStep(currentStep - 1)
+    }
   }
 
   // Function to create project and initiate chat conversation
@@ -250,7 +355,7 @@ export function OnboardingFlow() {
         project = {
           id: `project_${Date.now()}`,
           name: projectName,
-           specialParam: "uday",
+          specialParam: "uday",
           description: generatedData.description || 'Generated from onboarding',
           status: 'draft',
           createdAt: new Date(),
@@ -320,44 +425,19 @@ Your backend is ready! You can view the schema, generate code, or continue chatt
     }
   }
 
-  const handleStepComplete = async (data?: any) => {
-    console.log('Step complete with data:', data)
 
-    // Filter out React synthetic events and only accept plain objects
-    const isValidData = data &&
-      typeof data === 'object' &&
-      !data.nativeEvent && // React synthetic event check
-      !data._reactName &&  // React synthetic event check
-      Object.keys(data).length > 0
-
-    if (currentStep === 1 && isValidData) {
-      // Save generated data from AI
-      setData(data)
-    } else if (currentStep === 6 && isValidData) {
-      // Save final decisions and show naming dialog
-      console.log('Saving decisions to onboarding data:', data.decisions)
-      await updateData({  // <-- ADD AWAIT HERE
-        decisions: data.decisions,
-        selectedTools: data.selectedTools
-      })
-      console.log('Decisions saved, showing name dialog')
-      setShowNameDialog(true)
-      return
-    } else if (isValidData) {
-      // Update data for other steps - but only if it's valid data
-      await updateData(data)  // <-- ADD AWAIT HERE TOO
-    }
-
-    if (currentStep < totalSteps) {
-      updateStep(currentStep + 1)
-    }
+  if (!isInitialized || isLoading) {
+    return (
+      <div className="min-h-screen w-full bg-background flex items-center justify-center">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="absolute inset-0 animate-ping rounded-full h-12 w-12 border border-primary/20"></div>
+        </div>
+      </div>
+    )
   }
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      updateStep(currentStep - 1)
-    }
-  }
+
 
   return (
     <div className="min-h-screen w-full bg-background relative overflow-hidden">
@@ -388,10 +468,10 @@ Your backend is ready! You can view the schema, generate code, or continue chatt
               <div
                 key={step}
                 className={`transition-all duration-300 rounded-full ${step < currentStep
-                    ? 'w-2 h-2 bg-[#005BE3]'
-                    : step === currentStep
-                      ? 'w-8 h-2 bg-[#005BE3]'
-                      : 'w-2 h-2 bg-[rgba(55,50,47,0.2)]'
+                  ? 'w-2 h-2 bg-[#005BE3]'
+                  : step === currentStep
+                    ? 'w-8 h-2 bg-[#005BE3]'
+                    : 'w-2 h-2 bg-[rgba(55,50,47,0.2)]'
                   }`}
               />
             ))}

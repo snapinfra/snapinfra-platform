@@ -11,8 +11,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Send, Bot, User, Sparkles, Database, Code, Lightbulb } from "lucide-react"
-import { useAppContext } from "@/lib/app-context"
-import type { ChatMessage, Project, TableSchema, ApiEndpoint } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
+import type { ChatMessage, Project, TableSchema, ApiEndpoint } from "@/lib/appContext/app-context"
 import { analyzeEntities, generateTableSchema, generateDatabaseConfig } from "@/lib/schema-generator"
 
 // Enhanced AI response with intelligent schema generation

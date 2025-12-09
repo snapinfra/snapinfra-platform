@@ -36,7 +36,7 @@ import {
   Settings,
   Database
 } from "lucide-react"
-import { useAppContext } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
 import { updateProject } from "@/lib/api-client"
 import Image from "next/image"
 

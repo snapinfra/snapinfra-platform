@@ -27,8 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAppContext } from "@/lib/app-context"
-import type { TableSchema, FieldSchema } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
+import type { TableSchema, FieldSchema } from "@/lib/appContext/app-context"
 
 interface Position {
   x: number

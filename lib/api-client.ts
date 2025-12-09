@@ -48,14 +48,14 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${BACKEND_URL}${endpoint}`
-  
+
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
   }
 
   // Add authentication headers based on auth mode
   const authMode = process.env.NEXT_PUBLIC_AUTH_MODE || 'development'
-  
+
   if (authMode === 'production') {
     // Production: Use Clerk JWT token
     if (getAuthToken) {
@@ -86,7 +86,7 @@ async function apiRequest<T>(
 
   try {
     const response = await fetch(url, config)
-    
+
     // Handle non-JSON responses
     const contentType = response.headers.get('content-type')
     if (!contentType || !contentType.includes('application/json')) {
@@ -114,7 +114,7 @@ async function apiRequest<T>(
     if (error instanceof ApiError) {
       throw error
     }
-    
+
     // Network or other errors
     if (error instanceof Error) {
       throw new ApiError(
@@ -123,7 +123,7 @@ async function apiRequest<T>(
         { originalError: error.message }
       )
     }
-    
+
     throw new ApiError('Unknown error occurred', 0)
   }
 }
@@ -239,6 +239,8 @@ export async function getProjects(
  * Get a specific project by ID
  */
 export async function getProjectById(projectId: string): Promise<Project> {
+
+  console.log(projectId, 'this is project id in api client');
   const response = await apiRequest<ApiResponse<Project>>(
     `/api/projects/${projectId}`,
     {

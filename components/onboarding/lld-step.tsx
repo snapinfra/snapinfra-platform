@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowRight, ArrowLeft, Code2, Download, Eye, BarChart, Zap, Shield, Save, CheckCircle, Activity, AlertTriangle, Cloud, GitBranch, Clock, Globe, ChevronRight, TrendingUp, Layers, FileCode, Package, Database, Share2, Map } from "lucide-react"
+import { ArrowRight, ArrowLeft, Code2, Download, Eye, BarChart, Zap, Shield, Save, CheckCircle, Activity, AlertTriangle, Cloud, GitBranch, Clock, Globe, ChevronRight, TrendingUp, Layers, FileCode, Package, Database, Share2, Map, Loader2 } from "lucide-react"
 import { ReactFlowProvider } from '@xyflow/react'
 import { SystemArchitectureEditor } from '@/components/architecture/system-architecture-editor'
 import { SystemArchitecture } from '@/lib/types/architecture'
-import { useOnboardingData } from "@/lib/app-context"
+import { useOnboardingData } from "@/lib/appContext/app-context"
+import ERDDiagramViewer from "../erd/ERDDiagramViewer"
+import DataFlowDiagram from "../dataflow/DataFlowDiagram"
 
 interface LLDStepProps {
   data: {
@@ -441,27 +443,23 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
   if (!diagrams.lld) {
     return (
       <div className="w-full max-w-7xl mx-auto py-6 px-6 space-y-12">
-        <div className="text-center space-y-4 max-w-[900px] mx-auto">
-          <div className="p-4 bg-red-50 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
-            <AlertTriangle className="w-10 h-10 text-red-600" />
+        <div className="text-center space-y-4 max-w-[900px] mx-auto animate-pulse">
+          <div className="p-4 bg-blue-50 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
+            <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
           </div>
-          <h2 className="text-2xl font-semibold text-[#1d1d1f]">No Diagram Data Available</h2>
+
+          <h2 className="text-2xl font-semibold text-[#1d1d1f]">
+            Loading Diagram…
+          </h2>
+
           <p className="text-sm text-[#605A57]">
-            Unable to load architecture diagrams. Please try regenerating.
+            Please wait while we generate the architecture diagram.
           </p>
-          <div className="flex gap-3 justify-center">
-            <Button onClick={onBack} variant="outline" size="lg">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Go Back
-            </Button>
-            <Button onClick={handleGenerateAllDiagrams} size="lg">
-              Generate Diagrams
-            </Button>
-          </div>
         </div>
       </div>
     )
   }
+
 
   return (
     <div className="w-full max-w-7xl mx-auto py-6 px-6 space-y-12">
@@ -626,14 +624,17 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
               </div>
             </div>
             <div ref={dataflowCanvasRef} className="h-[600px]">
-              <ReactFlowProvider>
+              {/* <ReactFlowProvider>
                 <SystemArchitectureEditor
                   type={"dataflow"}
                   architecture={diagrams.dataflow}
                   onArchitectureChange={(updated) => handleDiagramChange('dataflow', updated)}
                   onSave={() => handleSaveDiagram('dataflow')}
                 />
-              </ReactFlowProvider>
+              </ReactFlowProvider> */}
+
+              <DataFlowDiagram dataFlow={diagrams.dataflow} />
+
             </div>
           </div>
         )}
@@ -669,14 +670,42 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
               </div>
             </div>
             <div ref={erdCanvasRef} className="h-[600px]">
-              <ReactFlowProvider>
+              {/* <ReactFlowProvider>
                 <SystemArchitectureEditor
                   type={"erd"}
                   architecture={diagrams.erd}
                   onArchitectureChange={(updated) => handleDiagramChange('erd', updated)}
                   onSave={() => handleSaveDiagram('erd')}
                 />
-              </ReactFlowProvider>
+
+
+              </ReactFlowProvider> */}
+              <ERDDiagramViewer
+                erd={data.diagrams.erd}
+                readonly={false}
+                onSave={async (updatedERD) => {
+                  // Update onboardingData structure
+                  const newOnboardingData = {
+                    ...data,
+                    diagrams: {
+                      ...data.diagrams,
+                      erd: updatedERD
+                    }
+                  };
+
+                  // Persist to localStorage (browser)
+                  try {
+                    window.localStorage.setItem('onboardingData', JSON.stringify(newOnboardingData));
+                  } catch (err) {
+                    console.warn('Failed to write onboardingData to localStorage', err);
+                  }
+
+                  // Update onboarding context/state if updateData is available
+                  if (typeof updateData === 'function') {
+                    await updateData(newOnboardingData);
+                  }
+                }}
+              />
             </div>
           </div>
         )}
@@ -714,7 +743,7 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
             <div ref={apiMapCanvasRef} className="h-[600px]">
               <ReactFlowProvider>
                 <SystemArchitectureEditor
-                type={"apiMap"}
+                  type={"apiMap"}
                   architecture={diagrams.apiMap}
                   onArchitectureChange={(updated) => handleDiagramChange('apiMap', updated)}
                   onSave={() => handleSaveDiagram('apiMap')}

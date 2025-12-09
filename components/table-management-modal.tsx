@@ -44,7 +44,7 @@ import {
   Rocket,
   Leaf
 } from "lucide-react"
-import { TableSchema, FieldSchema, FieldType, DatabaseConfig, DatabaseType } from "@/lib/app-context"
+import { TableSchema, FieldSchema, FieldType, DatabaseConfig, DatabaseType } from "@/lib/appContext/app-context"
 import { FieldConfigPanel } from "./field-config-panel"
 import { DatabaseSelection } from "./database-selection"
 import { DatabaseConfigPanel } from "./database-config-panel"

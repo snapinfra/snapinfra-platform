@@ -3,7 +3,7 @@
 import React from 'react'
 import { usePathname } from 'next/navigation'
 import { useWorkspace } from '@/lib/workspace-context'
-import { useAppContext } from '@/lib/app-context'
+import { useAppContext } from '@/lib/appContext/app-context'
 import { WorkspaceSidebar } from '@/components/workspace-sidebar'
 import { ProjectContextBar } from '@/components/project-context-bar'
 import { ProjectTabsNav } from '@/components/project-tabs-nav'

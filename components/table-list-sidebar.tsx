@@ -27,7 +27,7 @@ import {
   Settings,
   Table as TableIcon
 } from "lucide-react"
-import { TableSchema } from "@/lib/app-context"
+import { TableSchema } from "@/lib/appContext/app-context"
 
 interface TableListSidebarProps {
   tables: TableSchema[]

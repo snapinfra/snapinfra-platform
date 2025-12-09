@@ -1,6 +1,6 @@
 "use client"
 
-import { useAppContext } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TableManagementModal } from "./table-management-modal"
 import { CodeGenerationModal } from "./code-generation-modal"
 import { InteractiveSchemaDiagram } from "./interactive-schema-diagram"
-import { TableSchema, DatabaseType } from "@/lib/app-context"
+import { TableSchema, DatabaseType } from "@/lib/appContext/app-context"
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -54,7 +54,7 @@ import {
 import ArchitectureNodeComponent, { ArchitectureNodeData } from './architecture-node'
 import { SystemArchitecture, ArchitectureNode, ArchitectureEdge } from '@/lib/types/architecture'
 import { getNodeTypeColor, getNodeTypeIcon } from '@/lib/utils/architecture'
-import { useOnboardingData } from '@/lib/app-context'
+import { useOnboardingData } from '@/lib/appContext/app-context'
 
 interface SystemArchitectureEditorProps {
   architecture: SystemArchitecture
@@ -790,8 +790,11 @@ export function SystemArchitectureEditor({
           nodesDraggable={!readonly}
           nodesConnectable={!readonly}
           elementsSelectable={!readonly}
-          edgesupdatable={!readonly}
           edgesFocusable={!readonly}
+          defaultEdgeOptions={{
+            focusable: !readonly
+          }}
+
         >
           <Background
             variant={BackgroundVariant.Dots}

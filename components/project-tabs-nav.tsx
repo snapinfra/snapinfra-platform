@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAppContext } from '@/lib/app-context'
+import { useAppContext } from '@/lib/appContext/app-context'
 import { Database, Layers, Code2, Rocket, LayoutDashboard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

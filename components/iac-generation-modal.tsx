@@ -27,7 +27,7 @@ import {
   Cloud,
   Wrench
 } from "lucide-react"
-import { useAppContext } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
 
 interface GeneratedFile { path: string; content: string; description?: string }
 interface GeneratedResult { files: GeneratedFile[]; instructions: string; dependencies: string[] }

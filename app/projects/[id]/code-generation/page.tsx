@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { loadDecisions, useAppContext, useOnboardingData } from "@/lib/app-context"
+import { useAppContext, useOnboardingData } from "@/lib/appContext/app-context"
+import { loadDecisions } from "@/lib/appContext/storage-utils"
+import { saveGeneratedCode } from "@/lib/appContext/storage-utils"
 import { updateProject as updateProjectAPI, getProjectById } from "@/lib/api-client"
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { GenerationProgress } from "@/components/generation-progress"
@@ -140,6 +142,8 @@ export default function CodeGenerationPage() {
 
         // Update local state with both results
         dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode, generatedIaC } as any })
+
+        await saveGeneratedCode(currentProject.id, generatedCode, generatedIaC)
 
         // Save to AWS (project ID is the backend ID)
         try {

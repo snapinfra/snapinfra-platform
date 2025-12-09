@@ -24,7 +24,7 @@ import {
   Move,
   Settings
 } from "lucide-react"
-import { TableSchema, FieldSchema, Relationship } from "@/lib/app-context"
+import { TableSchema, FieldSchema, Relationship } from "@/lib/appContext/app-context"
 
 interface RelationshipDiagramProps {
   tables: TableSchema[]

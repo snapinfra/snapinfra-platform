@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DynamoService } from '@/lib/services/database/dynamoService';
+import DynamoService from '@/lib/services/database/dynamoService2';
 import { getCurrentUser, getDevUserId } from '@/lib/services/auth-helper';
 
 export async function GET(

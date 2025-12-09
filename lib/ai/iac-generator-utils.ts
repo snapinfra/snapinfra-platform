@@ -738,7 +738,7 @@ resource "aws_db_instance" "rds_postgres" {
   db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
   vpc_security_group_ids = [var.db_security_group_id]
   
-  backup_retention_period = 7
+  backup_retention_period = 1
   backup_window          = "03:00-04:00"
   maintenance_window     = "mon:04:00-mon:05:00"
   
@@ -1390,7 +1390,7 @@ jwt_secret = "CHANGE_THIS_SECURE_JWT_SECRET"  # Change this!
 health_check_path = "/health"`;
 
   return {
-    path: 'terraform/terraform.tfvars.example',
+    path: 'terraform/terraform.tfvars',
     content,
     description: 'Example Terraform variables file'
   };
@@ -1522,7 +1522,7 @@ fi
 cd terraform
 
 if [ ! -f "terraform.tfvars" ]; then
-    error_exit "terraform.tfvars not found! Copy terraform.tfvars.example and configure it."
+    error_exit "terraform.tfvars not found! Copy terraform.tfvars and configure it."
 fi
 success "terraform.tfvars found"
 
@@ -1742,7 +1742,7 @@ aws configure
 1. **Configure Variables**
    \`\`\`bash
    cd terraform
-   cp terraform.tfvars.example terraform.tfvars
+   cp terraform.tfvars terraform.tfvars
    # Edit terraform.tfvars with your values
    \`\`\`
 
@@ -1785,7 +1785,7 @@ terraform/
 ├── main.tf                    # Main configuration
 ├── variables.tf               # Variable definitions
 ├── outputs.tf                 # Output values
-├── terraform.tfvars.example   # Example variables
+├── terraform.tfvars   
 └── modules/
     ├── vpc/                   # VPC networking
     ├── security/              # Security groups

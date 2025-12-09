@@ -34,8 +34,8 @@ import {
   ExternalLink,
   Sparkles
 } from "lucide-react"
-import { useAppContext } from "@/lib/app-context"
-import type { Project } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
+import type { Project } from "@/lib/appContext/app-context"
 
 interface GeneratedFile {
   path: string

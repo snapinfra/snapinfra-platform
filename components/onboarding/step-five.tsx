@@ -7,14 +7,14 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
-import { 
-  ArrowRight, 
-  ArrowLeft, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
-  DollarSign, 
-  Settings, 
+import {
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  DollarSign,
+  Settings,
   ExternalLink,
   Github,
   Star,
@@ -56,8 +56,8 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { loadDecisions, useOnboardingData } from '../../lib/app-context'
-
+import { useOnboardingData } from '@/lib/appContext/app-context'
+import { loadDecisions } from "@/lib/appContext/storage-utils"
 interface StepFiveProps {
   data: {
     projectName?: string
@@ -76,19 +76,19 @@ interface StepFiveProps {
 export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   const { data: onboardingData, updateData } = useOnboardingData()
 
-  console.log(onboardingData,'onboarding data in step five')
-  
+  console.log(onboardingData, 'onboarding data in step five')
+
   // Initialize from props or onboarding data
   const [decisions, setDecisions] = useState<SystemDecisionsSummary | null>(
-    loadDecisions() || null
+    loadDecisions().decisions || null
   )
 
-  console.log(decisions,'decisions state in step five' )
+  console.log(decisions, 'decisions state in step five')
 
   const [selectedTools, setSelectedTools] = useState<Record<string, string>>(
     data.selectedTools || onboardingData?.selectedTools || {}
   )
-  
+
   const [isGenerating, setIsGenerating] = useState(!decisions)
   const [activeTab, setActiveTab] = useState("decisions")
   const [searchTerm, setSearchTerm] = useState('')
@@ -106,7 +106,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   const [expandedToolCards, setExpandedToolCards] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'popularity' | 'cost' | 'complexity'>('popularity')
   const [groupBy, setGroupBy] = useState<'category' | 'component' | 'type' | 'none'>('category')
-  
+
   // Gamification state
   const [currentDecisionIndex, setCurrentDecisionIndex] = useState(0)
   const [completedDecisions, setCompletedDecisions] = useState<Set<string>>(new Set())
@@ -114,7 +114,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   const [totalScore, setTotalScore] = useState(0)
   const [monthlyBudget, setMonthlyBudget] = useState(5000)
   const [showCelebration, setShowCelebration] = useState(false)
-  
+
   // Ref to preserve scroll position
   const scrollPositionRef = useRef<number>(0)
   const shouldRestoreScroll = useRef<boolean>(false)
@@ -125,18 +125,18 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
     if (hasGeneratedRef.current) {
       return
     }
-    
+
     // If we already have decisions, don't generate again
     if (decisions) {
       hasGeneratedRef.current = true
       setIsGenerating(false)
       return
     }
-    
+
     const generateDecisions = async () => {
       setIsGenerating(true)
       hasGeneratedRef.current = true
-      
+
       try {
         if (!data.architecture) {
           throw new Error('Architecture data is required to generate system decisions')
@@ -166,21 +166,21 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
         }
 
         const decisionsSummary: SystemDecisionsSummary = await response.json()
-        
+
         // Strict validation - no fallback to mock data
         if (!decisionsSummary.decisions || decisionsSummary.decisions.length === 0) {
           throw new Error('AI did not generate any system decisions')
         }
-        
+
         setDecisions(decisionsSummary)
-        
+
         // Initialize selected tools with recommendations
         const initialSelections: Record<string, string> = {}
         decisionsSummary.decisions.forEach(decision => {
           initialSelections[decision.id] = decision.selectedTool
         })
         setSelectedTools(initialSelections)
-        
+
         // Save to AppContext instead of localStorage
         await updateData({
           decisions: decisionsSummary,
@@ -191,33 +191,32 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
         setDecisions(null)
         hasGeneratedRef.current = false
         alert(
-          `Failed to generate system decisions: ${
-            error instanceof Error ? error.message : 'Unknown error'
+          `Failed to generate system decisions: ${error instanceof Error ? error.message : 'Unknown error'
           }. Please try again.`
         )
       } finally {
         setIsGenerating(false)
       }
     }
-    
+
     generateDecisions()
   }, [])
-  
+
   // Effect to restore scroll position after selection
   useEffect(() => {
     if (shouldRestoreScroll.current) {
       const targetScroll = scrollPositionRef.current
-      
+
       window.scrollTo({ top: targetScroll, behavior: 'instant' })
-      
+
       requestAnimationFrame(() => {
         window.scrollTo({ top: targetScroll, behavior: 'instant' })
       })
-      
+
       setTimeout(() => {
         window.scrollTo({ top: targetScroll, behavior: 'instant' })
       }, 0)
-      
+
       shouldRestoreScroll.current = false
     }
   }, [selectedTools])
@@ -228,7 +227,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
         ...prev,
         [decisionId]: toolId
       }
-      
+
       // Update AppContext asynchronously
       if (decisions) {
         updateData({
@@ -236,7 +235,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
           selectedTools: updated
         })
       }
-      
+
       return updated
     })
   }
@@ -268,21 +267,21 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   const handleGamifiedSelection = (decisionId: string, toolId: string) => {
     scrollPositionRef.current = window.scrollY
     shouldRestoreScroll.current = true
-    
+
     const decision = decisions?.decisions.find(d => d.id === decisionId)
     const tool = decision?.recommendations.find(r => r.id === toolId)
-    
+
     handleToolSelection(decisionId, toolId)
-    
+
     if (tool) {
       const score = calculateToolScore(tool)
-      
+
       setCompletedDecisions(prev => {
         const isNewDecision = !prev.has(decisionId)
-        
+
         if (isNewDecision) {
           setTotalScore(current => current + score)
-          
+
           const newAchievements = []
           if (tool.type === 'open-source' && !achievements.includes('open-source-advocate')) {
             newAchievements.push('open-source-advocate')
@@ -298,10 +297,10 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
           if (newAchievements.length > 0) {
             setAchievements(current => [...current, ...newAchievements])
           }
-          
+
           return new Set([...prev, decisionId])
         }
-        
+
         return prev
       })
     }
@@ -310,7 +309,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   const handleComparisonToggle = (toolId: string, decisionId: string) => {
     setComparisonTools(prev => {
       const toolKey = `${decisionId}:${toolId}`
-      return prev.includes(toolKey) 
+      return prev.includes(toolKey)
         ? prev.filter(id => id !== toolKey)
         : [...prev, toolKey]
     })
@@ -359,13 +358,12 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
         {[1, 2, 3, 4, 5].map((step) => (
           <div
             key={step}
-            className={`transition-all duration-300 rounded-full ${
-              step < 5
-                ? 'w-2.5 h-2.5 bg-[#005BE3]'
-                : step === 5
-                  ? 'w-10 h-2.5 bg-[#005BE3]'
-                  : 'w-2.5 h-2.5 bg-[rgba(55,50,47,0.2)]'
-            }`}
+            className={`transition-all duration-300 rounded-full ${step < 5
+              ? 'w-2.5 h-2.5 bg-[#005BE3]'
+              : step === 5
+                ? 'w-10 h-2.5 bg-[#005BE3]'
+                : 'w-2.5 h-2.5 bg-[rgba(55,50,47,0.2)]'
+              }`}
           />
         ))}
       </div>
@@ -376,11 +374,11 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   const filteredAndSearchedDecisions = decisions?.decisions.filter(decision => {
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
-      const matchesSearch = 
+      const matchesSearch =
         decision.title.toLowerCase().includes(searchLower) ||
         decision.description.toLowerCase().includes(searchLower) ||
         decision.component.toLowerCase().includes(searchLower) ||
-        decision.recommendations.some(r => 
+        decision.recommendations.some(r =>
           r.name.toLowerCase().includes(searchLower) ||
           r.description.toLowerCase().includes(searchLower)
         )
@@ -389,7 +387,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
 
     if (filters.category !== 'all' && decision.category !== filters.category) return false
     if (filters.urgency !== 'all' && decision.urgency !== filters.urgency) return false
-    
+
     if (filters.type !== 'all') {
       const selectedTool = decision.recommendations.find(r => r.id === selectedTools[decision.id])
       if (selectedTool && selectedTool.type !== filters.type) return false
@@ -409,7 +407,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
       const selectedTool = decision.recommendations.find(r => r.id === selectedTools[decision.id])
       if (selectedTool) {
         const popularityThreshold = filters.popularity === 'high' ? 85 : 60
-        const meetsPopularity = filters.popularity === 'high' ? 
+        const meetsPopularity = filters.popularity === 'high' ?
           selectedTool.popularity >= popularityThreshold :
           selectedTool.popularity < popularityThreshold
         if (!meetsPopularity) return false
@@ -421,11 +419,11 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
 
   const processedDecisions = React.useMemo(() => {
     let processed = [...filteredAndSearchedDecisions]
-    
+
     processed.sort((a, b) => {
       const toolA = a.recommendations[0]
       const toolB = b.recommendations[0]
-      
+
       switch (sortBy) {
         case 'name':
           return a.title.localeCompare(b.title)
@@ -444,9 +442,9 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
 
   const groupedDecisions = React.useMemo(() => {
     if (groupBy === 'none') return { 'All Decisions': processedDecisions }
-    
+
     const groups: Record<string, typeof processedDecisions> = {}
-    
+
     processedDecisions.forEach(decision => {
       let groupKey = ''
       switch (groupBy) {
@@ -463,17 +461,17 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
         default:
           groupKey = 'All'
       }
-      
+
       if (!groups[groupKey]) groups[groupKey] = []
       groups[groupKey].push(decision)
     })
-    
+
     return groups
   }, [processedDecisions, groupBy])
 
   return (
     <div className="w-full max-w-7xl mx-auto py-4 px-6 space-y-6">
-      
+
       {/* Header */}
       <div className="text-left space-y-4 mb-6">
         <div className="flex items-center justify-between">
@@ -486,7 +484,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
               Enterprise Architecture Decisions
             </h1>
             <p className="text-sm text-[#605A57] max-w-3xl leading-relaxed">
-              AI-powered tool selection and architecture recommendations for <span className="font-semibold text-[#1d1d1f]">{decisions.projectName}</span>. 
+              AI-powered tool selection and architecture recommendations for <span className="font-semibold text-[#1d1d1f]">{decisions.projectName}</span>.
               Acting as your lead architect, we've analyzed your requirements, team size, budget, and compliance needs.
             </p>
           </div>
@@ -533,7 +531,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
             </div>
           </div>
         </Card>
-        
+
         <Card className="group relative bg-gradient-to-br from-white to-gray-50 border border-[rgba(55,50,47,0.12)] p-4 text-center hover:border-[#1d1d1f]/20 hover:shadow-md transition-all">
           <div className="absolute top-2 right-2 opacity-5 group-hover:opacity-10 transition-opacity">
             <DollarSign className="w-6 h-6 text-[#1d1d1f]" />
@@ -545,7 +543,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
             </div>
           </div>
         </Card>
-        
+
         <Card className="group relative bg-gradient-to-br from-white to-gray-50 border border-[rgba(55,50,47,0.12)] p-4 text-center hover:border-[#1d1d1f]/20 hover:shadow-md transition-all">
           <div className="absolute top-2 right-2 opacity-5 group-hover:opacity-10 transition-opacity">
             <Calendar className="w-6 h-6 text-[#1d1d1f]" />
@@ -557,7 +555,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
             </div>
           </div>
         </Card>
-        
+
         <Card className="group relative bg-gradient-to-br from-white to-gray-50 border border-[rgba(55,50,47,0.12)] p-4 text-center hover:border-[#1d1d1f]/20 hover:shadow-md transition-all">
           <div className="absolute top-2 right-2 opacity-5 group-hover:opacity-10 transition-opacity">
             <Settings className="w-6 h-6 text-[#1d1d1f]" />
@@ -670,7 +668,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                     return tool?.type === type
                   }).length
                   const percentage = (count / decisions.decisions.length) * 100
-                  
+
                   return (
                     <div key={type} className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -716,8 +714,8 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                   <div className="text-3xl font-bold text-[#1d1d1f]">
                     {Math.round((completedDecisions.size / (decisions?.decisions.length || 1)) * 100)}%
                   </div>
-                  <Progress 
-                    value={(completedDecisions.size / (decisions?.decisions.length || 1)) * 100} 
+                  <Progress
+                    value={(completedDecisions.size / (decisions?.decisions.length || 1)) * 100}
                     className="h-2"
                   />
                   <p className="text-xs text-[#605A57]">
@@ -753,8 +751,8 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                     ${calculateTotalMonthlyCost()}
                   </div>
                   <div className="space-y-1">
-                    <Progress 
-                      value={(calculateTotalMonthlyCost() / monthlyBudget) * 100} 
+                    <Progress
+                      value={(calculateTotalMonthlyCost() / monthlyBudget) * 100}
                       className="h-2"
                     />
                     <p className="text-xs text-[#605A57]">
@@ -817,15 +815,15 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                         recommendedSelections[decision.id] = decision.selectedTool
                         handleGamifiedSelection(decision.id, decision.selectedTool)
                       })
-                      
+
                       setSelectedTools(recommendedSelections)
-                      
+
                       // Update cache
                       localStorage.setItem('onboarding-decisions', JSON.stringify({
                         decisions,
                         selectedTools: recommendedSelections
                       }))
-                      
+
                       // Show success message
                       setTimeout(() => {
                         alert('AI has selected all recommended tools! Review below or continue to complete onboarding.')
@@ -852,10 +850,10 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                   size="sm"
                   onClick={() => {
                     if (filters.urgency === 'critical') {
-                      setFilters(prev => ({...prev, urgency: 'all'}))
+                      setFilters(prev => ({ ...prev, urgency: 'all' }))
                       setShowAllDecisions(true)
                     } else {
-                      setFilters(prev => ({...prev, urgency: 'critical'}))
+                      setFilters(prev => ({ ...prev, urgency: 'critical' }))
                       setShowAllDecisions(false)
                     }
                   }}
@@ -875,7 +873,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                 </Button>
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-[#605A57]" />
-                  <Select value={filters.urgency} onValueChange={(value) => setFilters(prev => ({...prev, urgency: value}))}>
+                  <Select value={filters.urgency} onValueChange={(value) => setFilters(prev => ({ ...prev, urgency: value }))}>
                     <SelectTrigger className="w-36 h-9 text-xs border-[rgba(55,50,47,0.12)]">
                       <SelectValue placeholder="Filter by urgency" />
                     </SelectTrigger>
@@ -941,170 +939,169 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                       </div>
                     )}
                     {decisions.map((decision) => {
-                const selectedTool = decision.recommendations.find(r => r.id === selectedTools[decision.id])
-                
-                return (
-                  <Card key={decision.id} className="p-6 border-[rgba(55,50,47,0.12)] shadow-sm hover:shadow-md transition-shadow">
-                    <div className="space-y-5">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-base font-semibold text-[#1d1d1f]">{decision.title}</h3>
-                            <Badge className={`${getUrgencyColor(decision.urgency)} text-xs h-5 px-2`}>
-                              {decision.urgency}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs h-5 px-2 border-[rgba(55,50,47,0.12)]">
-                              {decision.category}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-[#605A57] leading-relaxed">{decision.description}</p>
-                          <p className="text-sm text-[#005BE3] font-medium">{decision.reasoning}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {decision.impact === 'high' && <AlertCircle className="w-5 h-5 text-red-500" />}
-                          {decision.impact === 'medium' && <Info className="w-5 h-5 text-yellow-500" />}
-                          {decision.impact === 'low' && <CheckCircle className="w-5 h-5 text-blue-500" />}
-                        </div>
-                      </div>
+                      const selectedTool = decision.recommendations.find(r => r.id === selectedTools[decision.id])
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {decision.recommendations.map((tool) => {
-                          const isSelected = selectedTools[decision.id] === tool.id
-                          const isRecommended = tool.id === decision.selectedTool
-                          const isExpanded = expandedToolCards.has(`${decision.id}-${tool.id}`)
-                          
-                          return (
-                            <Card 
-                              key={tool.id}
-                              className={`relative p-4 cursor-pointer transition-all duration-300 border group ${
-                                isSelected 
-                                  ? 'ring-2 ring-[#005BE3] border-[#005BE3] bg-gradient-to-br from-[#005BE3]/10 to-[#005BE3]/5 shadow-lg' 
-                                  : isRecommended
-                                    ? 'border-[#005BE3]/30 bg-[#005BE3]/5 hover:shadow-lg hover:border-[#005BE3]/50'
-                                    : 'border-[rgba(55,50,47,0.12)] hover:shadow-md hover:border-[rgba(55,50,47,0.2)]'
-                              }`}
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                if (!isSelected) {
-                                  handleGamifiedSelection(decision.id, tool.id)
-                                }
-                              }}
-                            >
-                              {/* Selection Checkmark */}
-                              {isSelected && (
-                                <div className="absolute -top-2 -left-2 z-10">
-                                  <div className="w-8 h-8 rounded-full bg-[#005BE3] flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
-                                    <CheckCircle className="w-5 h-5 text-white fill-[#005BE3]" />
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Recommended Badge */}
-                              {!isSelected && isRecommended && (
-                                <div className="absolute -top-2 -right-2 z-10">
-                                  <Badge className="bg-[#005BE3] text-white text-[10px] h-6 px-2 shadow-md">
-                                    <Sparkles className="w-2.5 h-2.5 mr-1" />
-                                    Recommended
+                      return (
+                        <Card key={decision.id} className="p-6 border-[rgba(55,50,47,0.12)] shadow-sm hover:shadow-md transition-shadow">
+                          <div className="space-y-5">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-2.5">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="text-base font-semibold text-[#1d1d1f]">{decision.title}</h3>
+                                  <Badge className={`${getUrgencyColor(decision.urgency)} text-xs h-5 px-2`}>
+                                    {decision.urgency}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs h-5 px-2 border-[rgba(55,50,47,0.12)]">
+                                    {decision.category}
                                   </Badge>
                                 </div>
-                              )}
+                                <p className="text-sm text-[#605A57] leading-relaxed">{decision.description}</p>
+                                <p className="text-sm text-[#005BE3] font-medium">{decision.reasoning}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {decision.impact === 'high' && <AlertCircle className="w-5 h-5 text-red-500" />}
+                                {decision.impact === 'medium' && <Info className="w-5 h-5 text-yellow-500" />}
+                                {decision.impact === 'low' && <CheckCircle className="w-5 h-5 text-blue-500" />}
+                              </div>
+                            </div>
 
-                              <div className="space-y-3">
-                                <div className="flex items-start justify-between">
-                                  <div className="space-y-1.5 flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-bold text-sm text-[#1d1d1f] group-hover:text-[#005BE3] transition-colors">{tool.name}</h4>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <Badge className={`${getTypeColor(tool.type)} text-[10px] h-5 px-2 font-medium`} variant="secondary">
-                                        {tool.type.replace('-', ' ')}
-                                      </Badge>
-                                      <Badge variant="outline" className={`text-[10px] h-5 px-2 border ${getComplexityColor(tool.complexity)}`}>
-                                        {tool.complexity} complexity
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1">
-                                    <div className="flex items-center gap-1">
-                                      <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                                      <span className="text-xs font-bold text-[#1d1d1f]">{tool.popularity}</span>
-                                    </div>
-                                    <span className="text-[9px] text-[#605A57]">rating</span>
-                                  </div>
-                                </div>
-                                
-                                <p className="text-xs text-[#605A57] leading-relaxed line-clamp-2">{tool.description}</p>
-                                
-                                {/* Compact Cost & Setup */}
-                                <div className="flex items-center justify-between text-xs">
-                                  <div className="flex items-center gap-1.5">
-                                    <DollarSign className="w-3.5 h-3.5 text-[#005BE3]" />
-                                    <span className="font-bold text-[#1d1d1f]">{tool.pricing.cost || 'Free'}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <Clock className="w-3.5 h-3.5 text-[#605A57]" />
-                                    <span className="font-medium text-[#605A57]">{tool.integration.timeEstimate}</span>
-                                  </div>
-                                </div>
-                                
-                                {/* Progressive Disclosure - Show details button */}
-                                {!isExpanded ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full h-8 text-xs text-[#005BE3] hover:text-[#004CC2] hover:bg-[#005BE3]/5"
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {decision.recommendations.map((tool) => {
+                                const isSelected = selectedTools[decision.id] === tool.id
+                                const isRecommended = tool.id === decision.selectedTool
+                                const isExpanded = expandedToolCards.has(`${decision.id}-${tool.id}`)
+
+                                return (
+                                  <Card
+                                    key={tool.id}
+                                    className={`relative p-4 cursor-pointer transition-all duration-300 border group ${isSelected
+                                      ? 'ring-2 ring-[#005BE3] border-[#005BE3] bg-gradient-to-br from-[#005BE3]/10 to-[#005BE3]/5 shadow-lg'
+                                      : isRecommended
+                                        ? 'border-[#005BE3]/30 bg-[#005BE3]/5 hover:shadow-lg hover:border-[#005BE3]/50'
+                                        : 'border-[rgba(55,50,47,0.12)] hover:shadow-md hover:border-[rgba(55,50,47,0.2)]'
+                                      }`}
                                     onClick={(e) => {
+                                      e.preventDefault()
                                       e.stopPropagation()
-                                      setExpandedToolCards(prev => new Set(prev).add(`${decision.id}-${tool.id}`))
+                                      if (!isSelected) {
+                                        handleGamifiedSelection(decision.id, tool.id)
+                                      }
                                     }}
                                   >
-                                    View Details
-                                  </Button>
-                                ) : (
-                                  <>
-                                    <div className="flex flex-col gap-1.5">
-                                      {tool.pros.slice(0, 2).map((pro, i) => (
-                                        <div key={i} className="flex items-center gap-1.5">
-                                          <ThumbsUp className="w-3 h-3 text-blue-600 flex-shrink-0" />
-                                          <span className="text-xs text-blue-700">{pro}</span>
+                                    {/* Selection Checkmark */}
+                                    {isSelected && (
+                                      <div className="absolute -top-2 -left-2 z-10">
+                                        <div className="w-8 h-8 rounded-full bg-[#005BE3] flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                                          <CheckCircle className="w-5 h-5 text-white fill-[#005BE3]" />
                                         </div>
-                                      ))}
-                                    </div>
-                                    
-                                    {tool.metadata.website && (
-                                      <div className="flex items-center gap-2 pt-2 border-t border-[rgba(55,50,47,0.08)] text-[#605A57] hover:text-[#005BE3] transition-colors">
-                                        <ExternalLink className="w-3 h-3" />
-                                        <span className="text-xs font-medium">Learn more</span>
-                                        {tool.metadata.github && <Github className="w-3 h-3" />}
                                       </div>
                                     )}
-                                    
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="w-full h-8 text-xs text-[#605A57] hover:text-[#1d1d1f]"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setExpandedToolCards(prev => {
-                                          const updated = new Set(prev)
-                                          updated.delete(`${decision.id}-${tool.id}`)
-                                          return updated
-                                        })
-                                      }}
-                                    >
-                                      Hide Details
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </Card>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </Card>
-                )
+
+                                    {/* Recommended Badge */}
+                                    {!isSelected && isRecommended && (
+                                      <div className="absolute -top-2 -right-2 z-10">
+                                        <Badge className="bg-[#005BE3] text-white text-[10px] h-6 px-2 shadow-md">
+                                          <Sparkles className="w-2.5 h-2.5 mr-1" />
+                                          Recommended
+                                        </Badge>
+                                      </div>
+                                    )}
+
+                                    <div className="space-y-3">
+                                      <div className="flex items-start justify-between">
+                                        <div className="space-y-1.5 flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <h4 className="font-bold text-sm text-[#1d1d1f] group-hover:text-[#005BE3] transition-colors">{tool.name}</h4>
+                                          </div>
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <Badge className={`${getTypeColor(tool.type)} text-[10px] h-5 px-2 font-medium`} variant="secondary">
+                                              {tool.type.replace('-', ' ')}
+                                            </Badge>
+                                            <Badge variant="outline" className={`text-[10px] h-5 px-2 border ${getComplexityColor(tool.complexity)}`}>
+                                              {tool.complexity} complexity
+                                            </Badge>
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                          <div className="flex items-center gap-1">
+                                            <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                                            <span className="text-xs font-bold text-[#1d1d1f]">{tool.popularity}</span>
+                                          </div>
+                                          <span className="text-[9px] text-[#605A57]">rating</span>
+                                        </div>
+                                      </div>
+
+                                      <p className="text-xs text-[#605A57] leading-relaxed line-clamp-2">{tool.description}</p>
+
+                                      {/* Compact Cost & Setup */}
+                                      <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-1.5">
+                                          <DollarSign className="w-3.5 h-3.5 text-[#005BE3]" />
+                                          <span className="font-bold text-[#1d1d1f]">{tool.pricing.cost || 'Free'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <Clock className="w-3.5 h-3.5 text-[#605A57]" />
+                                          <span className="font-medium text-[#605A57]">{tool.integration.timeEstimate}</span>
+                                        </div>
+                                      </div>
+
+                                      {/* Progressive Disclosure - Show details button */}
+                                      {!isExpanded ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="w-full h-8 text-xs text-[#005BE3] hover:text-[#004CC2] hover:bg-[#005BE3]/5"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedToolCards(prev => new Set(prev).add(`${decision.id}-${tool.id}`))
+                                          }}
+                                        >
+                                          View Details
+                                        </Button>
+                                      ) : (
+                                        <>
+                                          <div className="flex flex-col gap-1.5">
+                                            {tool.pros.slice(0, 2).map((pro, i) => (
+                                              <div key={i} className="flex items-center gap-1.5">
+                                                <ThumbsUp className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                                                <span className="text-xs text-blue-700">{pro}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+
+                                          {tool.metadata.website && (
+                                            <div className="flex items-center gap-2 pt-2 border-t border-[rgba(55,50,47,0.08)] text-[#605A57] hover:text-[#005BE3] transition-colors">
+                                              <ExternalLink className="w-3 h-3" />
+                                              <span className="text-xs font-medium">Learn more</span>
+                                              {tool.metadata.github && <Github className="w-3 h-3" />}
+                                            </div>
+                                          )}
+
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full h-8 text-xs text-[#605A57] hover:text-[#1d1d1f]"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              setExpandedToolCards(prev => {
+                                                const updated = new Set(prev)
+                                                updated.delete(`${decision.id}-${tool.id}`)
+                                                return updated
+                                              })
+                                            }}
+                                          >
+                                            Hide Details
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </Card>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </Card>
+                      )
                     })}
                   </div>
                 ))
@@ -1142,8 +1139,8 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                             {Math.round((calculateTotalMonthlyCost() / monthlyBudget) * 100)}%
                           </span>
                         </div>
-                        <Progress 
-                          value={(calculateTotalMonthlyCost() / monthlyBudget) * 100} 
+                        <Progress
+                          value={(calculateTotalMonthlyCost() / monthlyBudget) * 100}
                           className="h-2"
                         />
                       </div>
@@ -1274,7 +1271,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                     Timeline: {decisions.architecture.timeline.mvp}
                   </p>
                 </div>
-                
+
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-5">
                   <h4 className="font-semibold text-sm text-yellow-700 mb-3 flex items-center gap-2">
                     <Clock className="w-4 h-4" />
@@ -1289,7 +1286,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                     Timeline: {decisions.architecture.timeline.production}
                   </p>
                 </div>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
                   <h4 className="font-semibold text-sm text-blue-700 mb-3 flex items-center gap-2">
                     <Target className="w-4 h-4" />
@@ -1382,7 +1379,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                     const tool = d.recommendations.find(r => r.id === d.selectedTool)
                     return tool?.type === 'managed-service' // Assumption: managed services are more compliant
                   })
-                  
+
                   return (
                     <Card key={framework} className={cn(
                       "p-4 border-2",
@@ -1585,9 +1582,9 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
               <div className="font-medium text-[#1d1d1f]">{completedDecisions.size} of {decisions?.decisions.length || 0} decisions made</div>
               <div>Monthly cost: ${calculateTotalMonthlyCost()}</div>
             </div>
-            <Button 
-              onClick={() => onComplete(decisions ? { decisions, selectedTools } : undefined)} 
-              size="lg" 
+            <Button
+              onClick={() => onComplete(decisions ? { decisions, selectedTools } : undefined)}
+              size="lg"
               disabled={completedDecisions.size === 0}
               className="px-8 py-6 bg-gradient-to-r from-primary to-primary/80 hover:shadow-xl transition-all hover:scale-105 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >

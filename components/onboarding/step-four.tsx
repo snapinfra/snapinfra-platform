@@ -8,7 +8,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 
 import { SystemArchitectureEditor } from '@/components/architecture/system-architecture-editor'
 import { SystemArchitecture } from '@/lib/types/architecture'
-import { useDecisions, useOnboardingData } from "@/lib/app-context"
+import { useDecisions, useOnboardingData } from "@/lib/appContext/app-context"
 import { SystemDecisionsSummary } from "@/lib/types/system-decisions"
 
 interface StepFourProps {
@@ -41,13 +41,16 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
   }, [data.architecture])
 
 
-  const generateDecisions = async () => {
+  const generateDecisions = async (architectureToUse?: SystemArchitecture) => {
+    // Use passed architecture or fall back to data.architecture
+    const archData = architectureToUse || data.architecture;
+
     // Check if decisions are already cached in localStorage
     const cachedData = loadDecisions()
-    if (!cachedData || Object.keys(cachedData).length === 0) {
-      localStorage.removeItem('onboarding-decisions')
-    }
-    if (cachedData) {
+    console.log('Checking for cached decisions in localStorage:', cachedData)
+
+    // Fixed: Check if cachedData is null/undefined BEFORE accessing properties
+    if (cachedData && cachedData.decisions && cachedData.selectedTools) {
       try {
         console.log('✅ Using cached decisions:', cachedData)
         setDecisions(cachedData.decisions, cachedData.selectedTools)
@@ -56,10 +59,13 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
         console.warn('Failed to use cached decisions:', error)
         localStorage.removeItem('onboarding-decisions')
       }
+    } else {
+      // Clear invalid cache
+      localStorage.removeItem('onboarding-decisions')
     }
 
     try {
-      if (!data.architecture) {
+      if (!archData) {
         throw new Error('Architecture data is required to generate system decisions')
       }
 
@@ -70,7 +76,7 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          architecture: data.architecture,
+          architecture: archData,
           projectData: {
             projectName: data.projectName,
             description: data.description,
@@ -102,12 +108,10 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
       // Save to both localStorage and context using the hook
       console.log('💾 Saving decisions to localStorage and context')
       setDecisions(decisionsSummary, initialSelections)
-
     } catch (error) {
       console.error('Failed to generate system decisions:', error)
       alert(
-        `Failed to generate system decisions: ${error instanceof Error ? error.message : 'Unknown error'
-        }. Please try again.`
+        `Failed to generate system decisions: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`
       )
     }
   }
@@ -123,7 +127,10 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
   }
 
   const handleContinue = async () => {
+    console.log('reached in onboarding decisions')
     if (!architecture) return
+    console.log('reached in onboarding decisions')
+    console.log(architecture, 'this is architecture')
 
     try {
       // Clean the architecture data before saving
@@ -151,7 +158,7 @@ export function StepFour({ data, onComplete, onBack }: StepFourProps) {
         architecture: cleanArchitecture
       })
 
-      await generateDecisions();
+      await generateDecisions(cleanArchitecture);
 
       // Call onComplete with absolutely no arguments
       onComplete()
