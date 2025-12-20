@@ -12,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Cloud,
@@ -35,9 +34,13 @@ import {
   ExternalLink,
   Plus,
   Trash2,
-  Edit3
+  Edit3,
+  RefreshCw
 } from "lucide-react"
 import { DeployModal } from "./deploy-modal"
+import { DestroyModal } from "./destroy-modal"
+
+const BACKEND_URL = "http://localhost:3001"
 
 const cloudProviders = [
   {
@@ -58,37 +61,25 @@ const cloudProviders = [
     logo: 'https://railway.app/brand/logo-light.png',
     regions: ['us-west1', 'us-east1', 'eu-west1']
   },
-  {
-    id: 'render',
-    name: 'Render',
-    logo: 'https://www.vectorlogo.zone/logos/rendercom/rendercom-ar21.svg',
-    regions: ['oregon', 'ohio', 'frankfurt', 'singapore']
-  },
-  {
-    id: 'gcp',
-    name: 'Google Cloud',
-    logo: 'https://www.vectorlogo.zone/logos/google_cloud/google_cloud-ar21.svg',
-    regions: ['us-central1', 'us-east1', 'europe-west1', 'asia-southeast1']
-  },
-  {
-    id: 'azure',
-    name: 'Microsoft Azure',
-    logo: 'https://www.vectorlogo.zone/logos/microsoft_azure/microsoft_azure-ar21.svg',
-    regions: ['eastus', 'westus2', 'westeurope', 'southeastasia']
-  },
-  {
-    id: 'digitalocean',
-    name: 'DigitalOcean',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/DigitalOcean_logo.svg',
-    regions: ['nyc1', 'sfo3', 'lon1', 'sgp1']
-  },
-  {
-    id: 'heroku',
-    name: 'Heroku',
-    logo: 'https://www.vectorlogo.zone/logos/heroku/heroku-ar21.svg',
-    regions: ['us', 'eu']
-  }
 ]
+
+interface Deployment {
+  id: string
+  userId: string
+  deploymentId: string
+  projectName: string
+  status: string
+  region: string
+  createdAt: string
+  updatedAt: string
+  outputs: any
+  images: string[]
+  duration: string
+  error?: string
+  accountId?: string
+  ecrRegistry?: string
+  deploymentUrl?: string
+}
 
 export default function DeploymentsPage() {
   const params = useParams()
@@ -96,71 +87,142 @@ export default function DeploymentsPage() {
   const router = useRouter()
   const { state, dispatch } = useAppContext()
   const [selectedProvider, setSelectedProvider] = useState('aws')
-  const [deploymentProgress, setDeploymentProgress] = useState(45)
-  const [deployments, setDeployments] = useState<any[]>([])
+  const [deployments, setDeployments] = useState<Deployment[]>([])
   const [loading, setLoading] = useState(true)
   const [showDeployModal, setShowDeployModal] = useState(false)
+  const [showDestroyModal, setShowDestroyModal] = useState(false)
+  const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null)
+  const [backendHealth, setBackendHealth] = useState<any>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Load project and deployments
+  // Check backend health
+  useEffect(() => {
+    checkBackendHealth()
+  }, [])
+
+  const checkBackendHealth = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/health`)
+      if (response.ok) {
+        const data = await response.json()
+        setBackendHealth(data)
+      }
+    } catch (error) {
+      console.error('Backend health check failed:', error)
+      setBackendHealth({ status: 'offline' })
+    }
+  }
+
+  // Load project and deployments from DynamoDB
   useEffect(() => {
     if (!projectId) return
+    loadData()
+  }, [projectId])
 
-    async function loadData() {
-      try {
-        setLoading(true)
+  const loadData = async () => {
+    try {
+      setLoading(true)
 
-        // Load project if not in context
-        if (!state.currentProject || state.currentProject.id !== projectId) {
-          const project = await getProjectById(projectId)
-          const normalizedProject = {
-            ...project,
-            schema: Array.isArray(project.schema)
-              ? project.schema
-              : (project.schema?.tables || [])
-          }
-          dispatch({ type: 'SET_CURRENT_PROJECT', payload: normalizedProject })
+      // Load project if not in context
+      if (!state.currentProject || state.currentProject.id !== projectId) {
+        const project = await getProjectById(projectId)
+        const normalizedProject = {
+          ...project,
+          schema: Array.isArray(project.schema)
+            ? project.schema
+            : (project.schema?.tables || [])
         }
+        dispatch({ type: 'SET_CURRENT_PROJECT', payload: normalizedProject })
+      }
 
-        // Fetch deployments from AWS (if you have a deployments API)
-        // For now, check if project has been deployed
-        const project = state.currentProject || await getProjectById(projectId)
-
-        if (project.status === 'deployed' && project.deploymentUrl) {
-          // Project has been deployed, show it
-          setDeployments([{
-            id: `deploy-${projectId}`,
-            name: 'Production',
-            environment: 'production',
-            status: 'active',
-            provider: 'vercel', // You might want to store this in the project
-            region: 'global',
-            url: project.deploymentUrl,
-            lastDeploy: project.lastDeployedAt ? new Date(project.lastDeployedAt).toLocaleDateString() : 'Recently',
+      // Fetch deployments from DynamoDB via backend API
+      const response = await fetch(`${BACKEND_URL}/api/deployments/${projectId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.deployments) {
+          // Transform DynamoDB data to match our UI format
+          const formattedDeployments = data.deployments.map((dep: Deployment) => ({
+            id: dep.deploymentId,
+            name: getDeploymentName(dep.status),
+            environment: dep.status === 'active' ? 'production' : 'staging',
+            status: dep.status,
+            provider: 'aws',
+            region: dep.region,
+            url: dep.deploymentUrl || (dep.outputs?.alb_url?.value || null),
+            lastDeploy: new Date(dep.updatedAt).toLocaleDateString(),
             version: 'v1.0.0',
-            health: 99.9,
+            health: dep.status === 'active' ? 99.9 : 0,
             requests: 'N/A',
-            responseTime: 'N/A'
-          }])
+            responseTime: 'N/A',
+            deploymentId: dep.deploymentId,
+            accountId: dep.accountId,
+            ecrRegistry: dep.ecrRegistry,
+            images: dep.images,
+            outputs: dep.outputs,
+            error: dep.error,
+            duration: dep.duration,
+            createdAt: dep.createdAt,
+            updatedAt: dep.updatedAt
+          }))
+          setDeployments(formattedDeployments)
         } else {
           setDeployments([])
         }
-      } catch (error) {
-        console.error('Failed to load deployment data:', error)
-        router.push('/projects')
-      } finally {
-        setLoading(false)
+      } else {
+        console.error('Failed to fetch deployments from backend')
+        setDeployments([])
       }
+    } catch (error) {
+      console.error('Failed to load deployment data:', error)
+      setDeployments([])
+    } finally {
+      setLoading(false)
     }
+  }
 
-    loadData()
-  }, [projectId, state.currentProject, dispatch, router])
+  const getDeploymentName = (status: string) => {
+    switch (status) {
+      case 'active': return 'Production'
+      case 'deploying': return 'Deploying...'
+      case 'failed': return 'Failed Deployment'
+      case 'destroyed': return 'Destroyed'
+      case 'destroying': return 'Destroying...'
+      default: return 'Deployment'
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadData()
+    await checkBackendHealth()
+    setRefreshing(false)
+  }
+
+  const handleDeploymentComplete = async () => {
+    // Refresh data after successful deployment
+    await loadData()
+    setShowDeployModal(false)
+  }
+
+  const handleDestroyClick = (deployment: Deployment) => {
+    setSelectedDeployment(deployment)
+    setShowDestroyModal(true)
+  }
+
+  const handleDestroyComplete = async () => {
+    // Refresh data after successful destruction
+    await loadData()
+    setShowDestroyModal(false)
+    setSelectedDeployment(null)
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800 border-green-200'
       case 'deploying': return 'bg-blue-100 text-blue-800 border-blue-200'
       case 'failed': return 'bg-red-100 text-red-800 border-red-200'
-      case 'stopped': return 'bg-gray-100 text-gray-800 border-gray-200'
+      case 'destroyed': return 'bg-gray-100 text-gray-800 border-gray-200'
+      case 'destroying': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
@@ -169,6 +231,12 @@ export default function DeploymentsPage() {
     const p = cloudProviders.find(cp => cp.id === provider)
     return p?.logo || 'https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg'
   }
+
+  const activeDeployments = deployments.filter(d => d.status === 'active').length
+  const totalDeployments = deployments.length
+  const lastDeployment = deployments.length > 0
+    ? new Date(deployments[0].updatedAt).toLocaleDateString()
+    : 'Never'
 
   return (
     <EnterpriseDashboardLayout
@@ -182,11 +250,28 @@ export default function DeploymentsPage() {
       ]}
       actions={
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
-            <Settings className="w-4 h-4" />
-            Configure
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
-          <Button className="gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => window.open(`${BACKEND_URL}/api/health`, '_blank')}
+          >
+            <Activity className="w-4 h-4" />
+            Service Status
+          </Button>
+          <Button
+            className="gap-2"
+            onClick={() => setShowDeployModal(true)}
+          >
             <Rocket className="w-4 h-4" />
             New Deployment
           </Button>
@@ -194,6 +279,24 @@ export default function DeploymentsPage() {
       }
     >
       <div className="space-y-8">
+        {/* Backend Status Alert */}
+        {backendHealth && backendHealth.status === 'offline' && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Deployment service is offline. Please ensure the backend is running at {BACKEND_URL}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {backendHealth && backendHealth.status === 'healthy' && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Deployment service is online and ready. DynamoDB Table: {backendHealth.dynamoDbTable}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -202,7 +305,7 @@ export default function DeploymentsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Active Deployments</p>
-                  <p className="text-2xl font-bold text-green-600">{deployments.filter(d => d.status === 'active').length}</p>
+                  <p className="text-2xl font-bold text-green-600">{activeDeployments}</p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
@@ -213,7 +316,9 @@ export default function DeploymentsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Project Status</p>
-                  <p className="text-2xl font-bold text-blue-600 capitalize">{state.currentProject?.status || 'draft'}</p>
+                  <p className="text-2xl font-bold text-blue-600 capitalize">
+                    {activeDeployments > 0 ? 'deployed' : 'draft'}
+                  </p>
                 </div>
                 <Globe className="w-8 h-8 text-blue-500" />
               </div>
@@ -224,7 +329,7 @@ export default function DeploymentsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Deployments</p>
-                  <p className="text-2xl font-bold text-purple-600">{deployments.length}</p>
+                  <p className="text-2xl font-bold text-purple-600">{totalDeployments}</p>
                 </div>
                 <Zap className="w-8 h-8 text-purple-500" />
               </div>
@@ -235,12 +340,7 @@ export default function DeploymentsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Last Deployed</p>
-                  <p className="text-sm font-bold text-green-600">
-                    {state.currentProject?.lastDeployedAt
-                      ? new Date(state.currentProject.lastDeployedAt).toLocaleDateString()
-                      : 'Never'
-                    }
-                  </p>
+                  <p className="text-sm font-bold text-green-600">{lastDeployment}</p>
                 </div>
                 <Activity className="w-8 h-8 text-green-500" />
               </div>
@@ -268,7 +368,7 @@ export default function DeploymentsPage() {
             {loading && (
               <div className="text-center py-12">
                 <Activity className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-                <p className="text-gray-500">Loading deployments...</p>
+                <p className="text-gray-500">Loading deployments from DynamoDB...</p>
               </div>
             )}
 
@@ -277,37 +377,22 @@ export default function DeploymentsPage() {
                 <CardContent className="p-12 text-center">
                   <Rocket className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Deployments Yet</h3>
-                  <p className="text-gray-500 mb-6">Deploy your project to see it listed here</p>
+                  <p className="text-gray-500 mb-6">
+                    Deploy your project to AWS with one click. Deployments are automatically saved to DynamoDB.
+                  </p>
                   <Button
                     className="gap-2"
                     onClick={() => setShowDeployModal(true)}
+                    disabled={backendHealth?.status !== 'healthy'}
                   >
                     <Rocket className="w-4 h-4" />
                     Deploy Now
                   </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Current Deployment Progress */}
-            {!loading && deployments.some(d => d.status === 'deploying') && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="w-5 h-5 animate-pulse text-blue-600" />
-                    Deployment in Progress
-                  </CardTitle>
-                  <CardDescription>Development environment is currently being deployed</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Deploying v1.2.5-alpha to GCP...</span>
-                    <span className="text-sm text-gray-500">{deploymentProgress}%</span>
-                  </div>
-                  <Progress value={deploymentProgress} className="h-2" />
-                  <p className="text-xs text-gray-500">
-                    Step 3 of 5: Building Docker image and pushing to registry
-                  </p>
+                  {backendHealth?.status !== 'healthy' && (
+                    <p className="text-sm text-red-600 mt-4">
+                      Deployment service must be online to deploy
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -326,11 +411,14 @@ export default function DeploymentsPage() {
                           </Badge>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(deployment.deploymentId)
+                            }}
+                          >
                             <Edit3 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-red-600">
-                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
@@ -347,8 +435,6 @@ export default function DeploymentsPage() {
                                 className="w-5 h-5 object-contain"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none'
-                                  e.currentTarget.parentElement!.className = 'w-5 h-5 flex items-center justify-center bg-blue-100 rounded overflow-hidden'
-                                  e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-semibold text-blue-600">${deployment.provider.charAt(0).toUpperCase()}</span>`
                                 }}
                               />
                             </div>
@@ -360,8 +446,8 @@ export default function DeploymentsPage() {
                           <p className="font-medium">{deployment.region}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500">Version</p>
-                          <p className="font-medium">{deployment.version}</p>
+                          <p className="text-gray-500">Duration</p>
+                          <p className="font-medium">{deployment.duration}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Health</p>
@@ -378,47 +464,77 @@ export default function DeploymentsPage() {
                             <code className="text-xs bg-gray-100 px-2 py-1 rounded flex-1 truncate">
                               {deployment.url}
                             </code>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(deployment.url.startsWith('http') ? deployment.url : `http://${deployment.url}`, '_blank')}
+                            >
                               <ExternalLink className="w-3 h-3" />
                             </Button>
                           </div>
                         </div>
                       )}
 
+                      {deployment.error && (
+                        <Alert variant="destructive" className="py-2">
+                          <AlertCircle className="h-3 w-3" />
+                          <AlertDescription className="text-xs">
+                            {deployment.error.substring(0, 100)}...
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
                       <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
                         <div>
-                          <p>Requests: {deployment.requests}</p>
+                          <p>Images: {deployment.images?.length || 0}</p>
                         </div>
                         <div>
-                          <p>Response: {deployment.responseTime}</p>
+                          <p>Account: {deployment.accountId?.substring(0, 8) || 'N/A'}</p>
                         </div>
                       </div>
 
-                      <p className="text-xs text-gray-500">Last deploy: {deployment.lastDeploy}</p>
+                      <p className="text-xs text-gray-500">
+                        Created: {new Date(deployment.createdAt).toLocaleString()}
+                      </p>
 
                       <div className="flex items-center gap-2 pt-2">
                         {deployment.status === 'active' && (
                           <>
-                            <Button variant="outline" size="sm" className="gap-1">
-                              <Pause className="w-3 h-3" />
-                              Stop
-                            </Button>
-                            <Button variant="outline" size="sm" className="gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => setShowDeployModal(true)}
+                            >
                               <RotateCcw className="w-3 h-3" />
                               Redeploy
                             </Button>
+                            <Button variant="outline" size="sm" className="gap-1">
+                              <Monitor className="w-4 h-4" />
+                              Logs
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => handleDestroyClick(deployment)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Destroy
+                            </Button>
                           </>
                         )}
-                        {deployment.status === 'stopped' && (
-                          <Button variant="outline" size="sm" className="gap-1">
-                            <Play className="w-3 h-3" />
-                            Start
+                        {deployment.status === 'failed' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => setShowDeployModal(true)}
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Retry
                           </Button>
                         )}
-                        <Button variant="outline" size="sm" className="gap-1">
-                          <Monitor className="w-3 h-3" />
-                          Logs
-                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -446,11 +562,6 @@ export default function DeploymentsPage() {
                             src={provider.logo}
                             alt={`${provider.name} logo`}
                             className="w-10 h-10 object-contain"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none'
-                              e.currentTarget.parentElement!.className = 'w-12 h-12 flex items-center justify-center bg-blue-100 rounded border border-gray-200'
-                              e.currentTarget.parentElement!.innerHTML = `<span class="text-2xl font-bold text-blue-600">${provider.name.charAt(0)}</span>`
-                            }}
                           />
                         </div>
                         <div>
@@ -460,9 +571,14 @@ export default function DeploymentsPage() {
                           </p>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" className="gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => provider.id === 'aws' && setShowDeployModal(true)}
+                      >
                         <Plus className="w-4 h-4" />
-                        Connect
+                        {provider.id === 'aws' ? 'Deploy' : 'Coming Soon'}
                       </Button>
                     </div>
                   ))}
@@ -471,8 +587,8 @@ export default function DeploymentsPage() {
                 <Alert className="mt-6">
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    Your cloud provider credentials are encrypted and stored securely.
-                    We only request the minimum permissions needed for deployments.
+                    Deployments are automatically saved to DynamoDB ({backendHealth?.dynamoDbTable})
+                    for persistent storage and tracking.
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -486,6 +602,22 @@ export default function DeploymentsPage() {
                 <CardDescription>Configure default deployment preferences</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Backend Service URL</Label>
+                  <Input value={BACKEND_URL} disabled />
+                  <p className="text-xs text-gray-500">
+                    The deployment service endpoint with DynamoDB integration.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>DynamoDB Table</Label>
+                  <Input value={backendHealth?.dynamoDbTable || 'Loading...'} disabled />
+                  <p className="text-xs text-gray-500">
+                    All deployments are stored in this DynamoDB table.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="defaultProvider">Default Provider</Label>
@@ -520,46 +652,6 @@ export default function DeploymentsPage() {
                       </SelectContent>
                     </Select>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="autoScale">Auto-scaling</Label>
-                    <Select defaultValue="enabled">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="enabled">Enabled</SelectItem>
-                        <SelectItem value="disabled">Disabled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="healthCheck">Health Check Interval</Label>
-                    <Select defaultValue="30">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="15">15 seconds</SelectItem>
-                        <SelectItem value="30">30 seconds</SelectItem>
-                        <SelectItem value="60">1 minute</SelectItem>
-                        <SelectItem value="300">5 minutes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="webhook">Webhook URL (optional)</Label>
-                  <Input
-                    id="webhook"
-                    placeholder="https://your-app.com/webhooks/deployment"
-                    type="url"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Receive notifications when deployments complete
-                  </p>
                 </div>
 
                 <div className="flex justify-end">
@@ -573,11 +665,24 @@ export default function DeploymentsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
       <DeployModal
         open={showDeployModal}
         onOpenChange={setShowDeployModal}
         projectId={projectId}
         projectName={state.currentProject?.name || 'Project'}
+        userId={state.user?.id}
+        onDeploymentComplete={handleDeploymentComplete}
+      />
+
+      <DestroyModal
+        open={showDestroyModal}
+        onOpenChange={setShowDestroyModal}
+        projectId={projectId}
+        projectName={state.currentProject?.name || 'Project'}
+        userId={state.user?.id}
+        deployment={selectedDeployment}
+        onDestroyComplete={handleDestroyComplete}
       />
     </EnterpriseDashboardLayout>
   )

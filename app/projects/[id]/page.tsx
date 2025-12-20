@@ -1,31 +1,42 @@
 "use client"
 
-import React, { useMemo, useEffect } from "react"
+import React, { useMemo, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { useAppContext } from "@/lib/appContext/app-context"
 import { getProjectById } from "@/lib/api-client"
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Database, Layers, Code2, Rocket, CheckCircle2, ArrowRight, Clock, GitBranch, Users, Settings, TrendingUp, Package, FileCode, Server } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+import { format } from "date-fns"
 
 export default function ProjectPage() {
+  console.log('Rendering ProjectPage')
   const { state, dispatch } = useAppContext()
   const { currentProject } = state
   const router = useRouter()
   const params = useParams()
   const projectId = params.id as string
 
+  console.log(state, 'this is state  ')
+
+  // Prevent hydration mismatch
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+
+
   useEffect(() => {
     if (!projectId) return
     if (!currentProject || currentProject.id !== projectId) {
       getProjectById(projectId)
         .then((project) => {
-          // Normalize schema format: AWS returns { tables: [...] }, but app expects array
+          console.log('📥 Loaded', project)
           const normalizedProject = {
             ...project,
             schema: Array.isArray(project.schema)
@@ -34,7 +45,7 @@ export default function ProjectPage() {
           }
           dispatch({ type: 'SET_CURRENT_PROJECT', payload: normalizedProject })
         })
-        .catch(() => router.push('/projects'))
+      // .catch(() => router.push('/projects'))
     }
   }, [projectId, currentProject, dispatch, router])
 
@@ -49,8 +60,7 @@ export default function ProjectPage() {
     const connections = (currentProject as any)?.architecture?.edges?.length || 0
     const codeFiles = currentProject?.generatedCode?.files?.length || 0
     const iacFiles = currentProject?.generatedIaC?.files?.length || 0
-    
-    // Calculate completion percentage
+
     const completionSteps = [
       tables > 0,
       endpoints > 0,
@@ -59,7 +69,7 @@ export default function ProjectPage() {
       iacFiles > 0
     ]
     const completionPercentage = Math.round((completionSteps.filter(Boolean).length / completionSteps.length) * 100)
-    
+
     return { tables, fields, endpoints, components, connections, codeFiles, iacFiles, completionPercentage }
   }, [currentProject])
 
@@ -117,7 +127,7 @@ export default function ProjectPage() {
                 <p className="text-xs text-gray-500 mb-1">Completion</p>
                 <div className="flex items-center gap-2">
                   <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
                       style={{ width: `${metrics.completionPercentage}%` }}
                     />
@@ -126,7 +136,7 @@ export default function ProjectPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-white/80 backdrop-blur rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center gap-2 mb-2">
@@ -136,7 +146,7 @@ export default function ProjectPage() {
                 <p className="text-2xl font-bold text-gray-900">{metrics.tables}</p>
                 <p className="text-xs text-gray-500 mt-1">{metrics.fields} total fields</p>
               </div>
-              
+
               <div className="bg-white/80 backdrop-blur rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Server className="w-4 h-4 text-green-600" />
@@ -145,7 +155,7 @@ export default function ProjectPage() {
                 <p className="text-2xl font-bold text-gray-900">{metrics.endpoints}</p>
                 <p className="text-xs text-gray-500 mt-1">API routes</p>
               </div>
-              
+
               <div className="bg-white/80 backdrop-blur rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Layers className="w-4 h-4 text-purple-600" />
@@ -154,7 +164,7 @@ export default function ProjectPage() {
                 <p className="text-2xl font-bold text-gray-900">{metrics.components}</p>
                 <p className="text-xs text-gray-500 mt-1">{metrics.connections} connections</p>
               </div>
-              
+
               <div className="bg-white/80 backdrop-blur rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center gap-2 mb-2">
                   <FileCode className="w-4 h-4 text-orange-600" />
@@ -163,7 +173,7 @@ export default function ProjectPage() {
                 <p className="text-2xl font-bold text-gray-900">{metrics.codeFiles + metrics.iacFiles}</p>
                 <p className="text-xs text-gray-500 mt-1">{metrics.codeFiles} code, {metrics.iacFiles} IaC</p>
               </div>
-              
+
               <div className="bg-white/80 backdrop-blur rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Package className="w-4 h-4 text-indigo-600" />
@@ -288,7 +298,7 @@ export default function ProjectPage() {
                   Created
                 </div>
                 <p className="text-sm font-medium text-gray-900">
-                  {formatDistanceToNow(new Date(currentProject.createdAt), { addSuffix: true })}
+                  {format(new Date(currentProject.createdAt), 'MMM d, yyyy')}
                 </p>
               </div>
               <div>
@@ -297,7 +307,7 @@ export default function ProjectPage() {
                   Last Updated
                 </div>
                 <p className="text-sm font-medium text-gray-900">
-                  {formatDistanceToNow(new Date(currentProject.updatedAt), { addSuffix: true })}
+                  {format(new Date(currentProject.updatedAt), 'MMM d, yyyy')}
                 </p>
               </div>
               <div>

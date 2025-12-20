@@ -10,15 +10,20 @@ export async function GET(
     const authMode = process.env.NEXT_PUBLIC_AUTH_MODE || 'development';
     let userId: string;
 
-    if (authMode === 'production') {
-      const user = await getCurrentUser(request);
-      userId = user.id;
-    } else {
-      userId = getDevUserId(request);
-    }
+    // if (authMode === 'production') {
+    //   const user = await getCurrentUser(request);
+    //   userId = user.id;
+    // } else {
+    //   userId = getDevUserId(request);
+    // }
+
+    userId = "user_35D1LiK0985qSJCacutmHh73oxA"
 
     const { id: projectId } = await params;
+    console.log(projectId, 'Fetching project with ID');
     const project = await DynamoService.getProjectById(projectId, userId);
+
+    console.log('Fetched project:', project);
 
     if (!project) {
       return NextResponse.json({

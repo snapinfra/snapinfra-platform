@@ -1119,7 +1119,7 @@ async function generateModuleWithValidation(
         generateTerraformECRModule(),
         generateTerraformECSModule(ctx.project, ctx.options),
         generateTerraformTfvarsExample(ctx.project, ctx.options),
-        generateDeploymentScript(ctx.project),
+        generateDeploymentScript(ctx.project, ctx.options),
         generateTerraformReadme(ctx.project, ctx.options)
       ];
 
@@ -1772,7 +1772,7 @@ export async function generateCode(
   console.log('\n🚀 Starting DIAGRAM-DRIVEN code generation...');
   console.log('='.repeat(70));
   console.log(`📦 Project: ${project.name}`);
-
+  console.log(project, 'this is the project')
   // Log architecture information
   if (project.diagrams) {
     console.log(`\n📐 Architecture Diagrams Detected:`);

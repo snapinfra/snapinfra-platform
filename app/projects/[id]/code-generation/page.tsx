@@ -38,6 +38,7 @@ export default function CodeGenerationPage() {
   const [generationMessage, setGenerationMessage] = useState('')
 
   console.log(onboardingData, 'onboarding data in code generation page')
+  console.log(currentProject?.id, 'this is current project id[')
 
   // Load project if not in context (e.g., on page refresh)
   useEffect(() => {

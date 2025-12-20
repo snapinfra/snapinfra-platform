@@ -12,30 +12,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 
     // Save project data to file for analysis
-    try {
-      const logsDir = path.join(process.cwd(), 'logs')
-      if (!fs.existsSync(logsDir)) {
-        fs.mkdirSync(logsDir, { recursive: true })
-      }
+    // try {
+    //   const logsDir = path.join(process.cwd(), 'logs')
+    //   if (!fs.existsSync(logsDir)) {
+    //     fs.mkdirSync(logsDir, { recursive: true })
+    //   }
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const logFile = path.join(logsDir, `project-new-data-${timestamp}.json`)
+    //   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    //   const logFile = path.join(logsDir, `project-new-data-${timestamp}.json`)
 
-      fs.writeFileSync(logFile, JSON.stringify({
-        timestamp: new Date().toISOString(),
-        project: project,
-        framework,
-        language,
-        includeAuth,
-        includeTests,
-        options
-      }, null, 2))
+    //   fs.writeFileSync(logFile, JSON.stringify({
+    //     timestamp: new Date().toISOString(),
+    //     project: project,
+    //     framework,
+    //     language,
+    //     includeAuth,
+    //     includeTests,
+    //     options
+    //   }, null, 2))
 
-      console.log(`📝 Project data saved to: ${logFile}`)
-    } catch (logError) {
-      console.error('⚠️ Failed to save project data:', logError)
-      // Continue execution even if logging fails
-    }
+    //   console.log(`📝 Project data saved to: ${logFile}`)
+    // } catch (logError) {
+    //   console.error('⚠️ Failed to save project data:', logError)
+    //   // Continue execution even if logging fails
+    // }
 
     console.log(project, 'this is project')
 

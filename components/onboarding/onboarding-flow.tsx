@@ -13,6 +13,7 @@ import { useAppContext, useOnboardingData } from "@/lib/appContext/app-context"
 import type { Project, TableSchema, ChatMessage } from "@/lib/appContext/app-context"
 import { createProject as createProjectAPI, isBackendAvailable } from "@/lib/api-client"
 import { markOnboardingComplete } from "@/lib/storage"
+import { cleanupAfterOnboarding } from "@/lib/appContext/storage-utils"
 import { ProjectNameDialog } from "@/components/project-name-dialog"
 import Image from "next/image"
 import Link from "next/link"
@@ -22,6 +23,7 @@ export function OnboardingFlow() {
   const [isLoading, setIsLoading] = useState(true)
   const [showNameDialog, setShowNameDialog] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { state, dispatch } = useAppContext()
@@ -173,6 +175,8 @@ export function OnboardingFlow() {
       router.push('/dashboard')
       return
     }
+
+    setIsCreatingProject(true)
 
     try {
       console.log('🚀 Creating project with backend integration...')
@@ -409,19 +413,43 @@ Your backend is ready! You can view the schema, generate code, or continue chatt
       dispatch({ type: 'ADD_CHAT_MESSAGE', payload: userMessage })
       dispatch({ type: 'ADD_CHAT_MESSAGE', payload: aiMessage })
 
-      // Mark onboarding complete and clear data
+      // Mark onboarding complete
       markOnboardingComplete()
-      // clearData()
-      // localStorage.removeItem('onboarding-decisions')
 
+      // 🧹 CLEANUP: Remove all onboarding data from storage
+      console.log('🧹 Starting onboarding cleanup...')
+      const cleanupResult = await cleanupAfterOnboarding(project.id)
+
+      if (cleanupResult.success) {
+        console.log('✅ Onboarding cleanup successful:', cleanupResult.message)
+      } else {
+        console.warn('⚠️ Onboarding cleanup had issues:', cleanupResult.message)
+      }
+
+      // Clear from app context
+      clearData()
+
+      // Small delay to ensure cleanup completes
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Navigate to project
       router.push(`/projects/${project.id}`)
 
     } catch (error) {
       console.error('Failed to create project:', error)
+
+      // Even on error, try to cleanup
+      try {
+        await cleanupAfterOnboarding()
+        clearData()
+      } catch (cleanupError) {
+        console.error('Cleanup failed:', cleanupError)
+      }
+
       markOnboardingComplete()
-      clearData()
-      // localStorage.removeItem('onboarding-decisions')
       router.push('/dashboard')
+    } finally {
+      setIsCreatingProject(false)
     }
   }
 
@@ -436,8 +464,6 @@ Your backend is ready! You can view the schema, generate code, or continue chatt
       </div>
     )
   }
-
-
 
   return (
     <div className="min-h-screen w-full bg-background relative overflow-hidden">
@@ -551,6 +577,28 @@ Your backend is ready! You can view the schema, generate code, or continue chatt
           </div>
         </div>
       </div>
+
+      {/* Loading overlay when creating project */}
+      {isCreatingProject && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+                <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border border-primary/20"></div>
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Creating Your Project
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Setting up your backend and cleaning up temporary data...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ProjectNameDialog
         open={showNameDialog}

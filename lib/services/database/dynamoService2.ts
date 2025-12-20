@@ -7,6 +7,7 @@ import {
     DeleteCommand,
     QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { S3StorageManager } from '../../appContext/s3-storage-manager';
 
 // Initialize DynamoDB Client
 const clientConfig: any = {
@@ -52,8 +53,8 @@ export interface ProjectUpdate {
 
 export class DynamoDBService {
     /**
-     * Get a project by ID
-     * Structure: PK: PROJECT#project_id, SK: CHAT#chatId, data: {...project data}
+     * Get a project by ID (with S3 support)
+     * Structure: PK: PROJECT#project_id, SK: CHAT#chatId, data: {...project data or S3 reference}
      */
     static async getProjectById(
         projectId: string,
@@ -62,18 +63,18 @@ export class DynamoDBService {
         try {
             console.log('Fetching project:', { projectId, userId });
 
-            // Query all items with PK = PROJECT#projectId
+            // Query with PK = USER#userId and SK = PROJECT#projectId
             const command = new QueryCommand({
                 TableName: TABLE_NAME,
-                KeyConditionExpression: 'PK = :pk',
+                KeyConditionExpression: 'PK = :pk AND SK = :sk',
                 ExpressionAttributeValues: {
-                    ':pk': `PROJECT#${projectId}`,
+                    ':pk': `USER#${userId}`,
+                    ':sk': `PROJECT#${projectId}`,
                 },
                 Limit: 1,
             });
 
             const response = await docClient.send(command);
-
             console.log('DynamoDB response:', {
                 itemCount: response.Items?.length || 0,
             });
@@ -83,8 +84,7 @@ export class DynamoDBService {
             }
 
             const item = response.Items[0];
-
-            return this.formatProjectFromDynamoDB(item, projectId);
+            return await this.formatProjectFromDynamoDB(item, projectId, userId);
         } catch (error) {
             console.error('Error getting project:', {
                 error,
@@ -97,8 +97,8 @@ export class DynamoDBService {
     }
 
     /**
-     * Get all projects for a user
-     * Structure: PK: USER#userId, SK: PROJECT#projectId, data: {projectId, name, ...}
+     * Get all projects for a user (with S3 support)
+     * Structure: PK: USER#userId, SK: PROJECT#projectId, data: {projectId, name, ... or S3 reference}
      */
     static async getProjectsByUserId(userId: string): Promise<Project[]> {
         try {
@@ -121,7 +121,7 @@ export class DynamoDBService {
                 return [];
             }
 
-            // For user index items, we need to fetch full project data
+            // For user index items, we need to fetch full project data (including from S3 if needed)
             const projectPromises = response.Items.map(async (item) => {
                 const projectId = item.SK.replace('PROJECT#', '');
                 // Try to get full project data
@@ -130,7 +130,7 @@ export class DynamoDBService {
                     return fullProject;
                 }
                 // Fallback to index data if full project not found
-                return this.formatProjectFromDynamoDB(item, projectId);
+                return await this.formatProjectFromDynamoDB(item, projectId, userId);
             });
 
             const projects = await Promise.all(projectPromises);
@@ -164,6 +164,27 @@ export class DynamoDBService {
                 updatedAt: timestamp,
             };
 
+            // Check if we should store in S3
+            const s3Storage = new S3StorageManager(userId);
+            let dataToStore = project;
+
+            if (s3Storage.isEnabled() && s3Storage.shouldUseS3(project)) {
+                // Save to S3 and store reference
+                const s3Result = await s3Storage.saveToS3(`project:${projectId}`, project);
+
+                if (s3Result.success) {
+                    dataToStore = {
+                        type: 's3_reference',
+                        s3Key: s3Result.s3Key,
+                        size: s3Result.size,
+                        timestamp: timestamp,
+                    } as any;
+                    console.log(`✅ Project stored in S3, saving reference: ${projectId}`);
+                } else {
+                    console.warn('⚠️ Failed to save to S3, storing directly in DynamoDB');
+                }
+            }
+
             // Create main project item with data in 'data' field
             const projectCommand = new PutCommand({
                 TableName: TABLE_NAME,
@@ -174,11 +195,11 @@ export class DynamoDBService {
                     userId,
                     updatedAt: timestamp,
                     version: chatId,
-                    data: project, // Store full project data in 'data' field
+                    data: dataToStore,
                 },
             });
 
-            // Create user index item
+            // Create user index item (always store metadata in DynamoDB)
             const userIndexCommand = new PutCommand({
                 TableName: TABLE_NAME,
                 Item: {
@@ -214,7 +235,7 @@ export class DynamoDBService {
     }
 
     /**
-     * Update a project
+     * Update a project (with S3 support)
      */
     static async updateProject(
         projectId: string,
@@ -222,7 +243,7 @@ export class DynamoDBService {
         updates: ProjectUpdate
     ): Promise<Project> {
         try {
-            // First, get the existing project
+            // First, get the existing project (will fetch from S3 if needed)
             const existingProject = await this.getProjectById(projectId, userId);
 
             if (!existingProject) {
@@ -257,6 +278,31 @@ export class DynamoDBService {
                 updatedAt: timestamp,
             };
 
+            // Check if we should store in S3
+            const s3Storage = new S3StorageManager(userId);
+            let dataToStore = updatedData;
+
+            // If data was previously in S3, delete old S3 object
+            if (item.data?.type === 's3_reference' && item.data?.s3Key) {
+                await s3Storage.deleteFromS3(item.data.s3Key);
+                console.log(`🗑️ Deleted old S3 data for project: ${projectId}`);
+            }
+
+            // Check if updated data should go to S3
+            if (s3Storage.isEnabled() && s3Storage.shouldUseS3(updatedData)) {
+                const s3Result = await s3Storage.saveToS3(`project:${projectId}`, updatedData);
+
+                if (s3Result.success) {
+                    dataToStore = {
+                        type: 's3_reference',
+                        s3Key: s3Result.s3Key,
+                        size: s3Result.size,
+                        timestamp: timestamp,
+                    } as any;
+                    console.log(`✅ Updated project stored in S3: ${projectId}`);
+                }
+            }
+
             // Update the main project item
             const command = new UpdateCommand({
                 TableName: TABLE_NAME,
@@ -270,7 +316,7 @@ export class DynamoDBService {
                     '#updatedAt': 'updatedAt',
                 },
                 ExpressionAttributeValues: {
-                    ':data': updatedData,
+                    ':data': dataToStore,
                     ':updatedAt': timestamp,
                 },
                 ReturnValues: 'ALL_NEW',
@@ -337,7 +383,7 @@ export class DynamoDBService {
     }
 
     /**
-     * Delete a project
+     * Delete a project (with S3 cleanup)
      * Deletes both the main project item and the user index item
      */
     static async deleteProject(
@@ -345,6 +391,8 @@ export class DynamoDBService {
         userId: string
     ): Promise<void> {
         try {
+            const s3Storage = new S3StorageManager(userId);
+
             // Query to get all items with this project
             const queryCommand = new QueryCommand({
                 TableName: TABLE_NAME,
@@ -358,6 +406,14 @@ export class DynamoDBService {
 
             if (!queryResponse.Items || queryResponse.Items.length === 0) {
                 throw new Error('Project not found');
+            }
+
+            // Check if any items have S3 references and delete them
+            for (const item of queryResponse.Items) {
+                if (item.data?.type === 's3_reference' && item.data?.s3Key) {
+                    await s3Storage.deleteFromS3(item.data.s3Key);
+                    console.log(`🗑️ Deleted S3 data: ${item.data.s3Key}`);
+                }
             }
 
             // Delete all items with this project (all CHAT entries)
@@ -399,14 +455,29 @@ export class DynamoDBService {
     }
 
     /**
-     * Format DynamoDB item to Project
-     * Extracts data from the 'data' field
+     * Format DynamoDB item to Project (with S3 support)
+     * Extracts data from the 'data' field or fetches from S3 if it's a reference
      */
-    private static formatProjectFromDynamoDB(
+    private static async formatProjectFromDynamoDB(
         item: any,
-        projectId: string
-    ): Project {
-        // Extract project data from 'data' field
+        projectId: string,
+        userId: string
+    ): Promise<Project | null> {
+        // Check if data is an S3 reference
+        if (item.data?.type === 's3_reference' && item.data?.s3Key) {
+            console.log(`📥 Loading project from S3: ${item.data.s3Key}`);
+            const s3Storage = new S3StorageManager(userId);
+            const s3Data = await s3Storage.loadFromS3<Project>(item.data.s3Key);
+
+            if (s3Data) {
+                return s3Data;
+            }
+
+            console.warn(`⚠️ Failed to load from S3, returning null: ${item.data.s3Key}`);
+            return null;
+        }
+
+        // Extract project data from 'data' field (direct DynamoDB storage)
         const projectData = item.data || {};
 
         // Ensure id is set
@@ -437,7 +508,7 @@ export class DynamoDBService {
     }
 
     /**
-     * Get projects with pagination
+     * Get projects with pagination (with S3 support)
      */
     static async getProjectsPaginated(
         userId: string,
@@ -465,7 +536,7 @@ export class DynamoDBService {
                 response.Items?.map(async (item) => {
                     const projectId = item.SK.replace('PROJECT#', '');
                     const fullProject = await this.getProjectById(projectId, userId);
-                    return fullProject || this.formatProjectFromDynamoDB(item, projectId);
+                    return fullProject || await this.formatProjectFromDynamoDB(item, projectId, userId);
                 }) || [];
 
             const projects = await Promise.all(projectPromises);

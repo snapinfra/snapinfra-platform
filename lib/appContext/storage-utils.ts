@@ -53,19 +53,26 @@ class HybridStorage {
     // Load from localStorage first, fall back to DynamoDB/S3
     async load<T>(key: string): Promise<T | null> {
         // Try localStorage first (fast)
+        console.log("entered load function", key)
         try {
             const localData = localStorage.getItem(key)
+            console.log(localData, "local data")
             if (localData) {
+                console.log("Loaded from localStorage:", JSON.parse(localData))
                 return JSON.parse(localData)
             }
         } catch (error) {
             console.error(`Failed to load ${key} from localStorage:`, error)
         }
 
+
+
         // Fall back to DynamoDB/S3 if available
         if (this.syncManager && !SYNC_CONFIG.LOCAL_ONLY.includes(key)) {
             try {
+                console.log("entered in try", key)
                 const data = await this.syncManager.load<T>(key)
+                console.log(data, "data from ")
 
                 // Cache in localStorage for faster future access
                 if (data) {
@@ -160,6 +167,50 @@ class HybridStorage {
         }
 
         return { success: true }
+    }
+
+    // NEW: Cleanup onboarding data from DynamoDB/S3
+    async cleanupOnboarding(projectId?: string): Promise<{
+        success: boolean;
+        deletedItems: string[];
+        errors: string[];
+        chatDeleted: boolean;
+        chatCount: number;
+    }> {
+        if (!this.syncManager) {
+            return {
+                success: false,
+                deletedItems: [],
+                errors: ['Sync manager not initialized'],
+                chatDeleted: false,
+                chatCount: 0
+            };
+        }
+
+        // Clean up onboarding data
+        const result = await this.syncManager.cleanupOnboardingData();
+
+        // Clean up chat messages if project ID provided
+        let chatDeleted = false;
+        let chatCount = 0;
+
+        if (projectId) {
+            const chatResult = await this.syncManager.deleteChatMessages(projectId);
+            chatDeleted = chatResult.success;
+            chatCount = chatResult.deletedCount;
+
+            if (chatResult.success) {
+                result.deletedItems.push(`chat messages (${chatCount})`);
+            } else {
+                result.errors.push('Failed to delete chat messages');
+            }
+        }
+
+        return {
+            ...result,
+            chatDeleted,
+            chatCount
+        };
     }
 
     // Force sync all pending changes
@@ -449,5 +500,62 @@ export async function saveGeneratedCode(
     } catch (error) {
         console.error('❌ Failed to save generated code:', error)
         return { success: false, error }
+    }
+}
+
+// ============================================================================
+// ONBOARDING CLEANUP - ADD THIS SECTION
+// ============================================================================
+
+/**
+ * Clean up all onboarding-related data after onboarding is complete
+ * This removes data from both localStorage and DynamoDB/S3
+ */
+export async function cleanupAfterOnboarding(projectId?: string): Promise<{
+    success: boolean;
+    message: string;
+}> {
+    try {
+        console.log('🧹 Starting onboarding cleanup...')
+
+        // 1. Clear from localStorage
+        localStorage.removeItem('onboardingData')
+        localStorage.removeItem('onboardingStep')
+        // localStorage.removeItem('onboarding-decisions')
+
+        // Clear chat messages if projectId provided
+        if (projectId) {
+            localStorage.removeItem(`chat_${projectId}`)
+        }
+
+        console.log('✅ Cleared localStorage')
+
+        // 2. Clear from DynamoDB/S3
+        const dynamoResult = await hybridStorage.cleanupOnboarding(projectId)
+
+        if (dynamoResult.success) {
+            console.log('✅ Onboarding cleanup complete:', {
+                localStorage: 'cleared',
+                dynamoDB: dynamoResult.deletedItems,
+                chatMessages: dynamoResult.chatDeleted ? `${dynamoResult.chatCount} deleted` : 'none'
+            })
+
+            return {
+                success: true,
+                message: `Cleaned up ${dynamoResult.deletedItems.length} items from storage`
+            }
+        } else {
+            console.warn('⚠️ Partial cleanup (localStorage cleared, DynamoDB had errors):', dynamoResult.errors)
+            return {
+                success: false,
+                message: `Partial cleanup: ${dynamoResult.errors.join(', ')}`
+            }
+        }
+    } catch (error) {
+        console.error('❌ Failed to cleanup onboarding data:', error)
+        return {
+            success: false,
+            message: `Cleanup failed: ${error}`
+        }
     }
 }

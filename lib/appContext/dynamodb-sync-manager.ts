@@ -5,7 +5,7 @@ import {
   GetCommand,
   QueryCommand,
   BatchWriteCommand,
-  UpdateCommand,
+  DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { S3StorageManager } from './s3-storage-manager'
 
@@ -485,22 +485,156 @@ export class DynamoDBSyncManager {
           PK = `USER#${this.userId}`;
           SK = `PROJECT#${id}`;
           break;
+        case "onboardingData":
+          PK = `USER#${this.userId}`;
+          SK = "ONBOARDING_DATA";
+          break;
+        case "onboardingStep":
+          PK = `USER#${this.userId}`;
+          SK = "ONBOARDING_STEP";
+          break;
         default:
           PK = `USER#${this.userId}`;
           SK = `DATA#${key}`;
       }
 
       await this.client.send(
-        new GetCommand({
+        new DeleteCommand({
           TableName: this.tableName,
           Key: { PK, SK },
         })
       );
 
+      console.log(`✅ Deleted from DynamoDB: ${key}`);
       return { success: true };
     } catch (error) {
       console.error("Failed to delete:", error);
       return { success: false };
+    }
+  }
+
+  /**
+   * Delete all chat messages for a project
+   */
+  async deleteChatMessages(projectId: string): Promise<{ success: boolean; deletedCount: number }> {
+    if (!this.enabled || !this.client) {
+      return { success: false, deletedCount: 0 };
+    }
+
+    try {
+      // First, query all chat messages
+      const result = await this.client.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: "PK = :pk AND begins_with(SK, :sk)",
+          ExpressionAttributeValues: {
+            ":pk": `PROJECT#${projectId}`,
+            ":sk": "CHAT#",
+          },
+        })
+      );
+
+      if (!result.Items || result.Items.length === 0) {
+        console.log(`ℹ️ No chat messages found for project: ${projectId}`);
+        return { success: true, deletedCount: 0 };
+      }
+
+      // Delete in batches
+      const deleteRequests = result.Items.map(item => ({
+        DeleteRequest: {
+          Key: {
+            PK: item.PK,
+            SK: item.SK,
+          },
+        },
+      }));
+
+      // Process in batches of 25 (DynamoDB limit)
+      for (let i = 0; i < deleteRequests.length; i += 25) {
+        const batch = deleteRequests.slice(i, i + 25);
+        await this.client.send(
+          new BatchWriteCommand({
+            RequestItems: {
+              [this.tableName]: batch,
+            },
+          })
+        );
+      }
+
+      console.log(`✅ Deleted ${result.Items.length} chat messages for project: ${projectId}`);
+      return { success: true, deletedCount: result.Items.length };
+    } catch (error) {
+      console.error("Failed to delete chat messages:", error);
+      return { success: false, deletedCount: 0 };
+    }
+  }
+
+  /**
+   * Clean up all onboarding-related data
+   */
+  async cleanupOnboardingData(): Promise<{
+    success: boolean;
+    deletedItems: string[];
+    errors: string[];
+  }> {
+    if (!this.enabled || !this.client) {
+      return { success: false, deletedItems: [], errors: ['DynamoDB not enabled'] };
+    }
+
+    const deletedItems: string[] = [];
+    const errors: string[] = [];
+
+    try {
+      // Delete onboarding data
+      const onboardingDataResult = await this.delete('onboardingData');
+      if (onboardingDataResult.success) {
+        deletedItems.push('onboardingData');
+      } else {
+        errors.push('Failed to delete onboardingData');
+      }
+
+      // Delete onboarding step
+      const onboardingStepResult = await this.delete('onboardingStep');
+      if (onboardingStepResult.success) {
+        deletedItems.push('onboardingStep');
+      } else {
+        errors.push('Failed to delete onboardingStep');
+      }
+
+      // Delete decisions
+      try {
+        await this.client.send(
+          new DeleteCommand({
+            TableName: this.tableName,
+            Key: {
+              PK: `USER#${this.userId}`,
+              SK: "ONBOARDING",
+            },
+          })
+        );
+        deletedItems.push('onboarding');
+      } catch (error) {
+        // Item might not exist, which is fine
+        console.log('ℹ️ Onboarding item not found (already deleted or never created)');
+      }
+
+      console.log(`✅ Onboarding cleanup complete:`, {
+        deletedItems,
+        errors: errors.length > 0 ? errors : 'none'
+      });
+
+      return {
+        success: errors.length === 0,
+        deletedItems,
+        errors,
+      };
+    } catch (error) {
+      console.error("Failed to cleanup onboarding data:", error);
+      return {
+        success: false,
+        deletedItems,
+        errors: [...errors, `Cleanup error: ${error}`],
+      };
     }
   }
 

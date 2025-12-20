@@ -30,6 +30,7 @@ import { SystemArchitectureEditor } from '@/components/architecture/system-archi
 import { SystemArchitecture } from '@/lib/types/architecture'
 import ERDDiagramViewer from "@/components/erd/ERDDiagramViewer"
 import DataFlowDiagram from "@/components/dataflow/DataFlowDiagram"
+import { hybridStorage } from "@/lib/appContext/storage-utils"
 
 interface DiagramData {
   lld: SystemArchitecture | null
@@ -71,8 +72,10 @@ export default function ArchitecturePage() {
 
     if (!state.currentProject || state.currentProject.id !== projectId) {
       setIsLoading(true)
+      console.log(projectId, 'this is project id woah')
       getProjectById(projectId)
         .then((project) => {
+          console.log('Loaded project:', project)
           const normalizedProject = {
             ...project,
             schema: Array.isArray(project.schema)
@@ -86,7 +89,7 @@ export default function ArchitecturePage() {
           console.error('Error loading project:', error)
           setLoadError('Failed to load project')
           setIsLoading(false)
-          router.push('/projects')
+          // router.push('/projects')
         })
     } else {
       setIsLoading(false)

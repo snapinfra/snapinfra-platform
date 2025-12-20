@@ -14,7 +14,8 @@ import {
   clearDecisions,
   updateDecisionsField,
   deleteProject as deleteProjectStorage,
-  renameProject as renameProjectStorage
+  renameProject as renameProjectStorage,
+  cleanupAfterOnboarding
 } from './storage-utils'
 
 // ============================================================================
@@ -645,6 +646,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       projectSaveTimeoutRef.current = setTimeout(() => {
+        console.log('💾 Auto-saving current project:', state.currentProject)
         const projectKey = `project:${state.currentProject!.id}`
         hybridStorage.save(projectKey, state.currentProject, 'high')
         hybridStorage.save('projects', state.projects, 'normal')
@@ -880,5 +882,129 @@ export function useDecisions() {
 export function useSyncControl() {
   return {
     syncNow: () => hybridStorage.syncNow(),
+  }
+}
+
+
+export function useOnboardingLifecycle() {
+  const { state, dispatch } = useAppContext()
+
+  return {
+    // Check if user has completed onboarding
+    hasCompletedOnboarding: state.hasCompletedOnboarding,
+
+    // Current onboarding data
+    onboardingData: state.onboardingData,
+    onboardingStep: state.onboardingStep,
+
+    /**
+     * Complete onboarding and clean up all temporary data
+     * @param projectId - Optional project ID to also clean up chat messages
+     */
+    completeOnboarding: async (projectId?: string) => {
+      try {
+        console.log('🎉 Completing onboarding...')
+
+        // 1. Mark onboarding as complete in state
+        dispatch({ type: 'SET_ONBOARDING_COMPLETE', payload: true })
+
+        // 2. Clear onboarding data from state
+        dispatch({ type: 'CLEAR_ONBOARDING_DATA' })
+
+        // 3. Clean up from storage (localStorage + DynamoDB/S3)
+        const cleanupResult = await cleanupAfterOnboarding(projectId)
+
+        if (cleanupResult.success) {
+          console.log('✅ Onboarding completed and cleaned up successfully')
+          return { success: true, message: cleanupResult.message }
+        } else {
+          console.warn('⚠️ Onboarding completed but cleanup had issues:', cleanupResult.message)
+          return { success: false, message: cleanupResult.message }
+        }
+      } catch (error) {
+        console.error('❌ Failed to complete onboarding:', error)
+        return {
+          success: false,
+          message: `Failed to complete onboarding: ${error}`
+        }
+      }
+    },
+
+    /**
+     * Abort onboarding and clean up data
+     * Use this if user cancels during onboarding
+     */
+    abortOnboarding: async (projectId?: string) => {
+      try {
+        console.log('❌ Aborting onboarding...')
+
+        // Clear from state
+        dispatch({ type: 'CLEAR_ONBOARDING_DATA' })
+
+        // Clean up storage
+        await cleanupAfterOnboarding(projectId)
+
+        return { success: true }
+      } catch (error) {
+        console.error('Failed to abort onboarding:', error)
+        return { success: false, error }
+      }
+    },
+
+    /**
+     * Reset onboarding (restart from beginning)
+     * This clears data but doesn't mark as complete
+     */
+    resetOnboarding: async () => {
+      try {
+        console.log('🔄 Resetting onboarding...')
+
+        // Clear from state
+        dispatch({ type: 'CLEAR_ONBOARDING_DATA' })
+
+        // Clean up storage
+        await cleanupAfterOnboarding()
+
+        // Reset to step 1
+        dispatch({ type: 'SET_ONBOARDING_STEP', payload: 1 })
+
+        return { success: true }
+      } catch (error) {
+        console.error('Failed to reset onboarding:', error)
+        return { success: false, error }
+      }
+    }
+  }
+}
+
+/**
+ * Hook specifically for cleanup operations
+ */
+export function useCleanup() {
+  return {
+    /**
+     * Clean up all onboarding data
+     */
+    cleanupOnboarding: async (projectId?: string) => {
+      return await cleanupAfterOnboarding(projectId)
+    },
+
+    /**
+     * Clean up project-specific data
+     */
+    cleanupProject: async (projectId: string) => {
+      try {
+        // Delete from storage
+        await hybridStorage.delete(`project:${projectId}`)
+
+        // Clean up chat
+        await hybridStorage.delete(`chat_${projectId}`)
+
+        return { success: true }
+      } catch (error) {
+        console.error('Failed to cleanup project:', error)
+        return { success: false, error }
+      }
+    }
   }
 }
