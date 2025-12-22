@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useUser } from "@clerk/nextjs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,33 +10,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-    Trash2,
-    AlertTriangle,
-    CheckCircle,
-    XCircle,
-    Loader2,
-    Terminal,
-    Info
-} from "lucide-react"
+import { Trash2, AlertTriangle, CheckCircle, XCircle, Loader2, Terminal, Info } from "lucide-react"
+import { useDeploymentManager } from "./deployment-manager"
 
 const BACKEND_URL = "http://localhost:3001"
-const STATIC_USER_ID = 'user_35D1LiK0985qSJCacutmHh73oxA' // Fallback user ID
 
 interface DestroyModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     projectId: string
     projectName: string
-    userId?: string
     deployment: any
     onDestroyComplete?: () => void
-}
-
-interface LogEntry {
-    timestamp: string
-    level: string
-    message: string
 }
 
 export function DestroyModal({
@@ -43,10 +29,12 @@ export function DestroyModal({
     onOpenChange,
     projectId,
     projectName,
-    userId,
     deployment,
     onDestroyComplete
 }: DestroyModalProps) {
+    const { user, isLoaded } = useUser()
+    const { currentDeployment } = useDeploymentManager()
+
     const [step, setStep] = useState<'confirm' | 'credentials' | 'destroying'>('confirm')
     const [confirmed, setConfirmed] = useState(false)
     const [accessKeyId, setAccessKeyId] = useState('')
@@ -55,20 +43,19 @@ export function DestroyModal({
     const [region, setRegion] = useState('us-east-1')
     const [destroying, setDestroying] = useState(false)
     const [destroyStatus, setDestroyStatus] = useState<'idle' | 'in-progress' | 'success' | 'failed'>('idle')
-    const [logs, setLogs] = useState<LogEntry[]>([])
+    const [logs, setLogs] = useState<any[]>([])
     const [error, setError] = useState<string | null>(null)
     const [currentStep, setCurrentStep] = useState('')
     const [duration, setDuration] = useState('')
+    const [destroymentId, setDestroymentId] = useState<string | null>(null)
 
     const wsRef = useRef<WebSocket | null>(null)
     const logsEndRef = useRef<HTMLDivElement>(null)
 
-    // Auto-scroll logs
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [logs])
 
-    // Reset state when modal opens/closes
     useEffect(() => {
         if (!open) {
             setTimeout(() => {
@@ -77,24 +64,18 @@ export function DestroyModal({
                 setAccessKeyId('')
                 setSecretAccessKey('')
                 setSessionToken('')
-                setDestroying(false)
-                setDestroyStatus('idle')
-                setLogs([])
-                setError(null)
-                setCurrentStep('')
-                setDuration('')
+                if (destroyStatus === 'success' || destroyStatus === 'failed') {
+                    setDestroying(false)
+                    setDestroyStatus('idle')
+                    setLogs([])
+                    setError(null)
+                    setCurrentStep('')
+                    setDuration('')
+                    setDestroymentId(null)
+                }
             }, 300)
         }
-    }, [open])
-
-    // Cleanup WebSocket on unmount
-    useEffect(() => {
-        return () => {
-            if (wsRef.current) {
-                wsRef.current.close()
-            }
-        }
-    }, [])
+    }, [open, destroyStatus])
 
     const addLog = (level: string, message: string) => {
         setLogs(prev => [...prev, {
@@ -111,13 +92,22 @@ export function DestroyModal({
     }
 
     const handleDestroy = async () => {
+        if (!isLoaded) {
+            setError('Loading user authentication...')
+            return
+        }
+
+        if (!user) {
+            setError('You must be logged in to perform this action')
+            return
+        }
+
         if (!accessKeyId || !secretAccessKey) {
             setError('AWS credentials are required')
             return
         }
 
-        // Use provided userId or fallback to static user ID
-        const effectiveUserId = userId || STATIC_USER_ID
+        const userId = user.id
 
         setDestroying(true)
         setDestroyStatus('in-progress')
@@ -126,15 +116,17 @@ export function DestroyModal({
         setLogs([])
 
         try {
-            // Step 1: Initiate destroy via REST API
             addLog('info', 'Initiating destruction...')
-            addLog('info', `Using User ID: ${effectiveUserId}`)
+            addLog('info', `User ID: ${userId}`)
+            addLog('info', `Project: ${projectName}`)
 
             const response = await fetch(`${BACKEND_URL}/api/destroy`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
-                    userId: effectiveUserId,
+                    userId,
                     projectId,
                     projectName,
                     accessKeyId,
@@ -145,27 +137,27 @@ export function DestroyModal({
             })
 
             if (!response.ok) {
-                throw new Error('Failed to initiate destruction')
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.error || 'Failed to initiate destruction')
             }
 
             const data = await response.json()
-            addLog('success', `Destruction initiated: ${data.deploymentId}`)
+            const depId = data.deploymentId
+            setDestroymentId(depId)
+            addLog('success', `Destruction initiated: ${depId}`)
 
-            // Step 2: Connect to WebSocket for real-time updates
-            const wsUrl = `ws://localhost:3001/ws/destroy/${data.deploymentId}`
-            addLog('info', `Connecting to WebSocket: ${wsUrl}`)
+            const wsUrl = `ws://localhost:3001/ws/destroy/${depId}`
+            addLog('info', `Connecting to WebSocket...`)
 
             const ws = new WebSocket(wsUrl)
             wsRef.current = ws
 
             ws.onopen = () => {
                 addLog('success', 'WebSocket connected')
-
-                // Send start signal with parameters
                 ws.send(JSON.stringify({
                     type: 'start_deployment',
                     params: {
-                        userId: effectiveUserId,
+                        userId,
                         projectId,
                         projectName,
                         accessKeyId,
@@ -197,7 +189,6 @@ export function DestroyModal({
                         case 'progress':
                             addLog('info', `[${message.step}] ${message.message}`)
                             setCurrentStep(message.message)
-
                             if (message.status === 'failed' && message.error) {
                                 addLog('error', `Error: ${message.error}`)
                             }
@@ -208,10 +199,11 @@ export function DestroyModal({
                             setDestroyStatus('success')
                             setDestroying(false)
                             setDuration(message.duration || '')
-
-                            // Close WebSocket
+                            // Don't close WebSocket immediately - let user see completion
                             setTimeout(() => {
-                                ws.close()
+                                if (wsRef.current) {
+                                    wsRef.current.close()
+                                }
                                 if (onDestroyComplete) {
                                     onDestroyComplete()
                                 }
@@ -224,9 +216,10 @@ export function DestroyModal({
                             setError(message.error)
                             setDestroying(false)
                             setDuration(message.duration || '')
-
                             setTimeout(() => {
-                                ws.close()
+                                if (wsRef.current) {
+                                    wsRef.current.close()
+                                }
                             }, 1000)
                             break
 
@@ -249,6 +242,7 @@ export function DestroyModal({
 
             ws.onclose = () => {
                 addLog('info', 'WebSocket disconnected')
+                wsRef.current = null
             }
 
         } catch (err: any) {
@@ -261,17 +255,61 @@ export function DestroyModal({
 
     const getLogColor = (level: string) => {
         switch (level) {
-            case 'error': return 'text-red-600'
-            case 'warn': return 'text-yellow-600'
-            case 'success': return 'text-green-600'
-            case 'info': return 'text-blue-600'
-            default: return 'text-gray-600'
+            case 'error':
+                return 'text-red-600'
+            case 'warn':
+                return 'text-yellow-600'
+            case 'success':
+                return 'text-green-600'
+            case 'info':
+                return 'text-blue-600'
+            default:
+                return 'text-gray-600'
         }
+    }
+
+    if (!isLoaded) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-2xl">
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                        <span className="ml-3 text-gray-600">Loading...</span>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        )
+    }
+
+    if (!user) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Authentication Required</DialogTitle>
+                        <DialogDescription>
+                            You must be logged in to destroy deployments
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                            Please log in to continue with this action.
+                        </AlertDescription>
+                    </Alert>
+                    <div className="flex justify-end">
+                        <Button onClick={() => onOpenChange(false)}>
+                            Close
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        )
     }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Trash2 className="w-5 h-5 text-red-600" />
@@ -284,83 +322,80 @@ export function DestroyModal({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto">
-                    {/* Step 1: Confirmation */}
+                <div className="space-y-4">
                     {step === 'confirm' && (
-                        <div className="space-y-6">
-                            <Alert variant="destructive">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertDescription>
+                        <div className="space-y-4">
+                            <Alert className="border-red-200 bg-red-50">
+                                <AlertTriangle className="h-4 w-4 text-red-600" />
+                                <AlertDescription className="text-red-800">
                                     <strong>Warning:</strong> This action cannot be undone. All resources will be permanently deleted.
                                 </AlertDescription>
                             </Alert>
 
                             {deployment && (
-                                <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-                                    <h3 className="font-semibold text-sm">Deployment Details</h3>
+                                <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
+                                    <h4 className="font-semibold text-sm text-gray-700">Deployment Details</h4>
                                     <div className="grid grid-cols-2 gap-3 text-sm">
                                         <div>
-                                            <p className="text-gray-500">Project</p>
+                                            <span className="text-gray-500">Project:</span>
                                             <p className="font-medium">{projectName}</p>
                                         </div>
                                         <div>
-                                            <p className="text-gray-500">Region</p>
+                                            <span className="text-gray-500">Region:</span>
                                             <p className="font-medium">{deployment.region}</p>
                                         </div>
                                         <div>
-                                            <p className="text-gray-500">Status</p>
-                                            <Badge variant="outline">{deployment.status}</Badge>
-                                        </div>
-                                        <div>
-                                            <p className="text-gray-500">Created</p>
-                                            <p className="font-medium">
-                                                {new Date(deployment.createdAt).toLocaleDateString()}
+                                            <span className="text-gray-500">Status:</span>
+                                            <p>
+                                                <Badge variant={deployment.status === 'deployed' ? 'default' : 'secondary'}>
+                                                    {deployment.status}
+                                                </Badge>
                                             </p>
                                         </div>
-                                    </div>
-                                    {deployment.url && (
                                         <div>
-                                            <p className="text-gray-500 text-sm">URL</p>
-                                            <code className="text-xs bg-white px-2 py-1 rounded block mt-1">
-                                                {deployment.url}
-                                            </code>
+                                            <span className="text-gray-500">Created:</span>
+                                            <p className="font-medium">{new Date(deployment.createdAt).toLocaleDateString()}</p>
                                         </div>
-                                    )}
+                                        {deployment.url && (
+                                            <div className="col-span-2">
+                                                <span className="text-gray-500">URL:</span>
+                                                <p className="font-medium text-blue-600 truncate">{deployment.url}</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
-                            <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertDescription>
+                            <div className="border rounded-lg p-4 bg-gray-50">
+                                <p className="text-sm font-medium text-gray-700 mb-2">
                                     The following resources will be destroyed:
-                                    <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                                        <li>ECS Services and Tasks</li>
-                                        <li>Application Load Balancer</li>
-                                        <li>Target Groups</li>
-                                        <li>ECR Repositories and Images</li>
-                                        <li>CloudWatch Log Groups</li>
-                                        <li>All associated infrastructure</li>
-                                    </ul>
-                                </AlertDescription>
-                            </Alert>
+                                </p>
+                                <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                                    <li>ECS Services and Tasks</li>
+                                    <li>Application Load Balancer</li>
+                                    <li>Target Groups</li>
+                                    <li>ECR Repositories and Images</li>
+                                    <li>CloudWatch Log Groups</li>
+                                    <li>All associated infrastructure</li>
+                                </ul>
+                            </div>
 
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-start space-x-2 pt-2">
                                 <Checkbox
                                     id="confirm"
                                     checked={confirmed}
                                     onCheckedChange={(checked) => setConfirmed(checked as boolean)}
                                 />
-                                <label
+                                <Label
                                     htmlFor="confirm"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                                 >
                                     I understand that this action cannot be undone
-                                </label>
+                                </Label>
                             </div>
                         </div>
                     )}
 
-                    {/* Step 2: AWS Credentials */}
                     {step === 'credentials' && (
                         <div className="space-y-4">
                             <Alert>
@@ -370,18 +405,18 @@ export function DestroyModal({
                                 </AlertDescription>
                             </Alert>
 
-                            {!userId && (
-                                <Alert className="border-yellow-200 bg-yellow-50">
-                                    <Info className="h-4 w-4 text-yellow-600" />
-                                    <AlertDescription className="text-yellow-800">
-                                        Using default user ID: {STATIC_USER_ID}
-                                    </AlertDescription>
-                                </Alert>
-                            )}
+                            <Alert className="border-blue-200 bg-blue-50">
+                                <Info className="h-4 w-4 text-blue-600" />
+                                <AlertDescription className="text-blue-800">
+                                    <strong>Authenticated as:</strong> {user.primaryEmailAddress?.emailAddress || user.id}
+                                </AlertDescription>
+                            </Alert>
 
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="accessKeyId">AWS Access Key ID *</Label>
+                            <div className="space-y-3">
+                                <div>
+                                    <Label htmlFor="accessKeyId">
+                                        AWS Access Key ID <span className="text-red-500">*</span>
+                                    </Label>
                                     <Input
                                         id="accessKeyId"
                                         type="text"
@@ -391,8 +426,10 @@ export function DestroyModal({
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="secretAccessKey">AWS Secret Access Key *</Label>
+                                <div>
+                                    <Label htmlFor="secretAccessKey">
+                                        AWS Secret Access Key <span className="text-red-500">*</span>
+                                    </Label>
                                     <Input
                                         id="secretAccessKey"
                                         type="password"
@@ -402,8 +439,10 @@ export function DestroyModal({
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="sessionToken">AWS Session Token (Optional)</Label>
+                                <div>
+                                    <Label htmlFor="sessionToken">
+                                        AWS Session Token (Optional)
+                                    </Label>
                                     <Input
                                         id="sessionToken"
                                         type="password"
@@ -413,10 +452,12 @@ export function DestroyModal({
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="region">AWS Region *</Label>
+                                <div>
+                                    <Label htmlFor="region">
+                                        AWS Region <span className="text-red-500">*</span>
+                                    </Label>
                                     <Select value={region} onValueChange={setRegion}>
-                                        <SelectTrigger>
+                                        <SelectTrigger id="region">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -442,55 +483,59 @@ export function DestroyModal({
                         </div>
                     )}
 
-                    {/* Step 3: Destroying */}
                     {step === 'destroying' && (
                         <div className="space-y-4">
-                            {/* Status Header */}
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                    {destroyStatus === 'in-progress' && (
-                                        <>
+                            {(destroyStatus === 'in-progress' || destroying) && (
+                                <Alert className="border-blue-200 bg-blue-50">
+                                    <Info className="h-4 w-4 text-blue-600" />
+                                    <AlertDescription className="text-blue-800">
+                                        <strong>Note:</strong> This destruction will continue in the background even if you close this modal.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
+                            <div className="border rounded-lg p-4 bg-gray-50">
+                                {destroyStatus === 'in-progress' && (
+                                    <>
+                                        <div className="flex items-center gap-2 mb-2">
                                             <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                                            <div>
-                                                <p className="font-semibold text-sm">Destroying...</p>
-                                                <p className="text-xs text-gray-600">{currentStep}</p>
-                                            </div>
-                                        </>
-                                    )}
-                                    {destroyStatus === 'success' && (
-                                        <>
+                                            <span className="font-semibold text-gray-900">Destroying...</span>
+                                        </div>
+                                        <p className="text-sm text-gray-600">{currentStep}</p>
+                                    </>
+                                )}
+
+                                {destroyStatus === 'success' && (
+                                    <>
+                                        <div className="flex items-center gap-2 mb-2">
                                             <CheckCircle className="w-5 h-5 text-green-600" />
-                                            <div>
-                                                <p className="font-semibold text-sm text-green-600">Destruction Completed!</p>
-                                                <p className="text-xs text-gray-600">Duration: {duration}</p>
-                                            </div>
-                                        </>
-                                    )}
-                                    {destroyStatus === 'failed' && (
-                                        <>
+                                            <span className="font-semibold text-gray-900">Destruction Completed!</span>
+                                        </div>
+                                        <p className="text-sm text-gray-600">Duration: {duration}</p>
+                                    </>
+                                )}
+
+                                {destroyStatus === 'failed' && (
+                                    <>
+                                        <div className="flex items-center gap-2 mb-2">
                                             <XCircle className="w-5 h-5 text-red-600" />
-                                            <div>
-                                                <p className="font-semibold text-sm text-red-600">Destruction Failed</p>
-                                                <p className="text-xs text-gray-600">Duration: {duration}</p>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
+                                            <span className="font-semibold text-gray-900">Destruction Failed</span>
+                                        </div>
+                                        <p className="text-sm text-gray-600">Duration: {duration}</p>
+                                    </>
+                                )}
                             </div>
 
-                            {/* Logs */}
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <Terminal className="w-4 h-4 text-gray-500" />
-                                    <Label>Destruction Logs</Label>
+                            <div className="border rounded-lg overflow-hidden">
+                                <div className="bg-gray-800 text-white px-4 py-2 flex items-center gap-2">
+                                    <Terminal className="w-4 h-4" />
+                                    <span className="text-sm font-medium">Destruction Logs</span>
                                 </div>
-                                <div className="bg-black text-white p-4 rounded-lg h-[400px] overflow-y-auto font-mono text-xs">
+                                <div className="bg-gray-900 text-gray-100 p-4 font-mono text-xs h-64 overflow-y-auto">
                                     {logs.map((log, index) => (
                                         <div key={index} className="mb-1">
-                                            <span className="text-gray-400">[{log.timestamp}]</span>{' '}
-                                            <span className={getLogColor(log.level)}>
-                                                {log.message}
-                                            </span>
+                                            <span className="text-gray-500">[{log.timestamp}]</span>{' '}
+                                            <span className={getLogColor(log.level)}>{log.message}</span>
                                         </div>
                                     ))}
                                     <div ref={logsEndRef} />
@@ -507,50 +552,53 @@ export function DestroyModal({
                     )}
                 </div>
 
-                {/* Footer Actions */}
-                <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex justify-end gap-2 pt-4 border-t">
                     <Button
                         variant="outline"
                         onClick={() => onOpenChange(false)}
-                        disabled={destroying}
+                        disabled={destroying && destroyStatus === 'in-progress'}
                     >
-                        {destroyStatus === 'success' ? 'Close' : 'Cancel'}
+                        {destroyStatus === 'in-progress' ? 'Close' : destroyStatus === 'success' ? 'Close' : 'Cancel'}
                     </Button>
 
-                    <div className="flex items-center gap-2">
-                        {step === 'confirm' && (
+                    {step === 'confirm' && (
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirm}
+                            disabled={!confirmed}
+                        >
+                            Continue
+                        </Button>
+                    )}
+
+                    {step === 'credentials' && (
+                        <>
+                            <Button
+                                variant="outline"
+                                onClick={() => setStep('confirm')}
+                                disabled={destroying}
+                            >
+                                Back
+                            </Button>
                             <Button
                                 variant="destructive"
-                                onClick={handleConfirm}
-                                disabled={!confirmed}
-                                className="gap-2"
+                                onClick={handleDestroy}
+                                disabled={destroying || !accessKeyId || !secretAccessKey}
                             >
-                                <AlertTriangle className="w-4 h-4" />
-                                Continue
+                                {destroying ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Destroying...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Destroy Infrastructure
+                                    </>
+                                )}
                             </Button>
-                        )}
-
-                        {step === 'credentials' && (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setStep('confirm')}
-                                    disabled={destroying}
-                                >
-                                    Back
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    onClick={handleDestroy}
-                                    disabled={!accessKeyId || !secretAccessKey || destroying}
-                                    className="gap-2"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                    Destroy Infrastructure
-                                </Button>
-                            </>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

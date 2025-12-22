@@ -661,35 +661,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.currentProject, state.projects])
 
   // Load chat messages
-  useEffect(() => {
-    if (state.currentProject) {
-      hybridStorage.loadChatMessages(state.currentProject.id).then(messages => {
-        dispatch({ type: 'LOAD_PROJECT_CHAT', payload: messages })
-      })
-    }
-  }, [state.currentProject?.id])
+  // useEffect(() => {
+  //   if (state.currentProject) {
+  //     hybridStorage.loadChatMessages(state.currentProject.id).then(messages => {
+  //       dispatch({ type: 'LOAD_PROJECT_CHAT', payload: messages })
+  //     })
+  //   }
+  // }, [state.currentProject?.id])
 
   // Auto-save chat messages
-  const chatSaveTimeoutRef = useRef<NodeJS.Timeout>()
-  useEffect(() => {
-    if (state.currentProject && state.chatMessages.length > 0) {
-      if (chatSaveTimeoutRef.current) {
-        clearTimeout(chatSaveTimeoutRef.current)
-      }
+  // const chatSaveTimeoutRef = useRef<NodeJS.Timeout>()
+  // useEffect(() => {
+  //   if (state.currentProject && state.chatMessages.length > 0) {
+  //     if (chatSaveTimeoutRef.current) {
+  //       clearTimeout(chatSaveTimeoutRef.current)
+  //     }
 
-      chatSaveTimeoutRef.current = setTimeout(() => {
-        const lastMessage = state.chatMessages[state.chatMessages.length - 1]
-        const chatKey = `chat:${state.currentProject!.id}`
-        hybridStorage.save(chatKey, lastMessage, 'normal')
-      }, 300)
-    }
+  //     chatSaveTimeoutRef.current = setTimeout(() => {
+  //       const lastMessage = state.chatMessages[state.chatMessages.length - 1]
+  //       const chatKey = `chat:${state.currentProject!.id}`
+  //       hybridStorage.save(chatKey, lastMessage, 'normal')
+  //     }, 300)
+  //   }
 
-    return () => {
-      if (chatSaveTimeoutRef.current) {
-        clearTimeout(chatSaveTimeoutRef.current)
-      }
-    }
-  }, [state.chatMessages.length, state.currentProject?.id])
+  //   return () => {
+  //     if (chatSaveTimeoutRef.current) {
+  //       clearTimeout(chatSaveTimeoutRef.current)
+  //     }
+  //   }
+  // }, [state.chatMessages.length, state.currentProject?.id])
 
   // Save preferences
   const prefSaveTimeoutRef = useRef<NodeJS.Timeout>()
@@ -998,7 +998,7 @@ export function useCleanup() {
         await hybridStorage.delete(`project:${projectId}`)
 
         // Clean up chat
-        await hybridStorage.delete(`chat_${projectId}`)
+        // await hybridStorage.delete(`chat_${projectId}`)
 
         return { success: true }
       } catch (error) {

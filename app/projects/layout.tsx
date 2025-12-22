@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { DeploymentManagerProvider } from "./[id]/deployments/deployment-manager"
 
 export const metadata: Metadata = {
   title: "Projects",
@@ -10,6 +11,10 @@ export default function ProjectsLayout({
 }: {
   children: React.ReactNode
 }) {
-  return children
+  return (
+    <DeploymentManagerProvider>
+      {children}
+    </DeploymentManagerProvider>
+  )
 }
 

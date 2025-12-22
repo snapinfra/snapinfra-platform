@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useUser } from "@clerk/nextjs"
 import {
     Dialog,
     DialogContent,
@@ -33,36 +34,28 @@ import {
     ExternalLink,
     Copy,
     Check,
-    Activity
+    Activity,
+    Info
 } from "lucide-react"
+import { useDeploymentManager } from "./deployment-manager"
 
 interface DeployModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     projectId: string
     projectName: string
-    userId?: string
-    onDeploymentComplete: () => void
+    onDeploymentComplete?: () => void
 }
 
-interface LogEntry {
-    level: string
-    message: string
-    timestamp: string
-}
+export function DeployModal({ open, onOpenChange, projectId, projectName, onDeploymentComplete }: DeployModalProps) {
+    // Get user from Clerk
+    const { user, isLoaded } = useUser()
 
-interface ProgressStep {
-    step: string
-    status: string
-    message: string
-    data?: any
-}
+    // Get deployment manager
+    const { currentDeployment, startDeployment, cancelDeployment } = useDeploymentManager()
 
-const BACKEND_URL = "http://localhost:3001"
-
-export function DeployModal({ open, onOpenChange, projectId, projectName, userId, onDeploymentComplete }: DeployModalProps) {
     const [config, setConfig] = useState({
-        userId: userId || "",
+        userId: "",
         projectId: projectId,
         accessKeyId: "",
         secretAccessKey: "",
@@ -72,188 +65,67 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
     })
 
     const [showSecrets, setShowSecrets] = useState(false)
-    const [deploymentId, setDeploymentId] = useState<string | null>(null)
-    const [status, setStatus] = useState<'idle' | 'connecting' | 'deploying' | 'success' | 'failed'>('idle')
-    const [logs, setLogs] = useState<LogEntry[]>([])
-    const [progress, setProgress] = useState<ProgressStep[]>([])
-    const [outputs, setOutputs] = useState<any>(null)
-    const [error, setError] = useState<string | null>(null)
-    const [duration, setDuration] = useState<string>("")
+    const [currentDeploymentId, setCurrentDeploymentId] = useState<string | null>(null)
+    const [localError, setLocalError] = useState<string | null>(null)
     const [copied, setCopied] = useState<string | null>(null)
 
-    const wsRef = useRef<WebSocket | null>(null)
     const logsEndRef = useRef<HTMLDivElement>(null)
+
+    // Get deployment state from manager
+    const deployment = currentDeployment
+
+    // Update userId when user loads
+    useEffect(() => {
+        if (user?.id) {
+            setConfig(prev => ({ ...prev, userId: user.id }))
+        }
+    }, [user?.id])
 
     // Auto-scroll logs
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [logs])
-
-    // Cleanup WebSocket on unmount
-    useEffect(() => {
-        return () => {
-            if (wsRef.current) {
-                wsRef.current.close()
-            }
-        }
-    }, [])
-
-    // Reset state when modal closes
-    useEffect(() => {
-        if (!open) {
-            if (wsRef.current) {
-                wsRef.current.close()
-            }
-            // Don't reset immediately to allow user to see results
-            setTimeout(() => {
-                if (!open) {
-                    setStatus('idle')
-                    setLogs([])
-                    setProgress([])
-                    setError(null)
-                    setOutputs(null)
-                    setDeploymentId(null)
-                }
-            }, 300)
-        }
-    }, [open])
+    }, [deployment?.logs])
 
     const handleInputChange = (name: string, value: string) => {
         setConfig(prev => ({ ...prev, [name]: value }))
     }
 
-    const addLog = (level: string, message: string) => {
-        setLogs(prev => [...prev, {
-            level,
-            message,
-            timestamp: new Date().toLocaleTimeString()
-        }])
-    }
-
-    const updateProgress = (progressData: ProgressStep) => {
-        setProgress(prev => {
-            const existing = prev.find(p => p.step === progressData.step)
-            if (existing) {
-                return prev.map(p => p.step === progressData.step ? progressData : p)
-            }
-            return [...prev, progressData]
-        })
-    }
-
-    const handleWebSocketMessage = (message: any) => {
-        switch (message.type) {
-            case 'connected':
-                addLog('info', message.message)
-                break
-
-            case 'started':
-                addLog('success', `Deployment started: ${message.deploymentId}`)
-                break
-
-            case 'log':
-                addLog(message.level, message.message)
-                break
-
-            case 'progress':
-                updateProgress(message)
-                addLog('info', `[${message.step}] ${message.message}`)
-                break
-
-            case 'completed':
-                setStatus('success')
-                setOutputs(message.outputs)
-                setDuration(message.duration)
-                addLog('success', `✓ Deployment completed in ${message.duration}`)
-                if (wsRef.current) {
-                    wsRef.current.close()
-                }
-                break
-
-            case 'failed':
-                setStatus('failed')
-                setError(message.error)
-                addLog('error', `✗ Deployment failed: ${message.error}`)
-                if (wsRef.current) {
-                    wsRef.current.close()
-                }
-                break
-
-            case 'error':
-                addLog('error', message.message)
-                break
+    const handleStartDeployment = async () => {
+        // Check if user is authenticated
+        if (!isLoaded) {
+            setLocalError('Loading user authentication...')
+            return
         }
-    }
 
-    const startDeployment = async () => {
+        if (!user) {
+            setLocalError('You must be logged in to deploy')
+            return
+        }
+
+        if (!config.accessKeyId || !config.secretAccessKey) {
+            setLocalError('AWS credentials are required')
+            return
+        }
+
         try {
-            setLogs([])
-            setProgress([])
-            setError(null)
-            setOutputs(null)
-            setStatus('connecting')
-
-            // Step 1: Initiate deployment via REST API
-            const response = await fetch(`${BACKEND_URL}/api/deploy`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
-            })
-
-            const data = await response.json()
-
-            if (!data.success) {
-                throw new Error(data.error || 'Failed to initiate deployment')
+            setLocalError(null)
+            const deployConfig = {
+                ...config,
+                userId: user.id
             }
 
-            const depId = data.deploymentId
-            setDeploymentId(depId)
-            addLog('info', `Deployment ID: ${depId}`)
-
-            // Step 2: Connect to WebSocket
-            const ws = new WebSocket(`${BACKEND_URL.replace('http', 'ws')}/ws/deploy/${depId}`)
-            wsRef.current = ws
-
-            ws.onopen = () => {
-                addLog('info', 'Connected to deployment service')
-                setStatus('deploying')
-
-                // Send start command
-                ws.send(JSON.stringify({
-                    type: 'start_deployment',
-                    params: config
-                }))
-            }
-
-            ws.onmessage = (event) => {
-                const message = JSON.parse(event.data)
-                handleWebSocketMessage(message)
-            }
-
-            ws.onerror = (error) => {
-                addLog('error', 'WebSocket error occurred')
-                setStatus('failed')
-                setError('WebSocket connection failed')
-            }
-
-            ws.onclose = () => {
-                addLog('info', 'WebSocket connection closed')
-            }
-
-            // onDeploymentComplete()
+            const deploymentId = await startDeployment(deployConfig)
+            setCurrentDeploymentId(deploymentId)
 
         } catch (err: any) {
-            setError(err.message)
-            setStatus('failed')
-            addLog('error', err.message)
+            setLocalError(err.message)
         }
     }
 
-    const cancelDeployment = () => {
-        if (wsRef.current) {
-            wsRef.current.close()
+    const handleCancelDeployment = () => {
+        if (currentDeploymentId) {
+            cancelDeployment(currentDeploymentId)
         }
-        setStatus('idle')
-        addLog('warn', 'Deployment cancelled by user')
     }
 
     const copyToClipboard = (text: string, key: string) => {
@@ -269,7 +141,7 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
             case 'success': return 'text-green-600'
             case 'stdout': return 'text-blue-600'
             case 'stderr': return 'text-orange-600'
-            default: return 'text-gray-700'
+            default: return 'text-gray-300'
         }
     }
 
@@ -286,7 +158,54 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
         }
     }
 
-    const isFormValid = config.userId && config.projectId && config.accessKeyId && config.secretAccessKey
+    const isFormValid = config.accessKeyId && config.secretAccessKey
+    const status = deployment?.status || 'idle'
+    const logs = deployment?.logs || []
+    const progress = deployment?.progress || []
+    const outputs = deployment?.outputs
+    const error = deployment?.error || localError
+    const duration = deployment?.duration || ''
+
+    // Show loading state while Clerk is loading
+    if (!isLoaded) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-5xl">
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                        <span className="ml-3 text-gray-600">Loading...</span>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        )
+    }
+
+    // Show authentication required message
+    if (!user) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-5xl">
+                    <DialogHeader>
+                        <DialogTitle>Authentication Required</DialogTitle>
+                        <DialogDescription>
+                            You must be logged in to deploy applications
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                            Please log in to continue with deployment.
+                        </AlertDescription>
+                    </Alert>
+                    <div className="flex justify-end">
+                        <Button onClick={() => onOpenChange(false)}>
+                            Close
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        )
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -304,19 +223,17 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
                 <div className="flex-1 overflow-auto">
                     {status === 'idle' && (
                         <div className="space-y-6 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="userId">User ID *</Label>
-                                    <Input
-                                        id="userId"
-                                        value={config.userId}
-                                        onChange={(e) => handleInputChange('userId', e.target.value)}
-                                        placeholder="user-123"
-                                    />
-                                </div>
+                            {/* User Info Alert */}
+                            <Alert className="border-blue-200 bg-blue-50">
+                                <Info className="h-4 w-4 text-blue-600" />
+                                <AlertDescription className="text-blue-800">
+                                    <strong>Authenticated as:</strong> {user.primaryEmailAddress?.emailAddress || user.id}
+                                </AlertDescription>
+                            </Alert>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="projectId">Project ID *</Label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="projectId">Project ID</Label>
                                     <Input
                                         id="projectId"
                                         value={config.projectId}
@@ -409,6 +326,16 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
 
                     {(status === 'connecting' || status === 'deploying' || status === 'success' || status === 'failed') && (
                         <div className="space-y-6 py-4">
+                            {/* Deployment continues in background notice */}
+                            {(status === 'deploying' || status === 'connecting') && (
+                                <Alert className="border-blue-200 bg-blue-50">
+                                    <Info className="h-4 w-4 text-blue-600" />
+                                    <AlertDescription className="text-blue-800">
+                                        <strong>Note:</strong> This deployment will continue in the background even if you close this modal.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
                             {/* Progress Steps */}
                             {progress.length > 0 && (
                                 <div className="space-y-3">
@@ -417,7 +344,7 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
                                         Deployment Progress
                                     </h3>
                                     <div className="space-y-2">
-                                        {progress.map((step, index) => (
+                                        {progress.map((step) => (
                                             <div key={step.step} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                                                 {getProgressIcon(step.status)}
                                                 <div className="flex-1">
@@ -532,9 +459,9 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
 
                 <div className="flex items-center justify-between pt-4 border-t">
                     <div>
-                        {deploymentId && (
+                        {deployment?.deploymentId && (
                             <p className="text-xs text-gray-500">
-                                Deployment ID: <code className="bg-gray-100 px-1 rounded">{deploymentId}</code>
+                                Deployment ID: <code className="bg-gray-100 px-1 rounded">{deployment.deploymentId}</code>
                             </p>
                         )}
                         {status === 'deploying' && (
@@ -551,7 +478,7 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
                                     Cancel
                                 </Button>
                                 <Button
-                                    onClick={startDeployment}
+                                    onClick={handleStartDeployment}
                                     disabled={!isFormValid}
                                     className="gap-2"
                                 >
@@ -561,10 +488,15 @@ export function DeployModal({ open, onOpenChange, projectId, projectName, userId
                             </>
                         )}
                         {status === 'deploying' && (
-                            <Button variant="destructive" onClick={cancelDeployment} className="gap-2">
-                                <X className="w-4 h-4" />
-                                Cancel Deployment
-                            </Button>
+                            <>
+                                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                                    Close
+                                </Button>
+                                <Button variant="destructive" onClick={handleCancelDeployment} className="gap-2">
+                                    <X className="w-4 h-4" />
+                                    Cancel Deployment
+                                </Button>
+                            </>
                         )}
                         {(status === 'success' || status === 'failed') && (
                             <Button onClick={() => onOpenChange(false)}>
