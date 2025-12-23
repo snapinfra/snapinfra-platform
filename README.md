@@ -26,7 +26,7 @@ An AI-powered backend generation platform that transforms natural language descr
 
 ## Overview
 
-Snapinfra is a full-stack application that leverages AI to generate backend code, database schemas, and infrastructure-as-code configurations. The platform features:
+Snapinfra is an application that leverages AI to generate backend code, database schemas, and infrastructure-as-code configurations. The platform features:
 
 - AI-powered backend and schema generation using Groq
 - Real-time code generation with streaming responses
