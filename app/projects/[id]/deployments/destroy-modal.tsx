@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Trash2, AlertTriangle, CheckCircle, XCircle, Loader2, Terminal, Info } from "lucide-react"
 import { useDeploymentManager } from "./deployment-manager"
 
-const BACKEND_URL = "http://localhost:3001"
+const BACKEND_URL = "https://deploy.snapinfra.ai"
 
 interface DestroyModalProps {
     open: boolean
@@ -146,7 +146,7 @@ export function DestroyModal({
             setDestroymentId(depId)
             addLog('success', `Destruction initiated: ${depId}`)
 
-            const wsUrl = `ws://localhost:3001/ws/destroy/${depId}`
+            const wsUrl = `wss://deploy.snapinfra.ai/ws/destroy/${depId}`
             addLog('info', `Connecting to WebSocket...`)
 
             const ws = new WebSocket(wsUrl)

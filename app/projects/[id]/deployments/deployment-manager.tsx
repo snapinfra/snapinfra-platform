@@ -36,7 +36,7 @@ interface DeploymentManagerContextType {
 
 const DeploymentManagerContext = createContext<DeploymentManagerContextType | null>(null)
 
-const BACKEND_URL = "http://localhost:3001"
+const BACKEND_URL = "https://deploy.snapinfra.ai"
 
 export function DeploymentManagerProvider({ children }: { children: ReactNode }) {
     const [deployments, setDeployments] = useState<Map<string, DeploymentState>>(new Map())

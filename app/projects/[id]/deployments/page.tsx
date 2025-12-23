@@ -40,7 +40,7 @@ import {
 import { DeployModal } from "./deploy-modal"
 import { DestroyModal } from "./destroy-modal"
 
-const BACKEND_URL = "http://localhost:3001"
+const BACKEND_URL = "https://deploy.snapinfra.ai"
 
 const cloudProviders = [
   {
