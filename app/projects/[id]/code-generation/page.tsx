@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAppContext, useOnboardingData } from "@/lib/app-context"
+import { loadDecisions, useAppContext, useOnboardingData } from "@/lib/app-context"
 import { updateProject as updateProjectAPI, getProjectById } from "@/lib/api-client"
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { GenerationProgress } from "@/components/generation-progress"
@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Code2, 
-  Download, 
+import {
+  Code2,
+  Download,
   Copy,
   Database,
   Shield,
@@ -35,10 +35,12 @@ export default function CodeGenerationPage() {
   const [generationProgress, setGenerationProgress] = useState(0)
   const [generationMessage, setGenerationMessage] = useState('')
 
+  console.log(onboardingData, 'onboarding data in code generation page')
+
   // Load project if not in context (e.g., on page refresh)
   useEffect(() => {
 
-    console.log(onboardingData,'onboarding data in page')
+    console.log(onboardingData, 'onboarding data in page')
     if (!projectId) return
     if (!currentProject || currentProject.id !== projectId) {
       getProjectById(projectId)
@@ -57,37 +59,26 @@ export default function CodeGenerationPage() {
 
   async function generateAll() {
     if (!currentProject) return
-    
+
     // Normalize schema to array format (AWS returns { tables: [...] })
-    const normalizedSchema = Array.isArray(currentProject.schema) 
-      ? currentProject.schema 
+    const normalizedSchema = Array.isArray(currentProject.schema)
+      ? currentProject.schema
       : currentProject.schema?.tables || []
-    
+
     if (normalizedSchema.length === 0) {
       alert('Project has no tables. Please add tables to your schema first.')
       return
     }
-    
+
     setIsGenerating(true)
     setGenerationProgress(5)
     setGenerationMessage('Validating project schema...')
-    
-    // Create enriched project data with onboarding context
-    const enrichedProject = {
-      ...currentProject,
-      schema: normalizedSchema,
-      // Include all onboarding data for better code generation
-      onboardingContext: onboardingData ? {
-        description: onboardingData.description,
-        architecture: onboardingData.architecture,
-        decisions: onboardingData.decisions,
-        selectedTools: onboardingData.selectedTools,
-        analysis: onboardingData.analysis,
-        lld: onboardingData.lld,
-        database: onboardingData.database
-      } : undefined
-    }
-    
+
+    console.log(onboardingData, 'onboarding data before generation')
+    console.log(currentProject, 'current project before generation')
+
+
+
     try {
       // Simulate progressive updates
       const updates = [
@@ -100,7 +91,7 @@ export default function CodeGenerationPage() {
         { progress: 85, message: 'Creating Docker Compose files...' },
         { progress: 95, message: 'Finalizing code generation...' }
       ]
-      
+
       let updateIndex = 0
       const updateInterval = setInterval(() => {
         if (updateIndex < updates.length) {
@@ -109,14 +100,14 @@ export default function CodeGenerationPage() {
           updateIndex++
         }
       }, 8000)
-      
+
       const resp = await fetch('/api/generate-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          project: enrichedProject, 
+        body: JSON.stringify({
+          project: currentProject,
           framework: onboardingData?.selectedTools?.backend || 'express',
-          language: 'typescript', 
+          language: 'typescript',
           includeAuth: onboardingData?.decisions?.authentication?.required || false,
           includeTests: true,
           options: {
@@ -140,16 +131,16 @@ export default function CodeGenerationPage() {
       })
       const data = await resp.json()
       clearInterval(updateInterval)
-      
+
       if (data?.success) {
         setGenerationProgress(100)
         setGenerationMessage('Generation complete!')
         const generatedCode = data.data.generatedCode
         const generatedIaC = data.data.generatedIaC
-        
+
         // Update local state with both results
         dispatch({ type: 'UPDATE_PROJECT', payload: { id: currentProject.id, generatedCode, generatedIaC } as any })
-        
+
         // Save to AWS (project ID is the backend ID)
         try {
           await updateProjectAPI(currentProject.id, { generatedCode, generatedIaC })
@@ -216,8 +207,8 @@ export default function CodeGenerationPage() {
                       <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
                         {(currentProject.generatedCode?.files?.length || 0) + (currentProject.generatedIaC?.files?.length || 0)} files
                       </Badge>
-                      <Button 
-                        onClick={generateAll} 
+                      <Button
+                        onClick={generateAll}
                         disabled={isGenerating}
                         size="sm"
                         variant="outline"
@@ -228,8 +219,8 @@ export default function CodeGenerationPage() {
                       </Button>
                     </div>
                   ) : (
-                    <Button 
-                      onClick={generateAll} 
+                    <Button
+                      onClick={generateAll}
                       disabled={isGenerating}
                       size="default"
                       className="shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
@@ -289,7 +280,7 @@ export default function CodeGenerationPage() {
                       </div>
                     </div>
                     <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
-                      <div 
+                      <div
                         className="bg-gradient-to-r from-blue-600 to-indigo-600 h-1.5 rounded-full transition-all duration-300 ease-out"
                         style={{ width: `${generationProgress}%` }}
                       />
@@ -390,8 +381,8 @@ export default function CodeGenerationPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Database Tables</p>
                     <p className="text-2xl font-bold text-blue-600">{(() => {
-                      const schemaArray = Array.isArray(currentProject?.schema) 
-                        ? currentProject.schema 
+                      const schemaArray = Array.isArray(currentProject?.schema)
+                        ? currentProject.schema
                         : currentProject?.schema?.tables || []
                       return schemaArray.length
                     })()}</p>
@@ -406,8 +397,8 @@ export default function CodeGenerationPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">API Endpoints</p>
                     <p className="text-2xl font-bold text-green-600">{(() => {
-                      const schemaArray = Array.isArray(currentProject?.schema) 
-                        ? currentProject.schema 
+                      const schemaArray = Array.isArray(currentProject?.schema)
+                        ? currentProject.schema
                         : currentProject?.schema?.tables || []
                       return schemaArray.length * 5
                     })()}</p>
@@ -422,8 +413,8 @@ export default function CodeGenerationPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Est. Lines of Code</p>
                     <p className="text-2xl font-bold text-purple-600">{(() => {
-                      const schemaArray = Array.isArray(currentProject?.schema) 
-                        ? currentProject.schema 
+                      const schemaArray = Array.isArray(currentProject?.schema)
+                        ? currentProject.schema
                         : currentProject?.schema?.tables || []
                       return schemaArray.length * 150
                     })()}</p>
@@ -439,13 +430,13 @@ export default function CodeGenerationPage() {
   )
 }
 
-function GeneratedFilesList({ files, fileType, projectName }: { files: { path: string; content: string; category?: string }[]; fileType: 'code'|'iac'|'all'; projectName: string }) {
+function GeneratedFilesList({ files, fileType, projectName }: { files: { path: string; content: string; category?: string }[]; fileType: 'code' | 'iac' | 'all'; projectName: string }) {
   const max = 8
   const list = files.slice(0, max)
   const more = files.length - list.length
 
   const copy = async (content: string) => {
-    try { await navigator.clipboard.writeText(content) } catch {}
+    try { await navigator.clipboard.writeText(content) } catch { }
   }
   const downloadBundle = async () => {
     const { default: JSZip } = await import('jszip')

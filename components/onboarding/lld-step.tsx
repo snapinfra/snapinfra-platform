@@ -7,6 +7,7 @@ import { ArrowRight, ArrowLeft, Code2, Download, Eye, BarChart, Zap, Shield, Sav
 import { ReactFlowProvider } from '@xyflow/react'
 import { SystemArchitectureEditor } from '@/components/architecture/system-architecture-editor'
 import { SystemArchitecture } from '@/lib/types/architecture'
+import { useOnboardingData } from "@/lib/app-context"
 
 interface LLDStepProps {
   data: {
@@ -21,6 +22,7 @@ interface LLDStepProps {
       erd?: SystemArchitecture | null
       apiMap?: SystemArchitecture | null
     }
+    architecture?: any
   }
   onComplete: () => void
   onBack: () => void
@@ -34,6 +36,8 @@ interface DiagramData {
 }
 
 export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
+  console.log(data, 'lld step data')
+  const [architecture, setArchitecture] = useState<SystemArchitecture | null>(data.architecture || null)
   const [diagrams, setDiagrams] = useState<DiagramData>({
     lld: null,
     dataflow: null,
@@ -45,7 +49,8 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [isExporting, setIsExporting] = useState<string | null>(null)
   const [generationProgress, setGenerationProgress] = useState(0)
-  
+  const { updateData } = useOnboardingData();
+
   const lldCanvasRef = useRef<HTMLDivElement>(null)
   const dataflowCanvasRef = useRef<HTMLDivElement>(null)
   const erdCanvasRef = useRef<HTMLDivElement>(null)
@@ -55,19 +60,19 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
   useEffect(() => {
     if (data.diagrams) {
       console.log('Loading pre-generated diagrams from Step One:', data.diagrams)
-      
+
       // Convert any ERD data to proper format if needed
       let erdData = data.diagrams.erd
       if (erdData && (erdData as any).tables) {
         erdData = convertERDToArchitecture(erdData as any)
       }
-      
+
       // Convert any API Map data to proper format if needed
       let apiMapData = data.diagrams.apiMap
       if (apiMapData && (apiMapData as any).groups) {
         apiMapData = convertAPIMapToArchitecture(apiMapData as any)
       }
-      
+
       setDiagrams({
         lld: data.diagrams.lld || null,
         dataflow: data.diagrams.dataflow || null,
@@ -76,6 +81,45 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
       })
     }
   }, [data.diagrams])
+
+
+  const handleContinue = async () => {
+    if (!architecture) return
+
+    try {
+      // Clean the architecture data before saving
+      const cleanArchitecture = {
+        id: architecture.id,
+        name: architecture.name,
+        description: architecture.description,
+        nodes: architecture.nodes?.map(node => ({
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          data: node.data
+        })) || [],
+        edges: architecture.edges?.map(edge => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          label: edge.label
+        })) || [],
+        metadata: architecture.metadata
+      }
+
+      // Save to context directly
+      await updateData({
+        architecture: cleanArchitecture
+      })
+
+      // Call onComplete with absolutely no arguments
+      onComplete()
+    } catch (error) {
+      console.error('Error saving architecture:', error)
+      alert('Failed to save architecture. Please try again.')
+    }
+  }
+
 
   const handleGenerateAllDiagrams = async () => {
     setIsGenerating(true)
@@ -134,10 +178,10 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
     }
 
     console.log(`✅ ${key} Generated:`, result)
-    
+
     // Extract the diagram data based on the key
     let diagramData = null
-    
+
     if (key === 'lld') {
       diagramData = result.lld
     } else if (key === 'dataflow') {
@@ -160,14 +204,14 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
         diagramData = apiMapData
       }
     }
-    
+
     // Fallback: check all possible keys
     if (!diagramData) {
       diagramData = result.lld || result.diagram || result.architecture || result.data
     }
-    
+
     console.log(`📊 ${key} diagram data:`, diagramData)
-    
+
     // Update the specific diagram
     setDiagrams(prev => ({
       ...prev,
@@ -219,19 +263,19 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
   // Convert API Map format (groups/flows) to SystemArchitecture format (nodes/edges)
   const convertAPIMapToArchitecture = (apiMapData: any): SystemArchitecture => {
     const nodes: any[] = []
-    
+
     // Convert groups to nodes with detailed endpoint information
     apiMapData.groups?.forEach((group: any) => {
       // Format endpoint list for display
-      const endpointList = group.endpoints?.map((ep: any, idx: number) => 
+      const endpointList = group.endpoints?.map((ep: any, idx: number) =>
         `${idx + 1}. ${ep.method} ${ep.path}${ep.requiresAuth ? ' 🔒' : ''}`
       ).join('\n') || ''
-      
+
       // Create a detailed description
-      const description = group.endpointPaths 
+      const description = group.endpointPaths
         ? `${group.endpoints?.length || 0} endpoints:\n\n${endpointList}`
         : `${group.endpoints?.length || 0} endpoints`
-      
+
       nodes.push({
         id: group.id,
         type: 'api-service',
@@ -381,7 +425,7 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
           </p>
           <div className="w-full max-w-md mx-auto mt-6">
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
                 style={{ width: `${generationProgress}%` }}
               />
@@ -542,6 +586,7 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
           <div ref={lldCanvasRef} className="h-[600px]">
             <ReactFlowProvider>
               <SystemArchitectureEditor
+                type={"lld"}
                 architecture={diagrams.lld!}
                 onArchitectureChange={(updated) => handleDiagramChange('lld', updated)}
                 onSave={() => handleSaveDiagram('lld')}
@@ -583,6 +628,7 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
             <div ref={dataflowCanvasRef} className="h-[600px]">
               <ReactFlowProvider>
                 <SystemArchitectureEditor
+                  type={"dataflow"}
                   architecture={diagrams.dataflow}
                   onArchitectureChange={(updated) => handleDiagramChange('dataflow', updated)}
                   onSave={() => handleSaveDiagram('dataflow')}
@@ -625,6 +671,7 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
             <div ref={erdCanvasRef} className="h-[600px]">
               <ReactFlowProvider>
                 <SystemArchitectureEditor
+                  type={"erd"}
                   architecture={diagrams.erd}
                   onArchitectureChange={(updated) => handleDiagramChange('erd', updated)}
                   onSave={() => handleSaveDiagram('erd')}
@@ -667,6 +714,7 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
             <div ref={apiMapCanvasRef} className="h-[600px]">
               <ReactFlowProvider>
                 <SystemArchitectureEditor
+                type={"apiMap"}
                   architecture={diagrams.apiMap}
                   onArchitectureChange={(updated) => handleDiagramChange('apiMap', updated)}
                   onSave={() => handleSaveDiagram('apiMap')}
@@ -867,7 +915,7 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
             Back to HLD
           </button>
           <Button
-            onClick={onComplete}
+            onClick={handleContinue}
             size="lg"
             className="px-8 py-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:shadow-xl transition-all hover:scale-105 text-base font-semibold"
           >

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
+import {
   Network,
   Settings,
   Download,
@@ -60,14 +60,14 @@ export default function ArchitecturePage() {
         setIsLoading(false)
         return
       }
-      
+
       setIsLoading(true)
-      
+
       try {
         // Check if architecture already exists
-        if (state.currentProject.architecture && 
-            state.currentProject.architecture.nodes && 
-            state.currentProject.architecture.nodes.length > 0) {
+        if (state.currentProject.architecture &&
+          state.currentProject.architecture.nodes &&
+          state.currentProject.architecture.nodes.length > 0) {
           setArchitecture(state.currentProject.architecture)
         } else {
           // Generate architecture from project data
@@ -75,7 +75,7 @@ export default function ArchitecturePage() {
             schemas: state.currentProject.schema || [],
             analysis: state.currentProject.analysis || {}
           }
-          
+
           const apiData = {
             endpoints: state.currentProject.endpoints?.reduce((acc: any[], endpoint) => {
               const group = endpoint.group || 'General'
@@ -92,15 +92,15 @@ export default function ArchitecturePage() {
             }, []) || [],
             groups: [...new Set((state.currentProject.endpoints || []).map(e => e.group || 'General'))]
           }
-          
+
           const generatedArchitecture = generateArchitectureFromData(
             schemaData,
             apiData,
             state.currentProject.name || 'Project'
           )
-          
+
           setArchitecture(generatedArchitecture)
-          
+
           // Save to project - but don't dispatch during load to prevent loop
           // User can save manually if they want to persist
         }
@@ -110,7 +110,7 @@ export default function ArchitecturePage() {
         setIsLoading(false)
       }
     }
-    
+
     loadArchitecture()
   }, [state.currentProject?.id]) // Only depend on project ID, not the whole project object
 
@@ -131,7 +131,7 @@ export default function ArchitecturePage() {
 
   const handleExport = async () => {
     if (!architecture) return
-    
+
     const dataStr = JSON.stringify(architecture, null, 2)
     const dataBlob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(dataBlob)
@@ -245,7 +245,7 @@ export default function ArchitecturePage() {
                   <p className="text-sm font-medium text-gray-600">Complexity</p>
                   <p className="text-xl font-bold text-blue-600">
                     {architecture && architecture.nodes.length <= 3 ? 'Simple' :
-                     architecture && architecture.nodes.length <= 6 ? 'Moderate' : 'Complex'}
+                      architecture && architecture.nodes.length <= 6 ? 'Moderate' : 'Complex'}
                   </p>
                 </div>
                 <Network className="w-8 h-8 text-blue-500" />
@@ -258,7 +258,7 @@ export default function ArchitecturePage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Last Updated</p>
                   <p className="text-sm font-bold text-gray-900">
-                    {architecture?.metadata?.updatedAt 
+                    {architecture?.metadata?.updatedAt
                       ? new Date(architecture.metadata.updatedAt).toLocaleDateString()
                       : 'N/A'}
                   </p>
@@ -308,6 +308,191 @@ export default function ArchitecturePage() {
           </CardContent>
         </Card>
 
+
+        {/* Architecture Diagrams */}
+        {/* Low-Level Design (LLD) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-600/10 rounded-md">
+                  <Network className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle>Low-Level Design (LLD)</CardTitle>
+                  <CardDescription>
+                    Controllers, Services, Repositories & Data Flow
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {hasUnsavedChanges && (
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                    Unsaved changes
+                  </Badge>
+                )}
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {architecture ? (
+              <div className="h-[600px] border rounded-lg overflow-hidden bg-gray-50">
+                <ReactFlowProvider>
+                  <SystemArchitectureEditor
+                    type="lld"
+                    architecture={state.currentProject.diagrams.lld}
+                    onArchitectureChange={(updated) => {
+                      dispatch({
+                        type: 'UPDATE_PROJECT_DIAGRAMS',
+                        payload: { lld: updated }
+                      })
+                    }}
+                    onSave={() => { }}
+                  />
+                </ReactFlowProvider>
+              </div>
+            ) : (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  No architecture diagram available. Please complete the onboarding process to generate one.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Data Flow Diagram */}
+        {state.currentProject.diagrams?.dataflow && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-600/10 rounded-md">
+                    <Network className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <CardTitle>Data Flow Diagram</CardTitle>
+                    <CardDescription>
+                      Information flow between system components
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[600px] border rounded-lg overflow-hidden bg-gray-50">
+                <ReactFlowProvider>
+                  <SystemArchitectureEditor
+                    type="dataflow"
+                    architecture={state.currentProject.diagrams.dataflow}
+                    onArchitectureChange={(updated) => {
+                      dispatch({
+                        type: 'UPDATE_PROJECT_DIAGRAMS',
+                        payload: { dataflow: updated }
+                      })
+                    }}
+                    onSave={() => { }}
+                  />
+                </ReactFlowProvider>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Entity Relationship Diagram (ERD) */}
+        {state.currentProject.diagrams?.erd && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-600/10 rounded-md">
+                    <Network className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <CardTitle>Entity Relationship Diagram (ERD)</CardTitle>
+                    <CardDescription>
+                      Database schema and relationships
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[600px] border rounded-lg overflow-hidden bg-gray-50">
+                <ReactFlowProvider>
+                  <SystemArchitectureEditor
+                    type="erd"
+                    architecture={state.currentProject.diagrams.erd}
+                    onArchitectureChange={(updated) => {
+                      dispatch({
+                        type: 'UPDATE_PROJECT_DIAGRAMS',
+                        payload: { erd: updated }
+                      })
+                    }}
+                    onSave={() => { }}
+                  />
+                </ReactFlowProvider>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* API Architecture Map */}
+        {state.currentProject.diagrams?.apiMap && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-600/10 rounded-md">
+                    <Network className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <div>
+                    <CardTitle>API Architecture Map</CardTitle>
+                    <CardDescription>
+                      API endpoints and service integration
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[600px] border rounded-lg overflow-hidden bg-gray-50">
+                <ReactFlowProvider>
+                  <SystemArchitectureEditor
+                    type="apiMap"
+                    architecture={state.currentProject.diagrams.apiMap}
+                    onArchitectureChange={(updated) => {
+                      dispatch({
+                        type: 'UPDATE_PROJECT_DIAGRAMS',
+                        payload: { apiMap: updated }
+                      })
+                    }}
+                    onSave={() => { }}
+                  />
+                </ReactFlowProvider>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+
         {/* Architecture Info */}
         {architecture && (
           <Card>
@@ -330,7 +515,7 @@ export default function ArchitecturePage() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Created:</span>
                         <span className="font-medium">
-                          {architecture.metadata?.createdAt 
+                          {architecture.metadata?.createdAt
                             ? new Date(architecture.metadata.createdAt).toLocaleDateString()
                             : 'N/A'}
                         </span>

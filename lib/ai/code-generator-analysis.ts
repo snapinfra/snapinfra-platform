@@ -66,14 +66,16 @@ export interface CodeGenOptions {
 }
 
 export interface ModuleSpec {
-    type: string;
-    priority: number;
-    dependencies: string[];
-    tables?: string[];
-    description: string;
-    requiredFiles: string[];
-    minFiles?: number;
-    criticalFiles?: string[];
+  type: string;
+  priority: number;
+  dependencies: string[];
+  tables?: string[];
+  components?: DiagramComponent[];  // 🔥 NEW: Add components
+  description: string;
+  requiredFiles: string[];
+  minFiles?: number;
+  criticalFiles: string[];
+  customEndpoints?: APIEndpoint[];
 }
 
 export interface GeneratedFile {

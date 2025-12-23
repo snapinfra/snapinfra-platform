@@ -1,0 +1,4656 @@
+{
+  "timestamp": "2025-11-19T12:32:34.366Z",
+  "project": {
+    "decisions": {
+      "integrationPlan": {
+        "phase1": [
+          "Database Selection",
+          "Cloud Infrastructure Selection"
+        ],
+        "phase2": [
+          "Caching Layer Selection",
+          "API Gateway Selection",
+          "Authentication Service Selection"
+        ],
+        "phase3": [
+          "Message Queue Selection",
+          "CI/CD Pipeline Selection"
+        ]
+      },
+      "success": true,
+      "decisions": [
+        {
+          "component": "database",
+          "urgency": "critical",
+          "reasoning": "PostgreSQL is recommended for this task manager platform due to its strong ACID compliance ensuring data integrity for transactions, excellent support for complex queries needed for task searches and analytics, and JSON support for flexible task attributes. The open-source nature keeps costs low while providing enterprise-grade features. Strong community support and extensive documentation reduce development risk.",
+          "impact": "high",
+          "description": "Choose the best database solution for storing task data, user information, and other relevant data with strong ACID compliance and query performance",
+          "id": "decision-database",
+          "title": "Database Selection",
+          "category": "database",
+          "recommendations": [
+            {
+              "complexity": "medium",
+              "metadata": {
+                "website": "https://postgresql.org",
+                "github": "https://github.com/postgres/postgres",
+                "supportLevel": "community",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Advanced open-source relational database with excellent ACID compliance, rich feature set including JSON support, full-text search, and extensibility through custom functions and extensions",
+              "type": "open-source",
+              "component": "database",
+              "pros": [
+                "ACID compliant for transaction safety",
+                "Rich feature set with JSON and JSONB support",
+                "Strong community and extensive documentation",
+                "Excellent performance for complex queries",
+                "Free and open-source"
+              ],
+              "enterpriseScore": 88,
+              "popularity": 95,
+              "name": "PostgreSQL",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "Node.js pg driver",
+                  "Connection pooling library",
+                  "Database migration tool"
+                ]
+              },
+              "alternatives": [
+                "MySQL",
+                "Amazon RDS PostgreSQL",
+                "Azure Database for PostgreSQL"
+              ],
+              "id": "postgresql",
+              "category": "Database",
+              "pricing": {
+                "model": "free",
+                "details": "Free to use, hosting and infrastructure costs vary",
+                "cost": ""
+              },
+              "cons": [
+                "Memory intensive for large datasets",
+                "Complex configuration and tuning required",
+                "Steeper learning curve compared to MySQL"
+              ]
+            },
+            {
+              "complexity": "low",
+              "metadata": {
+                "website": "https://aws.amazon.com/aurora/",
+                "github": "",
+                "supportLevel": "enterprise",
+                "cloudProvider": "AWS"
+              },
+              "documentation": "Excellent",
+              "description": "Cloud-native relational database with MySQL and PostgreSQL compatibility, offering 5x performance improvement with automated backups, auto-scaling storage, and multi-AZ deployments",
+              "type": "managed-service",
+              "component": "database",
+              "pros": [
+                "High performance with 5x MySQL throughput",
+                "Auto-scaling storage up to 128TB",
+                "Continuous backup to S3",
+                "Multi-AZ high availability",
+                "Serverless option available"
+              ],
+              "enterpriseScore": 91,
+              "popularity": 82,
+              "name": "Amazon Aurora",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "AWS VPC configuration",
+                  "Parameter groups",
+                  "Security groups",
+                  "IAM roles"
+                ]
+              },
+              "alternatives": [
+                "Google Cloud Spanner",
+                "Azure SQL Database",
+                "CockroachDB"
+              ],
+              "id": "amazon-aurora",
+              "category": "Database",
+              "pricing": {
+                "model": "usage-based",
+                "details": "Pay for compute, storage, and I/O separately. Costs scale with usage.",
+                "cost": "$100-500/month"
+              },
+              "cons": [
+                "AWS vendor lock-in",
+                "Higher cost than standard RDS",
+                "Complex pricing model",
+                "Limited to AWS ecosystem"
+              ]
+            },
+            {
+              "complexity": "medium",
+              "metadata": {
+                "website": "https://www.mongodb.com",
+                "github": "https://github.com/mongodb/mongo",
+                "supportLevel": "commercial",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Document-oriented NoSQL database with flexible schema design, horizontal scaling capabilities, and rich query language for handling unstructured data",
+              "type": "open-source",
+              "component": "database",
+              "pros": [
+                "Schema flexibility for rapid iteration",
+                "Horizontal scaling with sharding",
+                "Rich query language with aggregation",
+                "Strong ecosystem and tooling",
+                "Good for unstructured data"
+              ],
+              "enterpriseScore": 84,
+              "popularity": 89,
+              "name": "MongoDB",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "MongoDB driver",
+                  "Schema design",
+                  "Index optimization"
+                ]
+              },
+              "alternatives": [
+                "Amazon DocumentDB",
+                "Azure Cosmos DB",
+                "CouchDB"
+              ],
+              "id": "mongodb",
+              "category": "Database",
+              "pricing": {
+                "model": "freemium",
+                "details": "Community edition free, Enterprise features and Atlas managed service paid",
+                "cost": ""
+              },
+              "cons": [
+                "Higher memory usage",
+                "No ACID transactions across documents",
+                "Learning curve for query optimization",
+                "Potential data consistency issues"
+              ]
+            }
+          ],
+          "selectedTool": "postgresql"
+        },
+        {
+          "component": "cloud-provider",
+          "urgency": "critical",
+          "reasoning": "AWS is recommended as the cloud provider due to its comprehensive service portfolio that can support all components of the task manager platform, mature ecosystem with proven reliability at scale, and strong marketplace for third-party integrations. While pricing is complex, the extensive documentation and large community make it easier to optimize costs. The global presence ensures low latency for customers worldwide.",
+          "impact": "high",
+          "description": "Select the cloud platform that will host the entire application infrastructure, providing compute, storage, networking, and managed services",
+          "id": "decision-cloud-provider",
+          "title": "Cloud Infrastructure Selection",
+          "category": "infrastructure",
+          "recommendations": [
+            {
+              "complexity": "high",
+              "metadata": {
+                "website": "https://aws.amazon.com",
+                "github": "",
+                "supportLevel": "enterprise",
+                "cloudProvider": "AWS"
+              },
+              "documentation": "Excellent",
+              "description": "Leading cloud platform with the most comprehensive service portfolio including EC2, S3, RDS, Lambda, and 200+ services for building scalable applications",
+              "type": "managed-service",
+              "component": "cloud-provider",
+              "pros": [
+                "Largest service portfolio in the industry",
+                "Global presence with 30+ regions",
+                "Mature ecosystem with extensive tooling",
+                "Enterprise-grade security and compliance",
+                "Strong marketplace and partner network"
+              ],
+              "enterpriseScore": 92,
+              "popularity": 94,
+              "name": "Amazon Web Services (AWS)",
+              "integration": {
+                "effort": "medium",
+                "timeEstimate": "1-2 weeks",
+                "dependencies": [
+                  "AWS account setup",
+                  "IAM roles and policies",
+                  "VPC network configuration",
+                  "Security groups"
+                ]
+              },
+              "alternatives": [
+                "Google Cloud Platform",
+                "Microsoft Azure",
+                "DigitalOcean"
+              ],
+              "id": "aws",
+              "category": "Cloud Infrastructure",
+              "pricing": {
+                "model": "usage-based",
+                "details": "Pay-as-you-go for most services, reserved instances available for cost savings",
+                "cost": "Variable"
+              },
+              "cons": [
+                "Complex pricing can be difficult to predict",
+                "Steep learning curve for beginners",
+                "Potential vendor lock-in",
+                "Can become expensive without optimization"
+              ]
+            },
+            {
+              "complexity": "medium",
+              "metadata": {
+                "website": "https://cloud.google.com",
+                "github": "",
+                "supportLevel": "enterprise",
+                "cloudProvider": "GCP"
+              },
+              "documentation": "Good",
+              "description": "Google's cloud platform with strong AI/ML capabilities, competitive pricing, and excellent Kubernetes support through GKE",
+              "type": "managed-service",
+              "component": "cloud-provider",
+              "pros": [
+                "Strong AI/ML services and BigQuery",
+                "Competitive pricing (20-30% cheaper than AWS)",
+                "Excellent Kubernetes support with GKE",
+                "Simple and predictable pricing",
+                "Strong focus on developer experience"
+              ],
+              "enterpriseScore": 85,
+              "popularity": 78,
+              "name": "Google Cloud Platform",
+              "integration": {
+                "effort": "medium",
+                "timeEstimate": "1-2 weeks",
+                "dependencies": [
+                  "GCP account",
+                  "Service accounts",
+                  "VPC setup",
+                  "IAM policies"
+                ]
+              },
+              "alternatives": [
+                "AWS",
+                "Microsoft Azure",
+                "IBM Cloud"
+              ],
+              "id": "gcp",
+              "category": "Cloud Infrastructure",
+              "pricing": {
+                "model": "usage-based",
+                "details": "Generally 20-30% cheaper than AWS for compute and storage with sustained use discounts",
+                "cost": "Variable"
+              },
+              "cons": [
+                "Smaller service ecosystem than AWS",
+                "Less enterprise adoption",
+                "Frequent service changes and deprecations",
+                "Smaller partner ecosystem"
+              ]
+            },
+            {
+              "complexity": "medium",
+              "metadata": {
+                "website": "https://azure.microsoft.com",
+                "github": "",
+                "supportLevel": "enterprise",
+                "cloudProvider": "Azure"
+              },
+              "documentation": "Good",
+              "description": "Microsoft's cloud platform with excellent enterprise integration, strong hybrid cloud capabilities, and deep integration with Microsoft products",
+              "type": "managed-service",
+              "component": "cloud-provider",
+              "pros": [
+                "Excellent Microsoft product integration",
+                "Strong hybrid cloud capabilities",
+                "Enterprise-focused features",
+                "Good compliance certifications",
+                "Active Directory integration"
+              ],
+              "enterpriseScore": 87,
+              "popularity": 82,
+              "name": "Microsoft Azure",
+              "integration": {
+                "effort": "medium",
+                "timeEstimate": "1-2 weeks",
+                "dependencies": [
+                  "Azure subscription",
+                  "Resource groups",
+                  "Active Directory setup",
+                  "Virtual networks"
+                ]
+              },
+              "alternatives": [
+                "AWS",
+                "Google Cloud Platform",
+                "Oracle Cloud"
+              ],
+              "id": "azure",
+              "category": "Cloud Infrastructure",
+              "pricing": {
+                "model": "usage-based",
+                "details": "Competitive with AWS, good discounts for Microsoft customers with Enterprise Agreements",
+                "cost": "Variable"
+              },
+              "cons": [
+                "Complex portal interface",
+                "Service reliability concerns",
+                "Pricing complexity",
+                "Inconsistent API design"
+              ]
+            }
+          ],
+          "selectedTool": "aws"
+        },
+        {
+          "component": "cache",
+          "urgency": "recommended",
+          "reasoning": "Redis is recommended as the caching layer due to its high performance and low latency, support for multiple data structures, and simple and easy-to-use interface. The in-memory storage and pub/sub messaging model make it an ideal choice for improving the performance of the task manager platform.",
+          "impact": "medium",
+          "description": "Choose the caching solution that will improve the performance of the application by reducing the load on the database and improving response times",
+          "id": "decision-cache",
+          "title": "Caching Layer Selection",
+          "category": "cache",
+          "recommendations": [
+            {
+              "complexity": "low",
+              "metadata": {
+                "website": "https://redis.io",
+                "github": "https://github.com/redis/redis",
+                "supportLevel": "community",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "In-memory data store that can be used as a cache layer, message broker, or database with high performance and low latency",
+              "type": "open-source",
+              "component": "cache",
+              "pros": [
+                "High performance and low latency",
+                "Supports multiple data structures",
+                "Pub/sub messaging model",
+                "Simple and easy to use",
+                "Free and open-source"
+              ],
+              "enterpriseScore": 89,
+              "popularity": 92,
+              "name": "Redis",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "Redis client",
+                  "Connection pooling"
+                ]
+              },
+              "alternatives": [
+                "Memcached",
+                "Amazon ElastiCache",
+                "Google Cloud Memorystore"
+              ],
+              "id": "redis",
+              "category": "Cache",
+              "pricing": {
+                "model": "free",
+                "details": "Free to use, hosting and infrastructure costs vary",
+                "cost": ""
+              },
+              "cons": [
+                "In-memory storage can be limited",
+                "Data persistence requires configuration",
+                "Limited support for transactions"
+              ]
+            },
+            {
+              "complexity": "low",
+              "metadata": {
+                "website": "https://memcached.org",
+                "github": "https://github.com/memcached/memcached",
+                "supportLevel": "community",
+                "cloudProvider": ""
+              },
+              "documentation": "Good",
+              "description": "High-performance caching system that stores data in RAM, reducing the load on the database and improving response times",
+              "type": "open-source",
+              "component": "cache",
+              "pros": [
+                "High performance and low latency",
+                "Simple and easy to use",
+                "Free and open-source",
+                "Supports multiple clients",
+                "Good for small to medium-sized applications"
+              ],
+              "enterpriseScore": 75,
+              "popularity": 78,
+              "name": "Memcached",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "Memcached client",
+                  "Connection pooling"
+                ]
+              },
+              "alternatives": [
+                "Redis",
+                "Amazon ElastiCache",
+                "Google Cloud Memorystore"
+              ],
+              "id": "memcached",
+              "category": "Cache",
+              "pricing": {
+                "model": "free",
+                "details": "Free to use, hosting and infrastructure costs vary",
+                "cost": ""
+              },
+              "cons": [
+                "Limited features compared to Redis",
+                "No support for transactions",
+                "No support for pub/sub messaging"
+              ]
+            }
+          ],
+          "selectedTool": "redis"
+        },
+        {
+          "component": "api-gateway",
+          "urgency": "recommended",
+          "reasoning": "Kong is recommended as the API gateway due to its high scalability and performance, support for multiple authentication methods, and rate limiting and quota management features. The open-source nature and free usage make it an ideal choice for the task manager platform.",
+          "impact": "medium",
+          "description": "Choose the API gateway that will handle incoming requests, manage authentication and authorization, and route requests to the appropriate services",
+          "id": "decision-api-gateway",
+          "title": "API Gateway Selection",
+          "category": "api-gateway",
+          "recommendations": [
+            {
+              "complexity": "medium",
+              "metadata": {
+                "website": "https://konghq.com",
+                "github": "https://github.com/Kong/kong",
+                "supportLevel": "commercial",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Open-source API gateway that provides a scalable and secure way to manage APIs, with features such as authentication, rate limiting, and caching",
+              "type": "open-source",
+              "component": "api-gateway",
+              "pros": [
+                "Highly scalable and performant",
+                "Supports multiple authentication methods",
+                "Rate limiting and quota management",
+                "Caching and content compression",
+                "Free and open-source"
+              ],
+              "enterpriseScore": 84,
+              "popularity": 85,
+              "name": "Kong",
+              "integration": {
+                "effort": "medium",
+                "timeEstimate": "1-2 weeks",
+                "dependencies": [
+                  "Kong configuration",
+                  "Plugin installation",
+                  "Service discovery"
+                ]
+              },
+              "alternatives": [
+                "AWS API Gateway",
+                "Google Cloud Endpoints",
+                "Azure API Management"
+              ],
+              "id": "kong",
+              "category": "API Gateway",
+              "pricing": {
+                "model": "free",
+                "details": "Free to use, hosting and infrastructure costs vary",
+                "cost": ""
+              },
+              "cons": [
+                "Complex setup and configuration",
+                "Limited support for GraphQL",
+                "Requires additional tools for monitoring and analytics"
+              ]
+            },
+            {
+              "complexity": "low",
+              "metadata": {
+                "website": "https://aws.amazon.com/api-gateway/",
+                "github": "",
+                "supportLevel": "enterprise",
+                "cloudProvider": "AWS"
+              },
+              "documentation": "Excellent",
+              "description": "Fully managed API gateway service that makes it easy to create, publish, maintain, monitor, and secure APIs at scale",
+              "type": "managed-service",
+              "component": "api-gateway",
+              "pros": [
+                "Fully managed service with high availability",
+                "Supports REST, WebSocket, and HTTP APIs",
+                "Integration with AWS services such as Lambda and S3",
+                "Security features such as authentication and encryption",
+                "Scalable and performant"
+              ],
+              "enterpriseScore": 89,
+              "popularity": 82,
+              "name": "AWS API Gateway",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "AWS account",
+                  "API Gateway configuration",
+                  "IAM roles"
+                ]
+              },
+              "alternatives": [
+                "Kong",
+                "Google Cloud Endpoints",
+                "Azure API Management"
+              ],
+              "id": "aws-api-gateway",
+              "category": "API Gateway",
+              "pricing": {
+                "model": "usage-based",
+                "details": "Pay for the number of API calls, with discounts for high volumes",
+                "cost": "$3.50 per million API calls"
+              },
+              "cons": [
+                "Vendor lock-in with AWS",
+                "Pricing can be complex and costly",
+                "Limited support for GraphQL"
+              ]
+            }
+          ],
+          "selectedTool": "kong"
+        },
+        {
+          "component": "authentication",
+          "urgency": "recommended",
+          "reasoning": "Auth0 is recommended as the authentication service due to its high scalability and security, support for multiple authentication protocols, and single sign-on (SSO) and multi-factor authentication (MFA) features. The managed service makes it easy to manage user identities and authenticate users.",
+          "impact": "medium",
+          "description": "Choose the authentication service that will handle user authentication and authorization for the task manager platform",
+          "id": "decision-authentication",
+          "title": "Authentication Service Selection",
+          "category": "authentication",
+          "recommendations": [
+            {
+              "complexity": "low",
+              "metadata": {
+                "website": "https://auth0.com",
+                "github": "",
+                "supportLevel": "enterprise",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Universal authentication platform that provides a scalable and secure way to manage user identities and authenticate users",
+              "type": "managed-service",
+              "component": "authentication",
+              "pros": [
+                "Highly scalable and secure",
+                "Supports multiple authentication protocols",
+                "Single sign-on (SSO) and multi-factor authentication (MFA)",
+                "Integration with multiple platforms and services",
+                "Good documentation and support"
+              ],
+              "enterpriseScore": 88,
+              "popularity": 85,
+              "name": "Auth0",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "Auth0 configuration",
+                  "API keys",
+                  "SSO setup"
+                ]
+              },
+              "alternatives": [
+                "Okta",
+                "Microsoft Azure Active Directory",
+                "Google Cloud Identity"
+              ],
+              "id": "auth0",
+              "category": "Authentication",
+              "pricing": {
+                "model": "usage-based",
+                "details": "Pay for the number of authentications, with discounts for high volumes",
+                "cost": "$0.015 per authentication"
+              },
+              "cons": [
+                "Pricing can be costly for large-scale applications",
+                "Vendor lock-in with Auth0",
+                "Limited customization options"
+              ]
+            },
+            {
+              "complexity": "low",
+              "metadata": {
+                "website": "https://www.okta.com",
+                "github": "",
+                "supportLevel": "enterprise",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Cloud-based identity and access management platform that provides a scalable and secure way to manage user identities and authenticate users",
+              "type": "managed-service",
+              "component": "authentication",
+              "pros": [
+                "Highly scalable and secure",
+                "Supports multiple authentication protocols",
+                "Single sign-on (SSO) and multi-factor authentication (MFA)",
+                "Integration with multiple platforms and services",
+                "Good documentation and support"
+              ],
+              "enterpriseScore": 86,
+              "popularity": 80,
+              "name": "Okta",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "Okta configuration",
+                  "API keys",
+                  "SSO setup"
+                ]
+              },
+              "alternatives": [
+                "Auth0",
+                "Microsoft Azure Active Directory",
+                "Google Cloud Identity"
+              ],
+              "id": "okta",
+              "category": "Authentication",
+              "pricing": {
+                "model": "usage-based",
+                "details": "Pay for the number of users, with discounts for high volumes",
+                "cost": "$1.50 per user per month"
+              },
+              "cons": [
+                "Pricing can be costly for large-scale applications",
+                "Vendor lock-in with Okta",
+                "Limited customization options"
+              ]
+            }
+          ],
+          "selectedTool": "auth0"
+        },
+        {
+          "component": "queue",
+          "urgency": "recommended",
+          "reasoning": "RabbitMQ is recommended as the message queue due to its high scalability and reliability, support for multiple messaging patterns, and good documentation and community support. The open-source nature and free usage make it an ideal choice for the task manager platform.",
+          "impact": "medium",
+          "description": "Choose the message queue that will handle asynchronous tasks and messages between services",
+          "id": "decision-queue",
+          "title": "Message Queue Selection",
+          "category": "queue",
+          "recommendations": [
+            {
+              "complexity": "medium",
+              "metadata": {
+                "website": "https://www.rabbitmq.com",
+                "github": "https://github.com/rabbitmq/rabbitmq-server",
+                "supportLevel": "community",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Message broker that provides a scalable and reliable way to handle asynchronous tasks and messages between services",
+              "type": "open-source",
+              "component": "queue",
+              "pros": [
+                "Highly scalable and reliable",
+                "Supports multiple messaging patterns",
+                "Good documentation and community support",
+                "Free and open-source"
+              ],
+              "enterpriseScore": 84,
+              "popularity": 85,
+              "name": "RabbitMQ",
+              "integration": {
+                "effort": "medium",
+                "timeEstimate": "1-2 weeks",
+                "dependencies": [
+                  "RabbitMQ configuration",
+                  "Client libraries",
+                  "Message routing"
+                ]
+              },
+              "alternatives": [
+                "Apache Kafka",
+                "Amazon SQS",
+                "Google Cloud Pub/Sub"
+              ],
+              "id": "rabbitmq",
+              "category": "Message Queue",
+              "pricing": {
+                "model": "free",
+                "details": "Free to use, hosting and infrastructure costs vary",
+                "cost": ""
+              },
+              "cons": [
+                "Complex setup and configuration",
+                "Limited support for cloud-native deployments"
+              ]
+            },
+            {
+              "complexity": "high",
+              "metadata": {
+                "website": "https://kafka.apache.org",
+                "github": "https://github.com/apache/kafka",
+                "supportLevel": "community",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Distributed streaming platform that provides a scalable and reliable way to handle high-throughput and provides low-latency, fault-tolerant, and scalable data processing",
+              "type": "open-source",
+              "component": "queue",
+              "pros": [
+                "Highly scalable and reliable",
+                "Supports high-throughput and low-latency data processing",
+                "Good documentation and community support",
+                "Free and open-source"
+              ],
+              "enterpriseScore": 82,
+              "popularity": 80,
+              "name": "Apache Kafka",
+              "integration": {
+                "effort": "high",
+                "timeEstimate": "2-4 weeks",
+                "dependencies": [
+                  "Kafka configuration",
+                  "Client libraries",
+                  "Topic management"
+                ]
+              },
+              "alternatives": [
+                "RabbitMQ",
+                "Amazon SQS",
+                "Google Cloud Pub/Sub"
+              ],
+              "id": "apache-kafka",
+              "category": "Message Queue",
+              "pricing": {
+                "model": "free",
+                "details": "Free to use, hosting and infrastructure costs vary",
+                "cost": ""
+              },
+              "cons": [
+                "Complex setup and configuration",
+                "Limited support for cloud-native deployments"
+              ]
+            }
+          ],
+          "selectedTool": "rabbitmq"
+        },
+        {
+          "component": "ci-cd",
+          "urgency": "recommended",
+          "reasoning": "Jenkins is recommended as the CI/CD pipeline due to its high customizability and flexibility, support for multiple build and deployment tools, and good documentation and community support. The open-source nature and free usage make it an ideal choice for the task manager platform.",
+          "impact": "medium",
+          "description": "Choose the CI/CD pipeline that will automate the build, test, and deployment of the task manager platform",
+          "id": "decision-ci-cd",
+          "title": "CI/CD Pipeline Selection",
+          "category": "ci-cd",
+          "recommendations": [
+            {
+              "complexity": "high",
+              "metadata": {
+                "website": "https://www.jenkins.io",
+                "github": "https://github.com/jenkinsci/jenkins",
+                "supportLevel": "community",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Open-source automation server that provides a flexible and customizable way to automate the build, test, and deployment of applications",
+              "type": "open-source",
+              "component": "ci-cd",
+              "pros": [
+                "Highly customizable and flexible",
+                "Supports multiple build and deployment tools",
+                "Good documentation and community support",
+                "Free and open-source"
+              ],
+              "enterpriseScore": 84,
+              "popularity": 85,
+              "name": "Jenkins",
+              "integration": {
+                "effort": "high",
+                "timeEstimate": "2-4 weeks",
+                "dependencies": [
+                  "Jenkins configuration",
+                  "Plugin installation",
+                  "Job setup"
+                ]
+              },
+              "alternatives": [
+                "Travis CI",
+                "CircleCI",
+                "GitLab CI/CD"
+              ],
+              "id": "jenkins",
+              "category": "CI/CD",
+              "pricing": {
+                "model": "free",
+                "details": "Free to use, hosting and infrastructure costs vary",
+                "cost": ""
+              },
+              "cons": [
+                "Complex setup and configuration",
+                "Limited support for cloud-native deployments"
+              ]
+            },
+            {
+              "complexity": "low",
+              "metadata": {
+                "website": "https://about.gitlab.com",
+                "github": "",
+                "supportLevel": "enterprise",
+                "cloudProvider": ""
+              },
+              "documentation": "Excellent",
+              "description": "Managed CI/CD service that provides a scalable and reliable way to automate the build, test, and deployment of applications",
+              "type": "managed-service",
+              "component": "ci-cd",
+              "pros": [
+                "Highly scalable and reliable",
+                "Supports multiple build and deployment tools",
+                "Good documentation and support",
+                "Integration with GitLab version control"
+              ],
+              "enterpriseScore": 86,
+              "popularity": 80,
+              "name": "GitLab CI/CD",
+              "integration": {
+                "effort": "low",
+                "timeEstimate": "1-2 days",
+                "dependencies": [
+                  "GitLab configuration",
+                  "CI/CD setup",
+                  "Pipeline creation"
+                ]
+              },
+              "alternatives": [
+                "Jenkins",
+                "Travis CI",
+                "CircleCI"
+              ],
+              "id": "gitlab-ci-cd",
+              "category": "CI/CD",
+              "pricing": {
+                "model": "usage-based",
+                "details": "Pay for the number of users, with discounts for high volumes",
+                "cost": "$19 per user per month"
+              },
+              "cons": [
+                "Pricing can be costly for large-scale applications",
+                "Limited customization options"
+              ]
+            }
+          ],
+          "selectedTool": "jenkins"
+        }
+      ],
+      "riskAssessment": {
+        "technical": [
+          "Complexity of the task manager platform may lead to technical debt",
+          "Integration of multiple services and tools may lead to compatibility issues"
+        ],
+        "operational": [
+          "Scalability and reliability of the platform may be affected by the chosen cloud infrastructure",
+          "Security and compliance of the platform may be affected by the chosen authentication service"
+        ],
+        "financial": [
+          "Cost of the chosen cloud infrastructure and services may exceed budget",
+          "Cost of the chosen authentication service and message queue may exceed budget"
+        ]
+      },
+      "projectName": "Task Manager",
+      "validation": {
+        "errors": [
+          "Decision 2 has fewer than 3 tool recommendations",
+          "Decision 3 has fewer than 3 tool recommendations",
+          "Decision 4 has fewer than 3 tool recommendations",
+          "Decision 5 has fewer than 3 tool recommendations",
+          "Decision 6 has fewer than 3 tool recommendations"
+        ],
+        "isValid": false
+      },
+      "architecture": {
+        "complexity": "moderate",
+        "timeline": {
+          "production": "28 weeks",
+          "scale": "40 weeks",
+          "mvp": "16 weeks"
+        },
+        "components": 25,
+        "estimatedCost": {
+          "monthly": "$1,000",
+          "annual": "$12,000",
+          "development": "$50,000"
+        }
+      },
+      "totalCostEstimate": {
+        "annualOperational": 12000,
+        "development": 50000,
+        "monthlyOperational": 1000
+      }
+    },
+    "deployments": [],
+    "schema": [
+      {
+        "name": "users",
+        "id": "table_1763554194053_0",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "email",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "password",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "updated_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "deleted_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_5",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_users_email",
+            "type": "unique",
+            "fields": [
+              "email"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "tasks",
+        "id": "table_1763554194053_1",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "user_id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "title",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "description",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "text"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "due_date",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "date"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "priority_level",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_5",
+            "type": "integer"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "completed",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_6",
+            "type": "boolean"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_7",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "updated_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_8",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "deleted_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_9",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_tasks_user_id",
+            "type": "btree",
+            "fields": [
+              "user_id"
+            ]
+          },
+          {
+            "name": "idx_tasks_due_date",
+            "type": "btree",
+            "fields": [
+              "due_date"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "categories",
+        "id": "table_1763554194053_2",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "name",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "updated_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "deleted_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_categories_name",
+            "type": "unique",
+            "fields": [
+              "name"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "task_categories",
+        "id": "table_1763554194053_3",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "task_id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "category_id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "updated_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "deleted_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_5",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_task_categories_task_id",
+            "type": "btree",
+            "fields": [
+              "task_id"
+            ]
+          },
+          {
+            "name": "idx_task_categories_category_id",
+            "type": "btree",
+            "fields": [
+              "category_id"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "tags",
+        "id": "table_1763554194053_4",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "name",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "updated_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "deleted_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_tags_name",
+            "type": "unique",
+            "fields": [
+              "name"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "task_tags",
+        "id": "table_1763554194053_5",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "task_id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "tag_id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "updated_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "deleted_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_5",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_task_tags_task_id",
+            "type": "btree",
+            "fields": [
+              "task_id"
+            ]
+          },
+          {
+            "name": "idx_task_tags_tag_id",
+            "type": "btree",
+            "fields": [
+              "tag_id"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "logs",
+        "id": "table_1763554194053_6",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "level",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "message",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "text"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": []
+      },
+      {
+        "name": "settings",
+        "id": "table_1763554194053_7",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "key",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "value",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "text"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "updated_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_settings_key",
+            "type": "unique",
+            "fields": [
+              "key"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "permissions",
+        "id": "table_1763554194053_8",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "user_id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "permission",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "timestamptz"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "updated_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_permissions_user_id",
+            "type": "btree",
+            "fields": [
+              "user_id"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "audit_logs",
+        "id": "table_1763554194053_9",
+        "fields": [
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_0",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "user_id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_1",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "action",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_2",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "object_type",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_3",
+            "type": "varchar"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "object_id",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_4",
+            "type": "uuid"
+          },
+          {
+            "isRequired": false,
+            "isForeignKey": false,
+            "hasIndex": false,
+            "isPrimary": false,
+            "name": "created_at",
+            "isUnique": false,
+            "description": "",
+            "id": "field_1763554194053_5",
+            "type": "timestamptz"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_audit_logs_user_id",
+            "type": "btree",
+            "fields": [
+              "user_id"
+            ]
+          }
+        ]
+      }
+    ],
+    "analysis": {
+      "useCase": {
+        "features": [
+          "create tasks",
+          "mark complete",
+          "organize by categories",
+          "due dates",
+          "priority levels",
+          "search and filter"
+        ],
+        "complexity": "simple",
+        "label": "Personal Task Management",
+        "key": "tasks"
+      },
+      "success": true,
+      "optimizationSuggestions": [
+        {
+          "description": "Create indexes on columns used in WHERE, JOIN, and ORDER BY clauses, such as task_id, user_id, category_id, due_date, and priority_level, to improve query performance.",
+          "complexity": "Low",
+          "type": "indexing",
+          "title": "Create indexes on frequently queried columns",
+          "impact": "Medium"
+        },
+        {
+          "description": "Use Redis to cache frequently accessed data, such as user information, task lists, and category lists, to reduce database queries and improve application performance.",
+          "complexity": "Medium",
+          "type": "caching",
+          "title": "Implement Redis caching for frequently accessed data",
+          "impact": "High"
+        },
+        {
+          "description": "Use efficient database queries, such as FULLTEXT indexes and query optimization techniques, to improve search and filter functionality performance.",
+          "complexity": "Medium",
+          "type": "performance",
+          "title": "Optimize database queries for search and filter functionality",
+          "impact": "Medium"
+        },
+        {
+          "description": "Use load balancing to distribute traffic across multiple servers, ensuring that no single server becomes a bottleneck and improving overall application performance and scalability.",
+          "complexity": "High",
+          "type": "infrastructure",
+          "title": "Use load balancing to distribute traffic across multiple servers",
+          "impact": "High"
+        },
+        {
+          "description": "Implement rate limiting and IP blocking to prevent abuse and ensure that the application is not overwhelmed by malicious traffic.",
+          "complexity": "Low",
+          "type": "security",
+          "title": "Implement rate limiting and IP blocking to prevent abuse",
+          "impact": "Medium"
+        },
+        {
+          "description": "Schedule regular database backups and log rotation to ensure data integrity and prevent log files from growing too large, improving overall application performance and reliability.",
+          "complexity": "Low",
+          "type": "maintenance",
+          "title": "Schedule regular database backups and log rotation",
+          "impact": "Low"
+        },
+        {
+          "description": "Implement monitoring and alerting for application performance and errors, using tools such as New Relic or Prometheus, to quickly identify and resolve issues.",
+          "complexity": "Medium",
+          "type": "monitoring",
+          "title": "Implement monitoring and alerting for application performance and errors",
+          "impact": "Medium"
+        }
+      ],
+      "performanceMetrics": [
+        {
+          "value": "10-50",
+          "description": "Queries per second estimate for small team usage",
+          "label": "Expected QPS"
+        },
+        {
+          "value": "1GB/year",
+          "description": "Estimated data growth rate for 100+ active users",
+          "label": "Data Growth"
+        }
+      ],
+      "securityRecommendations": [
+        {
+          "description": "Enforce password length, complexity, and rotation policies to prevent brute-force attacks. Use a password hashing algorithm like bcrypt or Argon2 to securely store user passwords.",
+          "title": "Implement Strong Password Policies",
+          "priority": "High",
+          "category": "authentication"
+        },
+        {
+          "description": "Add an extra layer of security by requiring users to provide a second form of verification, such as a code sent to their phone or a biometric scan, in addition to their password.",
+          "title": "Enable Multi-Factor Authentication (MFA)",
+          "priority": "High",
+          "category": "authentication"
+        },
+        {
+          "description": "Use a secure encryption algorithm like AES to protect user data, such as task descriptions and comments, both in transit and at rest. Use HTTPS to encrypt data in transit and consider using a secure key management system.",
+          "title": "Encrypt Sensitive Data",
+          "priority": "Medium",
+          "category": "data"
+        },
+        {
+          "description": "Define roles for users, such as admin, team lead, and team member, and assign permissions accordingly. Use a permission system to control access to features and data, ensuring that users can only perform actions they are authorized to do.",
+          "title": "Implement Role-Based Access Control (RBAC)",
+          "priority": "Medium",
+          "category": "authorization"
+        },
+        {
+          "description": "Keep all dependencies, including frameworks, libraries, and plugins, up to date with the latest security patches to prevent known vulnerabilities from being exploited.",
+          "title": "Regularly Update and Patch Dependencies",
+          "priority": "Medium",
+          "category": "infrastructure"
+        },
+        {
+          "description": "Implement logging and monitoring to detect and respond to security incidents, such as login attempts, data access, and system changes. Use tools like audit logs and security information and event management (SIEM) systems to track and analyze security-related events.",
+          "title": "Monitor and Log Security-Related Events",
+          "priority": "Low",
+          "category": "infrastructure"
+        }
+      ],
+      "scalingInsights": {
+        "readWriteRatio": "90:10",
+        "indexingPriority": [
+          {
+            "priority": "High",
+            "reason": "Frequent search, filter, and update operations",
+            "table": "tasks"
+          },
+          {
+            "priority": "Medium",
+            "reason": "Frequent read operations for category-based filtering",
+            "table": "categories"
+          },
+          {
+            "priority": "Low",
+            "reason": "Infrequent updates, mostly read operations for authentication",
+            "table": "users"
+          }
+        ],
+        "cachingStrategy": "Application-level",
+        "expectedLoad": "Low"
+      },
+      "smartRecommendations": [
+        {
+          "description": "Design the application as a collection of small, independent services, each responsible for a specific feature, such as task management, authentication, and search. This will enable easier maintenance, scalability, and fault tolerance. Use APIs for communication between services.",
+          "title": "Implement Microservices Architecture",
+          "type": "architecture",
+          "priority": "Medium",
+          "implementationEffort": "High"
+        },
+        {
+          "description": "Implement caching mechanisms, such as Redis or Memcached, to store frequently accessed data, like user tasks and categories. This will reduce the load on the database and improve application performance.",
+          "title": "Use Caching for Frequently Accessed Data",
+          "type": "performance",
+          "priority": "Medium",
+          "implementationEffort": "Medium"
+        },
+        {
+          "description": "Use a library or framework, such as OAuth or JWT, to implement basic authentication and authorization. This will ensure that only authorized users can access and modify their tasks and data.",
+          "title": "Implement Basic Authentication and Authorization",
+          "type": "security",
+          "priority": "High",
+          "implementationEffort": "Medium"
+        },
+        {
+          "description": "Design a database schema that can scale with the application, using techniques such as indexing, partitioning, and normalization. This will ensure that the database can handle increasing amounts of data and user traffic.",
+          "title": "Design a Scalable Database Schema",
+          "type": "scalability",
+          "priority": "Medium",
+          "implementationEffort": "High"
+        },
+        {
+          "description": "Use WebSockets to establish real-time communication between the client and server, enabling instantaneous updates and sync across all connected users. This will provide a seamless and collaborative experience for team users.",
+          "title": "Use WebSockets for Real-Time Sync",
+          "type": "scalability",
+          "priority": "Medium",
+          "implementationEffort": "Medium"
+        },
+        {
+          "description": "Implement data encryption, such as SSL/TLS, to protect user data in transit and at rest. Additionally, implement access controls, such as role-based access control, to ensure that users can only access and modify their own data.",
+          "title": "Implement Data Encryption and Access Controls",
+          "type": "security",
+          "priority": "High",
+          "implementationEffort": "Medium"
+        }
+      ],
+      "databaseRecommendations": [
+        {
+          "score": 92,
+          "pros": [
+            "mature and widely adopted",
+            "strong support for data types and operators",
+            "extensive indexing capabilities"
+          ],
+          "reasons": [
+            "ACID compliance for data integrity",
+            "support for advanced indexing for efficient search and filter"
+          ],
+          "bestFor": "transactional data and complex queries",
+          "whyForUseCase": [
+            "supports basic authentication and data privacy compliance through row-level security",
+            "efficient handling of task creation, update, and deletion"
+          ],
+          "name": "PostgreSQL",
+          "cons": [
+            "can be resource-intensive for very large datasets",
+            "may require additional configuration for optimal performance"
+          ]
+        },
+        {
+          "score": 88,
+          "pros": [
+            "easy to set up and manage",
+            "supports a wide range of data types and storage engines",
+            "large community of users and developers"
+          ],
+          "reasons": [
+            "well-established and widely supported",
+            "efficient handling of small to medium-sized datasets"
+          ],
+          "bestFor": "small to medium-sized applications with straightforward data models",
+          "whyForUseCase": [
+            "supports basic authentication and data privacy compliance through grants and privileges",
+            "efficient handling of task creation, update, and deletion"
+          ],
+          "name": "MySQL",
+          "cons": [
+            "may not perform as well as PostgreSQL for complex queries",
+            "limited support for advanced data types and operators"
+          ]
+        },
+        {
+          "score": 80,
+          "pros": [
+            "zero-configuration and low-overhead",
+            "supports a wide range of data types and SQL features",
+            "cross-platform compatibility"
+          ],
+          "reasons": [
+            "self-contained and serverless",
+            "easy to set up and manage"
+          ],
+          "bestFor": "small, self-contained applications with simple data models",
+          "whyForUseCase": [
+            "supports basic authentication and data privacy compliance through file-level permissions",
+            "efficient handling of task creation, update, and deletion for small teams"
+          ],
+          "name": "SQLite",
+          "cons": [
+            "may not perform well for large datasets or high-concurrency applications",
+            "limited support for advanced data types and operators"
+          ]
+        },
+        {
+          "score": 78,
+          "pros": [
+            "high-performance and low-latency",
+            "supports a wide range of data structures and operations",
+            "easy to set up and manage"
+          ],
+          "reasons": [
+            "in-memory data storage for high-performance applications",
+            "supports pub/sub messaging for real-time sync"
+          ],
+          "bestFor": "real-time data processing and caching",
+          "whyForUseCase": [
+            "supports real-time sync through pub/sub messaging",
+            "efficient handling of task updates and notifications"
+          ],
+          "name": "Redis",
+          "cons": [
+            "may not be suitable for large datasets or complex data models",
+            "limited support for advanced data types and operators"
+          ]
+        }
+      ]
+    },
+    "createdAt": "2025-11-19T12:10:03.841Z",
+    "selectedTools": {
+      "decision-authentication": "auth0",
+      "decision-database": "postgresql",
+      "decision-ci-cd": "jenkins",
+      "decision-api-gateway": "kong",
+      "decision-queue": "rabbitmq",
+      "decision-cloud-provider": "aws",
+      "decision-cache": "redis"
+    },
+    "name": "Moderate Architecture With",
+    "database": {
+      "features": [
+        "ACID compliance",
+        "Complex queries",
+        "Scalability"
+      ],
+      "type": "postgresql",
+      "reasoning": "Recommended for this use case",
+      "confidence": 0.9
+    },
+    "updatedAt": "2025-11-19T12:10:03.841Z",
+    "endpoints": [
+      {
+        "path": "/api/v1/auth/login",
+        "description": "User login",
+        "method": "POST",
+        "body": {
+          "email": "string",
+          "password": "string"
+        },
+        "auth": false,
+        "group": "Authentication"
+      },
+      {
+        "path": "/api/v1/auth/register",
+        "description": "User registration",
+        "method": "POST",
+        "body": {
+          "email": "string",
+          "password": "string"
+        },
+        "auth": false,
+        "group": "Authentication"
+      },
+      {
+        "path": "/api/v1/tasks",
+        "description": "Get all tasks",
+        "method": "GET",
+        "auth": true,
+        "group": "Tasks"
+      },
+      {
+        "path": "/api/v1/tasks/{id}",
+        "description": "Get task by ID",
+        "method": "GET",
+        "auth": true,
+        "group": "Tasks"
+      },
+      {
+        "path": "/api/v1/tasks",
+        "description": "Create new task",
+        "method": "POST",
+        "body": {
+          "due_date": "date",
+          "description": "string",
+          "title": "string",
+          "priority_level": "integer"
+        },
+        "auth": true,
+        "group": "Tasks"
+      },
+      {
+        "path": "/api/v1/tasks/{id}",
+        "description": "Update task",
+        "method": "PUT",
+        "body": {
+          "due_date": "date",
+          "description": "string",
+          "title": "string",
+          "priority_level": "integer"
+        },
+        "auth": true,
+        "group": "Tasks"
+      },
+      {
+        "path": "/api/v1/tasks/{id}",
+        "description": "Delete task",
+        "method": "DELETE",
+        "auth": true,
+        "group": "Tasks"
+      },
+      {
+        "path": "/api/v1/categories",
+        "description": "Get all categories",
+        "method": "GET",
+        "auth": true,
+        "group": "Categories"
+      },
+      {
+        "path": "/api/v1/categories/{id}",
+        "description": "Get category by ID",
+        "method": "GET",
+        "auth": true,
+        "group": "Categories"
+      },
+      {
+        "path": "/api/v1/categories",
+        "description": "Create new category",
+        "method": "POST",
+        "body": {
+          "name": "string"
+        },
+        "auth": true,
+        "group": "Categories"
+      },
+      {
+        "path": "/api/v1/categories/{id}",
+        "description": "Update category",
+        "method": "PUT",
+        "body": {
+          "name": "string"
+        },
+        "auth": true,
+        "group": "Categories"
+      },
+      {
+        "path": "/api/v1/categories/{id}",
+        "description": "Delete category",
+        "method": "DELETE",
+        "auth": true,
+        "group": "Categories"
+      },
+      {
+        "path": "/api/v1/tags",
+        "description": "Get all tags",
+        "method": "GET",
+        "auth": true,
+        "group": "Tags"
+      },
+      {
+        "path": "/api/v1/tags/{id}",
+        "description": "Get tag by ID",
+        "method": "GET",
+        "auth": true,
+        "group": "Tags"
+      },
+      {
+        "path": "/api/v1/tags",
+        "description": "Create new tag",
+        "method": "POST",
+        "body": {
+          "name": "string"
+        },
+        "auth": true,
+        "group": "Tags"
+      },
+      {
+        "path": "/api/v1/tags/{id}",
+        "description": "Update tag",
+        "method": "PUT",
+        "body": {
+          "name": "string"
+        },
+        "auth": true,
+        "group": "Tags"
+      },
+      {
+        "path": "/api/v1/tags/{id}",
+        "description": "Delete tag",
+        "method": "DELETE",
+        "auth": true,
+        "group": "Tags"
+      }
+    ],
+    "architecture": {
+      "name": "Task Manager System Architecture",
+      "edges": [
+        {
+          "id": "edge-task-manager-frontend-1-load-balancer-1-0",
+          "source": "task-manager-frontend-1",
+          "label": "HTTP Requests",
+          "type": "smoothstep",
+          "data": {},
+          "target": "load-balancer-1"
+        },
+        {
+          "id": "edge-task-manager-mobile-1-load-balancer-1-1",
+          "source": "task-manager-mobile-1",
+          "label": "HTTP Requests",
+          "type": "smoothstep",
+          "data": {},
+          "target": "load-balancer-1"
+        },
+        {
+          "id": "edge-load-balancer-1-api-gateway-1-2",
+          "source": "load-balancer-1",
+          "label": "HTTP Requests",
+          "type": "smoothstep",
+          "data": {},
+          "target": "api-gateway-1"
+        },
+        {
+          "id": "edge-api-gateway-1-authentication-gateway-1-3",
+          "source": "api-gateway-1",
+          "label": "Authentication Requests",
+          "type": "smoothstep",
+          "data": {},
+          "target": "authentication-gateway-1"
+        },
+        {
+          "id": "edge-authentication-gateway-1-authentication-service-1-4",
+          "source": "authentication-gateway-1",
+          "label": "POST Authentication Data",
+          "type": "smoothstep",
+          "data": {},
+          "target": "authentication-service-1"
+        },
+        {
+          "id": "edge-authentication-service-1-postgresql-database-1-5",
+          "source": "authentication-service-1",
+          "label": "Database Queries",
+          "type": "smoothstep",
+          "data": {},
+          "target": "postgresql-database-1"
+        },
+        {
+          "id": "edge-api-gateway-1-tasks-service-1-6",
+          "source": "api-gateway-1",
+          "label": "GET/POST/PUT/DELETE Task Data",
+          "type": "smoothstep",
+          "data": {},
+          "target": "tasks-service-1"
+        },
+        {
+          "id": "edge-tasks-service-1-postgresql-database-1-7",
+          "source": "tasks-service-1",
+          "label": "Database Queries",
+          "type": "smoothstep",
+          "data": {},
+          "target": "postgresql-database-1"
+        },
+        {
+          "id": "edge-api-gateway-1-categories-service-1-8",
+          "source": "api-gateway-1",
+          "label": "GET/POST/PUT/DELETE Category Data",
+          "type": "smoothstep",
+          "data": {},
+          "target": "categories-service-1"
+        },
+        {
+          "id": "edge-categories-service-1-postgresql-database-1-9",
+          "source": "categories-service-1",
+          "label": "Database Queries",
+          "type": "smoothstep",
+          "data": {},
+          "target": "postgresql-database-1"
+        },
+        {
+          "id": "edge-api-gateway-1-tags-service-1-10",
+          "source": "api-gateway-1",
+          "label": "GET/POST/PUT/DELETE Tag Data",
+          "type": "smoothstep",
+          "data": {},
+          "target": "tags-service-1"
+        },
+        {
+          "id": "edge-tags-service-1-postgresql-database-1-11",
+          "source": "tags-service-1",
+          "label": "Database Queries",
+          "type": "smoothstep",
+          "data": {},
+          "target": "postgresql-database-1"
+        },
+        {
+          "id": "edge-tasks-service-1-cache-1-12",
+          "source": "tasks-service-1",
+          "label": "Cache Updates",
+          "type": "smoothstep",
+          "data": {},
+          "target": "cache-1"
+        },
+        {
+          "id": "edge-categories-service-1-cache-1-13",
+          "source": "categories-service-1",
+          "label": "Cache Updates",
+          "type": "smoothstep",
+          "data": {},
+          "target": "cache-1"
+        },
+        {
+          "id": "edge-tags-service-1-cache-1-14",
+          "source": "tags-service-1",
+          "label": "Cache Updates",
+          "type": "smoothstep",
+          "data": {},
+          "target": "cache-1"
+        },
+        {
+          "id": "edge-tasks-service-1-queue-1-15",
+          "source": "tasks-service-1",
+          "label": "Asynchronous Task Requests",
+          "type": "smoothstep",
+          "data": {},
+          "target": "queue-1"
+        },
+        {
+          "id": "edge-categories-service-1-queue-1-16",
+          "source": "categories-service-1",
+          "label": "Asynchronous Task Requests",
+          "type": "smoothstep",
+          "data": {},
+          "target": "queue-1"
+        },
+        {
+          "id": "edge-tags-service-1-queue-1-17",
+          "source": "tags-service-1",
+          "label": "Asynchronous Task Requests",
+          "type": "smoothstep",
+          "data": {},
+          "target": "queue-1"
+        },
+        {
+          "id": "edge-postgresql-database-1-replica-database-1-18",
+          "source": "postgresql-database-1",
+          "label": "Database Replication",
+          "type": "smoothstep",
+          "data": {},
+          "target": "replica-database-1"
+        },
+        {
+          "id": "edge-postgresql-database-1-search-engine-1-19",
+          "source": "postgresql-database-1",
+          "label": "Search Indexing",
+          "type": "smoothstep",
+          "data": {},
+          "target": "search-engine-1"
+        },
+        {
+          "id": "edge-monitoring-1-logging-1-20",
+          "source": "monitoring-1",
+          "label": "Log Data",
+          "type": "smoothstep",
+          "data": {},
+          "target": "logging-1"
+        },
+        {
+          "id": "edge-logging-1-notifications-1-21",
+          "source": "logging-1",
+          "label": "Notification Triggers",
+          "type": "smoothstep",
+          "data": {},
+          "target": "notifications-1"
+        },
+        {
+          "id": "edge-notifications-1-analytics-1-22",
+          "source": "notifications-1",
+          "label": "Analytics Data",
+          "type": "smoothstep",
+          "data": {},
+          "target": "analytics-1"
+        },
+        {
+          "id": "edge-ci-cd-1-secrets-manager-1-23",
+          "source": "ci-cd-1",
+          "label": "Sensitive Data",
+          "type": "smoothstep",
+          "data": {},
+          "target": "secrets-manager-1"
+        },
+        {
+          "id": "edge-ci-cd-1-backup-1-24",
+          "source": "ci-cd-1",
+          "label": "Backup Data",
+          "type": "smoothstep",
+          "data": {},
+          "target": "backup-1"
+        },
+        {
+          "id": "edge-ci-cd-1-container-registry-1-25",
+          "source": "ci-cd-1",
+          "label": "Container Images",
+          "type": "smoothstep",
+          "data": {},
+          "target": "container-registry-1"
+        }
+      ],
+      "description": "Moderate architecture with 25 components",
+      "metadata": {
+        "securityLevel": "Standard",
+        "createdAt": "2025-11-19T12:09:01.868Z",
+        "complexity": "Moderate",
+        "scalingStrategy": "Horizontal",
+        "aiGenerated": true,
+        "version": "2.0.0",
+        "updatedAt": "2025-11-19T12:09:01.868Z"
+      },
+      "id": "arch-1763554141868",
+      "nodes": [
+        {
+          "id": "task-manager-frontend-1",
+          "position": {
+            "x": 100,
+            "y": 100
+          },
+          "type": "frontend",
+          "data": {
+            "name": "Task Manager Frontend",
+            "aiExplanation": {
+              "whyChosen": "Task Manager Frontend provides essential frontend functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle frontend responsibilities.",
+              "bestPractices": "Follow standard frontend best practices for configuration and deployment."
+            },
+            "description": "Handles user interactions via web interface",
+            "metadata": {
+              "layer": "Layer 0 (Client)",
+              "layerIndex": 0
+            },
+            "color": "#3B82F6"
+          }
+        },
+        {
+          "id": "task-manager-mobile-1",
+          "position": {
+            "x": 100,
+            "y": 300
+          },
+          "type": "mobile",
+          "data": {
+            "name": "Task Manager Mobile",
+            "aiExplanation": {
+              "whyChosen": "Task Manager Mobile provides essential mobile functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle mobile responsibilities.",
+              "bestPractices": "Follow standard mobile best practices for configuration and deployment."
+            },
+            "description": "Handles user interactions via mobile app",
+            "metadata": {
+              "layer": "Layer 0 (Client)",
+              "layerIndex": 0
+            },
+            "color": "#06B6D4"
+          }
+        },
+        {
+          "id": "cdn-1",
+          "position": {
+            "x": 100,
+            "y": 500
+          },
+          "type": "cdn",
+          "data": {
+            "name": "Content Delivery Network",
+            "aiExplanation": {
+              "whyChosen": "Content Delivery Network provides essential cdn functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle cdn responsibilities.",
+              "bestPractices": "Follow standard cdn best practices for configuration and deployment."
+            },
+            "description": "Serves static assets",
+            "metadata": {
+              "layer": "Layer 0 (Client)",
+              "layerIndex": 0
+            },
+            "color": "#0891B2"
+          }
+        },
+        {
+          "id": "load-balancer-1",
+          "position": {
+            "x": 500,
+            "y": 100
+          },
+          "type": "load-balancer",
+          "data": {
+            "name": "Load Balancer",
+            "aiExplanation": {
+              "whyChosen": "Load Balancer provides essential load-balancer functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle load-balancer responsibilities.",
+              "bestPractices": "Follow standard load-balancer best practices for configuration and deployment."
+            },
+            "description": "Routes traffic to Authentication, Tasks, Categories, and Tags services",
+            "metadata": {
+              "layer": "Layer 1 (Gateway)",
+              "layerIndex": 1
+            },
+            "color": "#10B981"
+          }
+        },
+        {
+          "id": "api-gateway-1",
+          "position": {
+            "x": 500,
+            "y": 300
+          },
+          "type": "api-gateway",
+          "data": {
+            "name": "API Gateway",
+            "aiExplanation": {
+              "whyChosen": "API Gateway provides essential api-gateway functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle api-gateway responsibilities.",
+              "bestPractices": "Follow standard api-gateway best practices for configuration and deployment."
+            },
+            "description": "Handles API requests and routes to internal services",
+            "metadata": {
+              "layer": "Layer 1 (Gateway)",
+              "layerIndex": 1
+            },
+            "color": "#059669"
+          }
+        },
+        {
+          "id": "authentication-gateway-1",
+          "position": {
+            "x": 500,
+            "y": 500
+          },
+          "type": "authentication",
+          "data": {
+            "name": "Authentication Gateway",
+            "aiExplanation": {
+              "whyChosen": "Authentication Gateway provides essential authentication functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle authentication responsibilities.",
+              "bestPractices": "Follow standard authentication best practices for configuration and deployment."
+            },
+            "description": "Handles authentication for API requests",
+            "metadata": {
+              "layer": "Layer 1 (Gateway)",
+              "layerIndex": 1
+            },
+            "color": "#F59E0B"
+          }
+        },
+        {
+          "id": "authentication-service-1",
+          "position": {
+            "x": 900,
+            "y": 100
+          },
+          "type": "api-service",
+          "data": {
+            "name": "Authentication Service",
+            "aiExplanation": {
+              "whyChosen": "Authentication Service provides essential api-service functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            },
+            "description": "Handles 2 POST endpoints for authentication management, interacting with users table",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "color": "#8B5CF6"
+          }
+        },
+        {
+          "id": "tasks-service-1",
+          "position": {
+            "x": 900,
+            "y": 300
+          },
+          "type": "api-service",
+          "data": {
+            "name": "Tasks Service",
+            "aiExplanation": {
+              "whyChosen": "Tasks Service provides essential api-service functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            },
+            "description": "Handles 5 endpoints (GET/POST/PUT/DELETE) for task management, interacting with tasks, task_categories, and task_tags tables",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "color": "#8B5CF6"
+          }
+        },
+        {
+          "id": "categories-service-1",
+          "position": {
+            "x": 900,
+            "y": 500
+          },
+          "type": "api-service",
+          "data": {
+            "name": "Categories Service",
+            "aiExplanation": {
+              "whyChosen": "Categories Service provides essential api-service functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            },
+            "description": "Handles 5 endpoints (GET/POST/PUT/DELETE) for category management, interacting with categories table",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "color": "#8B5CF6"
+          }
+        },
+        {
+          "id": "tags-service-1",
+          "position": {
+            "x": 900,
+            "y": 700
+          },
+          "type": "api-service",
+          "data": {
+            "name": "Tags Service",
+            "aiExplanation": {
+              "whyChosen": "Tags Service provides essential api-service functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            },
+            "description": "Handles 5 endpoints (GET/POST/PUT/DELETE) for tag management, interacting with tags table",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "color": "#8B5CF6"
+          }
+        },
+        {
+          "id": "cache-1",
+          "position": {
+            "x": 900,
+            "y": 900
+          },
+          "type": "cache",
+          "data": {
+            "name": "Cache",
+            "aiExplanation": {
+              "whyChosen": "Cache provides essential cache functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle cache responsibilities.",
+              "bestPractices": "Follow standard cache best practices for configuration and deployment."
+            },
+            "description": "Stores frequently accessed data",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "color": "#DC2626"
+          }
+        },
+        {
+          "id": "queue-1",
+          "position": {
+            "x": 900,
+            "y": 1100
+          },
+          "type": "queue",
+          "data": {
+            "name": "Message Queue",
+            "aiExplanation": {
+              "whyChosen": "Message Queue provides essential queue functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle queue responsibilities.",
+              "bestPractices": "Follow standard queue best practices for configuration and deployment."
+            },
+            "description": "Handles asynchronous tasks",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "color": "#F97316"
+          }
+        },
+        {
+          "id": "web-socket-1",
+          "position": {
+            "x": 900,
+            "y": 1300
+          },
+          "type": "queue",
+          "data": {
+            "name": "Web Socket",
+            "aiExplanation": {
+              "whyChosen": "Web Socket provides essential queue functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle queue responsibilities.",
+              "bestPractices": "Follow standard queue best practices for configuration and deployment."
+            },
+            "description": "Handles real-time updates",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "color": "#F97316"
+          }
+        },
+        {
+          "id": "postgresql-database-1",
+          "position": {
+            "x": 1300,
+            "y": 100
+          },
+          "type": "database",
+          "data": {
+            "name": "PostgreSQL Database",
+            "aiExplanation": {
+              "whyChosen": "PostgreSQL Database provides essential database functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle database responsibilities.",
+              "bestPractices": "Follow standard database best practices for configuration and deployment."
+            },
+            "description": "Stores data in 10 tables: users, tasks, categories, task_categories, tags, task_tags, logs, settings, permissions, audit_logs",
+            "metadata": {
+              "layer": "Layer 3 (Data)",
+              "layerIndex": 3
+            },
+            "color": "#EF4444"
+          }
+        },
+        {
+          "id": "search-engine-1",
+          "position": {
+            "x": 1300,
+            "y": 300
+          },
+          "type": "search-engine",
+          "data": {
+            "name": "Search Engine",
+            "aiExplanation": {
+              "whyChosen": "Search Engine provides essential search-engine functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle search-engine responsibilities.",
+              "bestPractices": "Follow standard search-engine best practices for configuration and deployment."
+            },
+            "description": "Indexes data for search functionality",
+            "metadata": {
+              "layer": "Layer 3 (Data)",
+              "layerIndex": 3
+            },
+            "color": "#B45309"
+          }
+        },
+        {
+          "id": "storage-1",
+          "position": {
+            "x": 1300,
+            "y": 500
+          },
+          "type": "backup-storage",
+          "data": {
+            "name": "Storage",
+            "aiExplanation": {
+              "whyChosen": "Storage provides essential backup-storage functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle backup-storage responsibilities.",
+              "bestPractices": "Follow standard backup-storage best practices for configuration and deployment."
+            },
+            "description": "Stores files and backups",
+            "metadata": {
+              "layer": "Layer 3 (Data)",
+              "layerIndex": 3
+            },
+            "color": "#4B5563"
+          }
+        },
+        {
+          "id": "replica-database-1",
+          "position": {
+            "x": 1300,
+            "y": 700
+          },
+          "type": "database",
+          "data": {
+            "name": "Replica Database",
+            "aiExplanation": {
+              "whyChosen": "Replica Database provides essential database functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle database responsibilities.",
+              "bestPractices": "Follow standard database best practices for configuration and deployment."
+            },
+            "description": "Replicates data for high availability",
+            "metadata": {
+              "layer": "Layer 3 (Data)",
+              "layerIndex": 3
+            },
+            "color": "#EF4444"
+          }
+        },
+        {
+          "id": "monitoring-1",
+          "position": {
+            "x": 1700,
+            "y": 100
+          },
+          "type": "monitoring",
+          "data": {
+            "name": "Monitoring",
+            "aiExplanation": {
+              "whyChosen": "Monitoring provides essential monitoring functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle monitoring responsibilities.",
+              "bestPractices": "Follow standard monitoring best practices for configuration and deployment."
+            },
+            "description": "Tracks system performance and health",
+            "metadata": {
+              "layer": "Layer 4 (Infrastructure)",
+              "layerIndex": 4
+            },
+            "color": "#EA580C"
+          }
+        },
+        {
+          "id": "logging-1",
+          "position": {
+            "x": 1700,
+            "y": 300
+          },
+          "type": "logging",
+          "data": {
+            "name": "Logging",
+            "aiExplanation": {
+              "whyChosen": "Logging provides essential logging functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle logging responsibilities.",
+              "bestPractices": "Follow standard logging best practices for configuration and deployment."
+            },
+            "description": "Stores system logs",
+            "metadata": {
+              "layer": "Layer 4 (Infrastructure)",
+              "layerIndex": 4
+            },
+            "color": "#CA8A04"
+          }
+        },
+        {
+          "id": "notifications-1",
+          "position": {
+            "x": 1700,
+            "y": 500
+          },
+          "type": "notification-service",
+          "data": {
+            "name": "Notifications",
+            "aiExplanation": {
+              "whyChosen": "Notifications provides essential notification-service functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle notification-service responsibilities.",
+              "bestPractices": "Follow standard notification-service best practices for configuration and deployment."
+            },
+            "description": "Sends system notifications",
+            "metadata": {
+              "layer": "Layer 4 (Infrastructure)",
+              "layerIndex": 4
+            },
+            "color": "#8B5CF6"
+          }
+        },
+        {
+          "id": "analytics-1",
+          "position": {
+            "x": 1700,
+            "y": 700
+          },
+          "type": "analytics",
+          "data": {
+            "name": "Analytics",
+            "aiExplanation": {
+              "whyChosen": "Analytics provides essential analytics functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle analytics responsibilities.",
+              "bestPractices": "Follow standard analytics best practices for configuration and deployment."
+            },
+            "description": "Tracks system usage and metrics",
+            "metadata": {
+              "layer": "Layer 4 (Infrastructure)",
+              "layerIndex": 4
+            },
+            "color": "#7C3AED"
+          }
+        },
+        {
+          "id": "ci-cd-1",
+          "position": {
+            "x": 2100,
+            "y": 100
+          },
+          "type": "ci-cd",
+          "data": {
+            "name": "CI/CD Pipeline",
+            "aiExplanation": {
+              "whyChosen": "CI/CD Pipeline provides essential ci-cd functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle ci-cd responsibilities.",
+              "bestPractices": "Follow standard ci-cd best practices for configuration and deployment."
+            },
+            "description": "Automates testing, deployment, and delivery",
+            "metadata": {
+              "layer": "Layer 5 (DevOps)",
+              "layerIndex": 5
+            },
+            "color": "#059669"
+          }
+        },
+        {
+          "id": "secrets-manager-1",
+          "position": {
+            "x": 2100,
+            "y": 300
+          },
+          "type": "secrets-manager",
+          "data": {
+            "name": "Secrets Manager",
+            "aiExplanation": {
+              "whyChosen": "Secrets Manager provides essential secrets-manager functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle secrets-manager responsibilities.",
+              "bestPractices": "Follow standard secrets-manager best practices for configuration and deployment."
+            },
+            "description": "Stores sensitive data and credentials",
+            "metadata": {
+              "layer": "Layer 5 (DevOps)",
+              "layerIndex": 5
+            },
+            "color": "#374151"
+          }
+        },
+        {
+          "id": "backup-1",
+          "position": {
+            "x": 2100,
+            "y": 500
+          },
+          "type": "backup-storage",
+          "data": {
+            "name": "Backup",
+            "aiExplanation": {
+              "whyChosen": "Backup provides essential backup-storage functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle backup-storage responsibilities.",
+              "bestPractices": "Follow standard backup-storage best practices for configuration and deployment."
+            },
+            "description": "Stores system backups",
+            "metadata": {
+              "layer": "Layer 5 (DevOps)",
+              "layerIndex": 5
+            },
+            "color": "#4B5563"
+          }
+        },
+        {
+          "id": "container-registry-1",
+          "position": {
+            "x": 2100,
+            "y": 700
+          },
+          "type": "container-registry",
+          "data": {
+            "name": "Container Registry",
+            "aiExplanation": {
+              "whyChosen": "Container Registry provides essential container-registry functionality for this architecture.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "howItFits": "Integrates with other components to handle container-registry responsibilities.",
+              "bestPractices": "Follow standard container-registry best practices for configuration and deployment."
+            },
+            "description": "Stores container images",
+            "metadata": {
+              "layer": "Layer 5 (DevOps)",
+              "layerIndex": 5
+            },
+            "color": "#6B7280"
+          }
+        }
+      ]
+    },
+    "description": "Moderate architecture with 25 components",
+    "id": "2c4ff784-8cf7-4147-b57b-b1917b3d2c46",
+    "userId": "user_1763527076647_qvxh0h1dz",
+    "lld": {
+      "id": "lld-1763554142380",
+      "name": "Task Manager - Low Level Design",
+      "description": "Detailed component architecture with 26 implementation components",
+      "nodes": [
+        {
+          "id": "auth-controller-1",
+          "type": "api-service",
+          "position": {
+            "x": 100,
+            "y": 100
+          },
+          "data": {
+            "name": "AuthController",
+            "description": "Handles authentication-related HTTP requests",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "Express.js Controller",
+              "layer": "Controllers Layer",
+              "layerIndex": 0,
+              "methods": [
+                "POST /api/v1/auth/login",
+                "POST /api/v1/auth/register"
+              ],
+              "dependencies": [
+                "auth-service-1",
+                "auth-middleware-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "AuthController provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "task-controller-1",
+          "type": "api-service",
+          "position": {
+            "x": 100,
+            "y": 280
+          },
+          "data": {
+            "name": "TaskController",
+            "description": "Handles task-related HTTP requests",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "Express.js Controller",
+              "layer": "Controllers Layer",
+              "layerIndex": 0,
+              "methods": [
+                "GET /api/v1/tasks",
+                "GET /api/v1/tasks/{id}",
+                "POST /api/v1/tasks",
+                "PUT /api/v1/tasks/{id}",
+                "DELETE /api/v1/tasks/{id}"
+              ],
+              "dependencies": [
+                "task-service-1",
+                "auth-middleware-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "TaskController provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "category-controller-1",
+          "type": "api-service",
+          "position": {
+            "x": 100,
+            "y": 460
+          },
+          "data": {
+            "name": "CategoryController",
+            "description": "Handles category-related HTTP requests",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "Express.js Controller",
+              "layer": "Controllers Layer",
+              "layerIndex": 0,
+              "methods": [
+                "GET /api/v1/categories",
+                "GET /api/v1/categories/{id}",
+                "POST /api/v1/categories",
+                "PUT /api/v1/categories/{id}",
+                "DELETE /api/v1/categories/{id}"
+              ],
+              "dependencies": [
+                "category-service-1",
+                "auth-middleware-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "CategoryController provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "tag-controller-1",
+          "type": "api-service",
+          "position": {
+            "x": 100,
+            "y": 640
+          },
+          "data": {
+            "name": "TagController",
+            "description": "Handles tag-related HTTP requests",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "Express.js Controller",
+              "layer": "Controllers Layer",
+              "layerIndex": 0,
+              "methods": [
+                "GET /api/v1/tags",
+                "GET /api/v1/tags/{id}",
+                "POST /api/v1/tags",
+                "PUT /api/v1/tags/{id}",
+                "DELETE /api/v1/tags/{id}"
+              ],
+              "dependencies": [
+                "tag-service-1",
+                "auth-middleware-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "TagController provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "auth-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 450,
+            "y": 100
+          },
+          "data": {
+            "name": "AuthenticationService",
+            "description": "Handles authentication-related business logic",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeScript Class",
+              "layer": "Services Layer",
+              "layerIndex": 1,
+              "methods": [
+                "login()",
+                "register()",
+                "validateToken()",
+                "refreshToken()"
+              ],
+              "dependencies": [
+                "user-repository-1",
+                "auth-middleware-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "AuthenticationService provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "task-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 450,
+            "y": 280
+          },
+          "data": {
+            "name": "TaskService",
+            "description": "Handles task-related business logic",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeScript Class",
+              "layer": "Services Layer",
+              "layerIndex": 1,
+              "methods": [
+                "createTask()",
+                "getTask()",
+                "updateTask()",
+                "deleteTask()"
+              ],
+              "dependencies": [
+                "task-repository-1",
+                "auth-middleware-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "TaskService provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "category-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 450,
+            "y": 460
+          },
+          "data": {
+            "name": "CategoryService",
+            "description": "Handles category-related business logic",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeScript Class",
+              "layer": "Services Layer",
+              "layerIndex": 1,
+              "methods": [
+                "createCategory()",
+                "getCategory()",
+                "updateCategory()",
+                "deleteCategory()"
+              ],
+              "dependencies": [
+                "category-repository-1",
+                "auth-middleware-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "CategoryService provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "tag-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 450,
+            "y": 640
+          },
+          "data": {
+            "name": "TagService",
+            "description": "Handles tag-related business logic",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeScript Class",
+              "layer": "Services Layer",
+              "layerIndex": 1,
+              "methods": [
+                "createTag()",
+                "getTag()",
+                "updateTag()",
+                "deleteTag()"
+              ],
+              "dependencies": [
+                "tag-repository-1",
+                "auth-middleware-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "TagService provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "validation-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 450,
+            "y": 820
+          },
+          "data": {
+            "name": "ValidationService",
+            "description": "Handles validation-related business logic",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeScript Class",
+              "layer": "Services Layer",
+              "layerIndex": 1,
+              "methods": [
+                "validateUser()",
+                "validateTask()",
+                "validateCategory()",
+                "validateTag()"
+              ],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "ValidationService provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "user-repository-1",
+          "type": "api-service",
+          "position": {
+            "x": 800,
+            "y": 100
+          },
+          "data": {
+            "name": "UserRepository",
+            "description": "Handles user-related data access",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeORM Repository",
+              "layer": "Repositories Layer",
+              "layerIndex": 2,
+              "methods": [
+                "findByEmail()",
+                "save()",
+                "updatePassword()"
+              ],
+              "dependencies": [
+                "database-connection-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "UserRepository provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "task-repository-1",
+          "type": "api-service",
+          "position": {
+            "x": 800,
+            "y": 280
+          },
+          "data": {
+            "name": "TaskRepository",
+            "description": "Handles task-related data access",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeORM Repository",
+              "layer": "Repositories Layer",
+              "layerIndex": 2,
+              "methods": [
+                "findById()",
+                "save()",
+                "update()",
+                "delete()"
+              ],
+              "dependencies": [
+                "database-connection-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "TaskRepository provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "category-repository-1",
+          "type": "api-service",
+          "position": {
+            "x": 800,
+            "y": 460
+          },
+          "data": {
+            "name": "CategoryRepository",
+            "description": "Handles category-related data access",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeORM Repository",
+              "layer": "Repositories Layer",
+              "layerIndex": 2,
+              "methods": [
+                "findById()",
+                "save()",
+                "update()",
+                "delete()"
+              ],
+              "dependencies": [
+                "database-connection-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "CategoryRepository provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "tag-repository-1",
+          "type": "api-service",
+          "position": {
+            "x": 800,
+            "y": 640
+          },
+          "data": {
+            "name": "TagRepository",
+            "description": "Handles tag-related data access",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeORM Repository",
+              "layer": "Repositories Layer",
+              "layerIndex": 2,
+              "methods": [
+                "findById()",
+                "save()",
+                "update()",
+                "delete()"
+              ],
+              "dependencies": [
+                "database-connection-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "TagRepository provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "user-model-1",
+          "type": "database",
+          "position": {
+            "x": 1150,
+            "y": 100
+          },
+          "data": {
+            "name": "User",
+            "description": "Represents a user entity",
+            "color": "#EF4444",
+            "metadata": {
+              "technology": "TypeScript Interface",
+              "layer": "Models Layer",
+              "layerIndex": 3,
+              "methods": [],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "User provides essential database functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle database responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard database best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "task-model-1",
+          "type": "database",
+          "position": {
+            "x": 1150,
+            "y": 280
+          },
+          "data": {
+            "name": "Task",
+            "description": "Represents a task entity",
+            "color": "#EF4444",
+            "metadata": {
+              "technology": "TypeScript Interface",
+              "layer": "Models Layer",
+              "layerIndex": 3,
+              "methods": [],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "Task provides essential database functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle database responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard database best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "category-model-1",
+          "type": "database",
+          "position": {
+            "x": 1150,
+            "y": 460
+          },
+          "data": {
+            "name": "Category",
+            "description": "Represents a category entity",
+            "color": "#EF4444",
+            "metadata": {
+              "technology": "TypeScript Interface",
+              "layer": "Models Layer",
+              "layerIndex": 3,
+              "methods": [],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "Category provides essential database functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle database responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard database best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "tag-model-1",
+          "type": "database",
+          "position": {
+            "x": 1150,
+            "y": 640
+          },
+          "data": {
+            "name": "Tag",
+            "description": "Represents a tag entity",
+            "color": "#EF4444",
+            "metadata": {
+              "technology": "TypeScript Interface",
+              "layer": "Models Layer",
+              "layerIndex": 3,
+              "methods": [],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "Tag provides essential database functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle database responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard database best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "auth-middleware-1",
+          "type": "api-gateway",
+          "position": {
+            "x": 1500,
+            "y": 100
+          },
+          "data": {
+            "name": "AuthMiddleware",
+            "description": "Handles authentication-related middleware",
+            "color": "#059669",
+            "metadata": {
+              "technology": "Express.js Middleware",
+              "layer": "Middleware & Utilities Layer",
+              "layerIndex": 4,
+              "methods": [
+                "authenticateRequest()"
+              ],
+              "dependencies": [
+                "auth-service-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "AuthMiddleware provides essential api-gateway functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-gateway responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-gateway best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "validation-middleware-1",
+          "type": "api-gateway",
+          "position": {
+            "x": 1500,
+            "y": 280
+          },
+          "data": {
+            "name": "ValidationMiddleware",
+            "description": "Handles validation-related middleware",
+            "color": "#059669",
+            "metadata": {
+              "technology": "Express.js Middleware",
+              "layer": "Middleware & Utilities Layer",
+              "layerIndex": 4,
+              "methods": [
+                "validateRequest()"
+              ],
+              "dependencies": [
+                "validation-service-1"
+              ]
+            },
+            "aiExplanation": {
+              "whyChosen": "ValidationMiddleware provides essential api-gateway functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-gateway responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-gateway best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "error-handler-1",
+          "type": "api-service",
+          "position": {
+            "x": 1500,
+            "y": 460
+          },
+          "data": {
+            "name": "ErrorHandler",
+            "description": "Handles error-related utility",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeScript Class",
+              "layer": "Middleware & Utilities Layer",
+              "layerIndex": 4,
+              "methods": [
+                "handleError()"
+              ],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "ErrorHandler provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "logger-utility-1",
+          "type": "api-service",
+          "position": {
+            "x": 1500,
+            "y": 640
+          },
+          "data": {
+            "name": "LoggerUtility",
+            "description": "Handles logging-related utility",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeScript Class",
+              "layer": "Middleware & Utilities Layer",
+              "layerIndex": 4,
+              "methods": [
+                "logMessage()"
+              ],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "LoggerUtility provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "email-service-adapter-1",
+          "type": "external-service",
+          "position": {
+            "x": 1850,
+            "y": 100
+          },
+          "data": {
+            "name": "EmailServiceAdapter",
+            "description": "Handles email-related external integration",
+            "color": "#6B7280",
+            "metadata": {
+              "technology": "Axios Client",
+              "layer": "External Integrations Layer",
+              "layerIndex": 5,
+              "methods": [
+                "sendEmail()"
+              ],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "EmailServiceAdapter provides essential external-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle external-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard external-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "payment-gateway-adapter-1",
+          "type": "external-service",
+          "position": {
+            "x": 1850,
+            "y": 280
+          },
+          "data": {
+            "name": "PaymentGatewayAdapter",
+            "description": "Handles payment-related external integration",
+            "color": "#6B7280",
+            "metadata": {
+              "technology": "SDK Client",
+              "layer": "External Integrations Layer",
+              "layerIndex": 5,
+              "methods": [
+                "processPayment()"
+              ],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "PaymentGatewayAdapter provides essential external-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle external-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard external-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "database-connection-1",
+          "type": "api-service",
+          "position": {
+            "x": 2200,
+            "y": 100
+          },
+          "data": {
+            "name": "DatabaseConnection",
+            "description": "Handles database-related connection",
+            "color": "#8B5CF6",
+            "metadata": {
+              "technology": "TypeORM Connection",
+              "layer": "Infrastructure Layer",
+              "layerIndex": 6,
+              "methods": [
+                "connect()",
+                "disconnect()"
+              ],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "DatabaseConnection provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "cache-client-1",
+          "type": "external-service",
+          "position": {
+            "x": 2200,
+            "y": 280
+          },
+          "data": {
+            "name": "CacheClient",
+            "description": "Handles cache-related client",
+            "color": "#6B7280",
+            "metadata": {
+              "technology": "Redis Client",
+              "layer": "Infrastructure Layer",
+              "layerIndex": 6,
+              "methods": [
+                "get()",
+                "set()"
+              ],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "CacheClient provides essential external-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle external-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard external-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "queue-client-1",
+          "type": "external-service",
+          "position": {
+            "x": 2200,
+            "y": 460
+          },
+          "data": {
+            "name": "QueueClient",
+            "description": "Handles queue-related client",
+            "color": "#6B7280",
+            "metadata": {
+              "technology": "RabbitMQ Client",
+              "layer": "Infrastructure Layer",
+              "layerIndex": 6,
+              "methods": [
+                "send()",
+                "receive()"
+              ],
+              "dependencies": []
+            },
+            "aiExplanation": {
+              "whyChosen": "QueueClient provides essential external-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle external-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard external-service best practices for configuration and deployment."
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge-auth-controller-1-auth-service-1-0",
+          "source": "auth-controller-1",
+          "target": "auth-service-1",
+          "type": "smoothstep",
+          "label": "login() → authenticateUser()",
+          "data": {
+            "protocol": "Method Call",
+            "dataFlow": "UserLoginDTO"
+          }
+        },
+        {
+          "id": "edge-auth-service-1-user-repository-1-1",
+          "source": "auth-service-1",
+          "target": "user-repository-1",
+          "type": "smoothstep",
+          "label": "authenticateUser() → findByEmail()",
+          "data": {
+            "protocol": "Method Call",
+            "dataFlow": "UserEmail"
+          }
+        },
+        {
+          "id": "edge-task-controller-1-task-service-1-2",
+          "source": "task-controller-1",
+          "target": "task-service-1",
+          "type": "smoothstep",
+          "label": "createTask() → createTask()",
+          "data": {
+            "protocol": "Method Call",
+            "dataFlow": "TaskCreateDTO"
+          }
+        },
+        {
+          "id": "edge-task-service-1-task-repository-1-3",
+          "source": "task-service-1",
+          "target": "task-repository-1",
+          "type": "smoothstep",
+          "label": "createTask() → save()",
+          "data": {
+            "protocol": "Method Call",
+            "dataFlow": "TaskEntity"
+          }
+        },
+        {
+          "id": "edge-category-controller-1-category-service-1-4",
+          "source": "category-controller-1",
+          "target": "category-service-1",
+          "type": "smoothstep",
+          "label": "createCategory() → createCategory()",
+          "data": {
+            "protocol": "Method Call",
+            "dataFlow": "CategoryCreateDTO"
+          }
+        },
+        {
+          "id": "edge-category-service-1-category-repository-1-5",
+          "source": "category-service-1",
+          "target": "category-repository-1",
+          "type": "smoothstep",
+          "label": "createCategory() → save()",
+          "data": {
+            "protocol": "Method Call",
+            "dataFlow": "CategoryEntity"
+          }
+        },
+        {
+          "id": "edge-tag-controller-1-tag-service-1-6",
+          "source": "tag-controller-1",
+          "target": "tag-service-1",
+          "type": "smoothstep",
+          "label": "createTag() → createTag()",
+          "data": {
+            "protocol": "Method Call",
+            "dataFlow": "TagCreateDTO"
+          }
+        },
+        {
+          "id": "edge-tag-service-1-tag-repository-1-7",
+          "source": "tag-service-1",
+          "target": "tag-repository-1",
+          "type": "smoothstep",
+          "label": "createTag() → save()",
+          "data": {
+            "protocol": "Method Call",
+            "dataFlow": "TagEntity"
+          }
+        }
+      ],
+      "metadata": {
+        "createdAt": "2025-11-19T12:09:02.380Z",
+        "updatedAt": "2025-11-19T12:09:02.380Z",
+        "version": "1.0.0",
+        "aiGenerated": true,
+        "complexity": "Detailed",
+        "scalingStrategy": "Layered Architecture + Repository Pattern",
+        "securityLevel": "Unit + Integration Tests Required"
+      }
+    }
+  },
+  "framework": "express",
+  "language": "typescript",
+  "includeAuth": false,
+  "includeTests": true,
+  "options": {
+    "iacTargets": [
+      "terraform",
+      "docker-compose"
+    ],
+    "environment": "development",
+    "architecture": {
+      "name": "Task Manager System Architecture",
+      "description": "Moderate architecture with 25 components",
+      "nodes": [
+        {
+          "id": "task-manager-frontend-1",
+          "type": "frontend",
+          "position": {
+            "x": 100,
+            "y": 100
+          },
+          "data": {
+            "name": "Task Manager Frontend",
+            "description": "Handles user interactions via web interface",
+            "color": "#3B82F6",
+            "metadata": {
+              "layer": "Layer 0 (Client)",
+              "layerIndex": 0
+            },
+            "aiExplanation": {
+              "whyChosen": "Task Manager Frontend provides essential frontend functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle frontend responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard frontend best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "task-manager-mobile-1",
+          "type": "mobile",
+          "position": {
+            "x": 100,
+            "y": 300
+          },
+          "data": {
+            "name": "Task Manager Mobile",
+            "description": "Handles user interactions via mobile app",
+            "color": "#06B6D4",
+            "metadata": {
+              "layer": "Layer 0 (Client)",
+              "layerIndex": 0
+            },
+            "aiExplanation": {
+              "whyChosen": "Task Manager Mobile provides essential mobile functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle mobile responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard mobile best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "cdn-1",
+          "type": "cdn",
+          "position": {
+            "x": 100,
+            "y": 500
+          },
+          "data": {
+            "name": "Content Delivery Network",
+            "description": "Serves static assets",
+            "color": "#0891B2",
+            "metadata": {
+              "layer": "Layer 0 (Client)",
+              "layerIndex": 0
+            },
+            "aiExplanation": {
+              "whyChosen": "Content Delivery Network provides essential cdn functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle cdn responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard cdn best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "load-balancer-1",
+          "type": "load-balancer",
+          "position": {
+            "x": 500,
+            "y": 100
+          },
+          "data": {
+            "name": "Load Balancer",
+            "description": "Routes traffic to Authentication, Tasks, Categories, and Tags services",
+            "color": "#10B981",
+            "metadata": {
+              "layer": "Layer 1 (Gateway)",
+              "layerIndex": 1
+            },
+            "aiExplanation": {
+              "whyChosen": "Load Balancer provides essential load-balancer functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle load-balancer responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard load-balancer best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "api-gateway-1",
+          "type": "api-gateway",
+          "position": {
+            "x": 500,
+            "y": 300
+          },
+          "data": {
+            "name": "API Gateway",
+            "description": "Handles API requests and routes to internal services",
+            "color": "#059669",
+            "metadata": {
+              "layer": "Layer 1 (Gateway)",
+              "layerIndex": 1
+            },
+            "aiExplanation": {
+              "whyChosen": "API Gateway provides essential api-gateway functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-gateway responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-gateway best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "authentication-gateway-1",
+          "type": "authentication",
+          "position": {
+            "x": 500,
+            "y": 500
+          },
+          "data": {
+            "name": "Authentication Gateway",
+            "description": "Handles authentication for API requests",
+            "color": "#F59E0B",
+            "metadata": {
+              "layer": "Layer 1 (Gateway)",
+              "layerIndex": 1
+            },
+            "aiExplanation": {
+              "whyChosen": "Authentication Gateway provides essential authentication functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle authentication responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard authentication best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "authentication-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 900,
+            "y": 100
+          },
+          "data": {
+            "name": "Authentication Service",
+            "description": "Handles 2 POST endpoints for authentication management, interacting with users table",
+            "color": "#8B5CF6",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "aiExplanation": {
+              "whyChosen": "Authentication Service provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "tasks-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 900,
+            "y": 300
+          },
+          "data": {
+            "name": "Tasks Service",
+            "description": "Handles 5 endpoints (GET/POST/PUT/DELETE) for task management, interacting with tasks, task_categories, and task_tags tables",
+            "color": "#8B5CF6",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "aiExplanation": {
+              "whyChosen": "Tasks Service provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "categories-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 900,
+            "y": 500
+          },
+          "data": {
+            "name": "Categories Service",
+            "description": "Handles 5 endpoints (GET/POST/PUT/DELETE) for category management, interacting with categories table",
+            "color": "#8B5CF6",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "aiExplanation": {
+              "whyChosen": "Categories Service provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "tags-service-1",
+          "type": "api-service",
+          "position": {
+            "x": 900,
+            "y": 700
+          },
+          "data": {
+            "name": "Tags Service",
+            "description": "Handles 5 endpoints (GET/POST/PUT/DELETE) for tag management, interacting with tags table",
+            "color": "#8B5CF6",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "aiExplanation": {
+              "whyChosen": "Tags Service provides essential api-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle api-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard api-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "cache-1",
+          "type": "cache",
+          "position": {
+            "x": 900,
+            "y": 900
+          },
+          "data": {
+            "name": "Cache",
+            "description": "Stores frequently accessed data",
+            "color": "#DC2626",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "aiExplanation": {
+              "whyChosen": "Cache provides essential cache functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle cache responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard cache best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "queue-1",
+          "type": "queue",
+          "position": {
+            "x": 900,
+            "y": 1100
+          },
+          "data": {
+            "name": "Message Queue",
+            "description": "Handles asynchronous tasks",
+            "color": "#F97316",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "aiExplanation": {
+              "whyChosen": "Message Queue provides essential queue functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle queue responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard queue best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "web-socket-1",
+          "type": "queue",
+          "position": {
+            "x": 900,
+            "y": 1300
+          },
+          "data": {
+            "name": "Web Socket",
+            "description": "Handles real-time updates",
+            "color": "#F97316",
+            "metadata": {
+              "layer": "Layer 2 (Application)",
+              "layerIndex": 2
+            },
+            "aiExplanation": {
+              "whyChosen": "Web Socket provides essential queue functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle queue responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard queue best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "postgresql-database-1",
+          "type": "database",
+          "position": {
+            "x": 1300,
+            "y": 100
+          },
+          "data": {
+            "name": "PostgreSQL Database",
+            "description": "Stores data in 10 tables: users, tasks, categories, task_categories, tags, task_tags, logs, settings, permissions, audit_logs",
+            "color": "#EF4444",
+            "metadata": {
+              "layer": "Layer 3 (Data)",
+              "layerIndex": 3
+            },
+            "aiExplanation": {
+              "whyChosen": "PostgreSQL Database provides essential database functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle database responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard database best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "search-engine-1",
+          "type": "search-engine",
+          "position": {
+            "x": 1300,
+            "y": 300
+          },
+          "data": {
+            "name": "Search Engine",
+            "description": "Indexes data for search functionality",
+            "color": "#B45309",
+            "metadata": {
+              "layer": "Layer 3 (Data)",
+              "layerIndex": 3
+            },
+            "aiExplanation": {
+              "whyChosen": "Search Engine provides essential search-engine functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle search-engine responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard search-engine best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "storage-1",
+          "type": "backup-storage",
+          "position": {
+            "x": 1300,
+            "y": 500
+          },
+          "data": {
+            "name": "Storage",
+            "description": "Stores files and backups",
+            "color": "#4B5563",
+            "metadata": {
+              "layer": "Layer 3 (Data)",
+              "layerIndex": 3
+            },
+            "aiExplanation": {
+              "whyChosen": "Storage provides essential backup-storage functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle backup-storage responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard backup-storage best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "replica-database-1",
+          "type": "database",
+          "position": {
+            "x": 1300,
+            "y": 700
+          },
+          "data": {
+            "name": "Replica Database",
+            "description": "Replicates data for high availability",
+            "color": "#EF4444",
+            "metadata": {
+              "layer": "Layer 3 (Data)",
+              "layerIndex": 3
+            },
+            "aiExplanation": {
+              "whyChosen": "Replica Database provides essential database functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle database responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard database best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "monitoring-1",
+          "type": "monitoring",
+          "position": {
+            "x": 1700,
+            "y": 100
+          },
+          "data": {
+            "name": "Monitoring",
+            "description": "Tracks system performance and health",
+            "color": "#EA580C",
+            "metadata": {
+              "layer": "Layer 4 (Infrastructure)",
+              "layerIndex": 4
+            },
+            "aiExplanation": {
+              "whyChosen": "Monitoring provides essential monitoring functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle monitoring responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard monitoring best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "logging-1",
+          "type": "logging",
+          "position": {
+            "x": 1700,
+            "y": 300
+          },
+          "data": {
+            "name": "Logging",
+            "description": "Stores system logs",
+            "color": "#CA8A04",
+            "metadata": {
+              "layer": "Layer 4 (Infrastructure)",
+              "layerIndex": 4
+            },
+            "aiExplanation": {
+              "whyChosen": "Logging provides essential logging functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle logging responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard logging best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "notifications-1",
+          "type": "notification-service",
+          "position": {
+            "x": 1700,
+            "y": 500
+          },
+          "data": {
+            "name": "Notifications",
+            "description": "Sends system notifications",
+            "color": "#8B5CF6",
+            "metadata": {
+              "layer": "Layer 4 (Infrastructure)",
+              "layerIndex": 4
+            },
+            "aiExplanation": {
+              "whyChosen": "Notifications provides essential notification-service functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle notification-service responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard notification-service best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "analytics-1",
+          "type": "analytics",
+          "position": {
+            "x": 1700,
+            "y": 700
+          },
+          "data": {
+            "name": "Analytics",
+            "description": "Tracks system usage and metrics",
+            "color": "#7C3AED",
+            "metadata": {
+              "layer": "Layer 4 (Infrastructure)",
+              "layerIndex": 4
+            },
+            "aiExplanation": {
+              "whyChosen": "Analytics provides essential analytics functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle analytics responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard analytics best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "ci-cd-1",
+          "type": "ci-cd",
+          "position": {
+            "x": 2100,
+            "y": 100
+          },
+          "data": {
+            "name": "CI/CD Pipeline",
+            "description": "Automates testing, deployment, and delivery",
+            "color": "#059669",
+            "metadata": {
+              "layer": "Layer 5 (DevOps)",
+              "layerIndex": 5
+            },
+            "aiExplanation": {
+              "whyChosen": "CI/CD Pipeline provides essential ci-cd functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle ci-cd responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard ci-cd best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "secrets-manager-1",
+          "type": "secrets-manager",
+          "position": {
+            "x": 2100,
+            "y": 300
+          },
+          "data": {
+            "name": "Secrets Manager",
+            "description": "Stores sensitive data and credentials",
+            "color": "#374151",
+            "metadata": {
+              "layer": "Layer 5 (DevOps)",
+              "layerIndex": 5
+            },
+            "aiExplanation": {
+              "whyChosen": "Secrets Manager provides essential secrets-manager functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle secrets-manager responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard secrets-manager best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "backup-1",
+          "type": "backup-storage",
+          "position": {
+            "x": 2100,
+            "y": 500
+          },
+          "data": {
+            "name": "Backup",
+            "description": "Stores system backups",
+            "color": "#4B5563",
+            "metadata": {
+              "layer": "Layer 5 (DevOps)",
+              "layerIndex": 5
+            },
+            "aiExplanation": {
+              "whyChosen": "Backup provides essential backup-storage functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle backup-storage responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard backup-storage best practices for configuration and deployment."
+            }
+          }
+        },
+        {
+          "id": "container-registry-1",
+          "type": "container-registry",
+          "position": {
+            "x": 2100,
+            "y": 700
+          },
+          "data": {
+            "name": "Container Registry",
+            "description": "Stores container images",
+            "color": "#6B7280",
+            "metadata": {
+              "layer": "Layer 5 (DevOps)",
+              "layerIndex": 5
+            },
+            "aiExplanation": {
+              "whyChosen": "Container Registry provides essential container-registry functionality for this architecture.",
+              "howItFits": "Integrates with other components to handle container-registry responsibilities.",
+              "tradeoffs": "Selected for its balance of performance, scalability, and ease of integration.",
+              "bestPractices": "Follow standard container-registry best practices for configuration and deployment."
+            }
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge-task-manager-frontend-1-load-balancer-1-0",
+          "source": "task-manager-frontend-1",
+          "target": "load-balancer-1",
+          "label": "HTTP Requests"
+        },
+        {
+          "id": "edge-task-manager-mobile-1-load-balancer-1-1",
+          "source": "task-manager-mobile-1",
+          "target": "load-balancer-1",
+          "label": "HTTP Requests"
+        },
+        {
+          "id": "edge-load-balancer-1-api-gateway-1-2",
+          "source": "load-balancer-1",
+          "target": "api-gateway-1",
+          "label": "HTTP Requests"
+        },
+        {
+          "id": "edge-api-gateway-1-authentication-gateway-1-3",
+          "source": "api-gateway-1",
+          "target": "authentication-gateway-1",
+          "label": "Authentication Requests"
+        },
+        {
+          "id": "edge-authentication-gateway-1-authentication-service-1-4",
+          "source": "authentication-gateway-1",
+          "target": "authentication-service-1",
+          "label": "POST Authentication Data"
+        },
+        {
+          "id": "edge-authentication-service-1-postgresql-database-1-5",
+          "source": "authentication-service-1",
+          "target": "postgresql-database-1",
+          "label": "Database Queries"
+        },
+        {
+          "id": "edge-api-gateway-1-tasks-service-1-6",
+          "source": "api-gateway-1",
+          "target": "tasks-service-1",
+          "label": "GET/POST/PUT/DELETE Task Data"
+        },
+        {
+          "id": "edge-tasks-service-1-postgresql-database-1-7",
+          "source": "tasks-service-1",
+          "target": "postgresql-database-1",
+          "label": "Database Queries"
+        },
+        {
+          "id": "edge-api-gateway-1-categories-service-1-8",
+          "source": "api-gateway-1",
+          "target": "categories-service-1",
+          "label": "GET/POST/PUT/DELETE Category Data"
+        },
+        {
+          "id": "edge-categories-service-1-postgresql-database-1-9",
+          "source": "categories-service-1",
+          "target": "postgresql-database-1",
+          "label": "Database Queries"
+        },
+        {
+          "id": "edge-api-gateway-1-tags-service-1-10",
+          "source": "api-gateway-1",
+          "target": "tags-service-1",
+          "label": "GET/POST/PUT/DELETE Tag Data"
+        },
+        {
+          "id": "edge-tags-service-1-postgresql-database-1-11",
+          "source": "tags-service-1",
+          "target": "postgresql-database-1",
+          "label": "Database Queries"
+        },
+        {
+          "id": "edge-tasks-service-1-cache-1-12",
+          "source": "tasks-service-1",
+          "target": "cache-1",
+          "label": "Cache Updates"
+        },
+        {
+          "id": "edge-categories-service-1-cache-1-13",
+          "source": "categories-service-1",
+          "target": "cache-1",
+          "label": "Cache Updates"
+        },
+        {
+          "id": "edge-tags-service-1-cache-1-14",
+          "source": "tags-service-1",
+          "target": "cache-1",
+          "label": "Cache Updates"
+        },
+        {
+          "id": "edge-tasks-service-1-queue-1-15",
+          "source": "tasks-service-1",
+          "target": "queue-1",
+          "label": "Asynchronous Task Requests"
+        },
+        {
+          "id": "edge-categories-service-1-queue-1-16",
+          "source": "categories-service-1",
+          "target": "queue-1",
+          "label": "Asynchronous Task Requests"
+        },
+        {
+          "id": "edge-tags-service-1-queue-1-17",
+          "source": "tags-service-1",
+          "target": "queue-1",
+          "label": "Asynchronous Task Requests"
+        },
+        {
+          "id": "edge-postgresql-database-1-replica-database-1-18",
+          "source": "postgresql-database-1",
+          "target": "replica-database-1",
+          "label": "Database Replication"
+        },
+        {
+          "id": "edge-postgresql-database-1-search-engine-1-19",
+          "source": "postgresql-database-1",
+          "target": "search-engine-1",
+          "label": "Search Indexing"
+        },
+        {
+          "id": "edge-monitoring-1-logging-1-20",
+          "source": "monitoring-1",
+          "target": "logging-1",
+          "label": "Log Data"
+        },
+        {
+          "id": "edge-logging-1-notifications-1-21",
+          "source": "logging-1",
+          "target": "notifications-1",
+          "label": "Notification Triggers"
+        },
+        {
+          "id": "edge-notifications-1-analytics-1-22",
+          "source": "notifications-1",
+          "target": "analytics-1",
+          "label": "Analytics Data"
+        },
+        {
+          "id": "edge-ci-cd-1-secrets-manager-1-23",
+          "source": "ci-cd-1",
+          "target": "secrets-manager-1",
+          "label": "Sensitive Data"
+        },
+        {
+          "id": "edge-ci-cd-1-backup-1-24",
+          "source": "ci-cd-1",
+          "target": "backup-1",
+          "label": "Backup Data"
+        },
+        {
+          "id": "edge-ci-cd-1-container-registry-1-25",
+          "source": "ci-cd-1",
+          "target": "container-registry-1",
+          "label": "Container Images"
+        }
+      ]
+    },
+    "technologies": {
+      "database": "postgresql"
+    }
+  }
+}

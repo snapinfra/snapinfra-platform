@@ -213,26 +213,30 @@ function ArchitectureNodeComponent({ data, selected, type, id }: NodeProps<Archi
       <Handle
         type="target"
         position={Position.Top}
-        className="w-3 h-3 border-2 border-white shadow-sm"
+        className="w-3 h-3 border-2 border-white shadow-sm !pointer-events-auto"
         style={{ backgroundColor: nodeColor }}
+        isConnectable={true}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="w-3 h-3 border-2 border-white shadow-sm"
+        className="w-3 h-3 border-2 border-white shadow-sm !pointer-events-auto"
         style={{ backgroundColor: nodeColor }}
+        isConnectable={true}
       />
       <Handle
         type="target"
         position={Position.Left}
-        className="w-3 h-3 border-2 border-white shadow-sm"
+        className="w-3 h-3 border-2 border-white shadow-sm !pointer-events-auto"
         style={{ backgroundColor: nodeColor }}
+        isConnectable={true}
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="w-3 h-3 border-2 border-white shadow-sm"
+        className="w-3 h-3 border-2 border-white shadow-sm !pointer-events-auto"
         style={{ backgroundColor: nodeColor }}
+        isConnectable={true}
       />
 
       <CardHeader className="pb-3 bg-white rounded-t-lg">

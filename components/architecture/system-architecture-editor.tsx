@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   ReactFlow,
   Node,
@@ -45,25 +45,23 @@ import {
   Eye,
   EyeOff,
   Network,
-  RotateCcw,
   Save,
-  Download,
-  Upload,
-  Palette,
   Grid,
-  MousePointer2,
-  Trash2
+  Trash2,
+  Check
 } from "lucide-react"
 
 import ArchitectureNodeComponent, { ArchitectureNodeData } from './architecture-node'
 import { SystemArchitecture, ArchitectureNode, ArchitectureEdge } from '@/lib/types/architecture'
-import { getNodeTypeColor, getNodeTypeIcon, architectureTemplates } from '@/lib/utils/architecture'
+import { getNodeTypeColor, getNodeTypeIcon } from '@/lib/utils/architecture'
+import { useOnboardingData } from '@/lib/app-context'
 
 interface SystemArchitectureEditorProps {
   architecture: SystemArchitecture
   onArchitectureChange?: (architecture: SystemArchitecture) => void
   onSave?: () => void
   readonly?: boolean
+  type: string
 }
 
 // Simple group/layer background node component
@@ -88,6 +86,7 @@ const nodeTypes: NodeTypes = {
   'api-service': ArchitectureNodeComponent,
   'authentication': ArchitectureNodeComponent,
   'frontend': ArchitectureNodeComponent,
+  'mobile': ArchitectureNodeComponent,
   'external-service': ArchitectureNodeComponent,
   'load-balancer': ArchitectureNodeComponent,
   'cache': ArchitectureNodeComponent,
@@ -129,60 +128,98 @@ const convertArchitectureNodeToReactFlowNode = (
   type: node.type,
   position: node.position,
   data: {
-    ...node.data,
+    name: node.data.name,
+    description: node.data.description,
+    color: node.data.color,
+    metadata: node.data.metadata,
+    aiExplanation: node.data.aiExplanation,
     onEdit,
     onDelete,
     onDuplicate,
     onConfigure,
   },
   style: node.style,
-  draggable: node.type !== 'group', // Layer backgrounds shouldn't be draggable
-  selectable: node.type !== 'group', // Layer backgrounds shouldn't be selectable
-  zIndex: node.type === 'group' ? -1 : 1, // Layer backgrounds behind everything
+  draggable: node.type !== 'group',
+  selectable: node.type !== 'group',
+  zIndex: node.type === 'group' ? -1 : 1,
 })
 
-export function SystemArchitectureEditor({ 
-  architecture, 
+export function SystemArchitectureEditor({
+  type,
+  architecture,
   onArchitectureChange,
   onSave,
-  readonly = false 
+  readonly = false
 }: SystemArchitectureEditorProps) {
   const [showConnections, setShowConnections] = useState(true)
   const [showMiniMap, setShowMiniMap] = useState(true)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [showAddNodeDialog, setShowAddNodeDialog] = useState(false)
+  const [showEditNodeDialog, setShowEditNodeDialog] = useState(false)
+  const [showEditEdgeDialog, setShowEditEdgeDialog] = useState(false)
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [editEdgeLabel, setEditEdgeLabel] = useState('')
   const [newNodeType, setNewNodeType] = useState<ArchitectureNode['type']>('api-service')
   const [newNodeName, setNewNodeName] = useState('')
   const [newNodeDescription, setNewNodeDescription] = useState('')
+  const [editNodeData, setEditNodeData] = useState<{ name: string; description: string; type: string } | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   const { fitView, screenToFlowPosition } = useReactFlow()
+  const { data, updateData } = useOnboardingData()
 
-  // Define handler functions first
+  // Track if we're updating from props to prevent loops
+  const isUpdatingFromPropsRef = useRef(false)
+
+  // Architecture change handler WITHOUT localStorage sync
+  const handleArchitectureUpdate = useCallback((updatedArchitecture: SystemArchitecture) => {
+    // Prevent update loops
+    if (isUpdatingFromPropsRef.current) return
+
+    console.log('handleArchitectureUpdate called with:', updatedArchitecture)
+
+    // Call the original callback if provided
+    if (onArchitectureChange) {
+      onArchitectureChange(updatedArchitecture)
+    }
+  }, [onArchitectureChange])
+
+  // Define handler functions
   const handleNodeEdit = useCallback((nodeId: string) => {
-    setSelectedNodeId(nodeId)
-  }, [])
+    const node = architecture.nodes.find(n => n && n.id === nodeId)
+    if (node) {
+      setSelectedNodeId(nodeId)
+      setEditNodeData({
+        name: node.data.name,
+        description: node.data.description || '',
+        type: node.type
+      })
+      setShowEditNodeDialog(true)
+    }
+  }, [architecture.nodes])
 
   const handleNodeDelete = useCallback((nodeId: string) => {
     if (readonly) return
-    
-    if (onArchitectureChange) {
-      onArchitectureChange({
-        ...architecture,
-        nodes: architecture.nodes.filter(n => n.id !== nodeId),
-        edges: architecture.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
-        metadata: {
-          ...architecture.metadata,
-          updatedAt: new Date().toISOString()
-        }
-      })
+
+    const updatedArchitecture = {
+      ...architecture,
+      nodes: architecture.nodes.filter(n => n && n.id !== nodeId),
+      edges: architecture.edges.filter(e => e.source !== nodeId && e.target !== nodeId),
+      metadata: {
+        ...architecture.metadata,
+        updatedAt: new Date().toISOString()
+      }
     }
-  }, [architecture, onArchitectureChange, readonly])
+
+    handleArchitectureUpdate(updatedArchitecture)
+  }, [architecture, handleArchitectureUpdate, readonly])
 
   const handleNodeDuplicate = useCallback((nodeId: string) => {
     if (readonly) return
-    
-    const originalNode = architecture.nodes.find(n => n.id === nodeId)
-    if (originalNode && onArchitectureChange) {
+
+    const originalNode = architecture.nodes.find(n => n && n.id === nodeId)
+    if (originalNode) {
       const newNode: ArchitectureNode = {
         ...originalNode,
         id: `node-${Date.now()}`,
@@ -196,30 +233,34 @@ export function SystemArchitectureEditor({
         }
       }
 
-      onArchitectureChange({
+      const updatedArchitecture = {
         ...architecture,
         nodes: [...architecture.nodes, newNode],
         metadata: {
           ...architecture.metadata,
           updatedAt: new Date().toISOString()
         }
-      })
+      }
+
+      handleArchitectureUpdate(updatedArchitecture)
     }
-  }, [architecture, onArchitectureChange, readonly])
+  }, [architecture, handleArchitectureUpdate, readonly])
 
   const handleNodeConfigure = useCallback((nodeId: string) => {
     setSelectedNodeId(nodeId)
   }, [])
 
-  // Convert architecture to ReactFlow format
+  // Convert architecture to ReactFlow format - FILTER OUT NULLS
   const initialNodes = useMemo(() => {
-    return architecture.nodes.map(node => convertArchitectureNodeToReactFlowNode(
-      node,
-      () => handleNodeEdit(node.id),
-      () => handleNodeDelete(node.id),
-      () => handleNodeDuplicate(node.id),
-      () => handleNodeConfigure(node.id)
-    ))
+    return architecture.nodes
+      .filter(node => node !== null && node !== undefined)
+      .map(node => convertArchitectureNodeToReactFlowNode(
+        node,
+        () => handleNodeEdit(node.id),
+        () => handleNodeDelete(node.id),
+        () => handleNodeDuplicate(node.id),
+        () => handleNodeConfigure(node.id)
+      ))
   }, [architecture.nodes, handleNodeEdit, handleNodeDelete, handleNodeDuplicate, handleNodeConfigure])
 
   const initialEdges = useMemo(() => {
@@ -242,61 +283,116 @@ export function SystemArchitectureEditor({
         fontWeight: '600',
         color: '#1d1d1f',
       },
+      labelBgStyle: {
+        fill: 'white',
+        fillOpacity: 0.9,
+      },
     }))
   }, [architecture.edges])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(showConnections ? initialEdges : [])
 
-  // Update nodes when architecture changes
+
+  // Update nodes when architecture changes from external source
   useEffect(() => {
-    const updatedNodes = architecture.nodes.map(node => convertArchitectureNodeToReactFlowNode(
-      node,
-      () => handleNodeEdit(node.id),
-      () => handleNodeDelete(node.id),
-      () => handleNodeDuplicate(node.id),
-      () => handleNodeConfigure(node.id)
-    ))
+    isUpdatingFromPropsRef.current = true
+
+    // Filter out nulls and create new ReactFlow nodes with fresh callbacks
+    const updatedNodes = architecture.nodes
+      .filter(node => node !== null && node !== undefined)
+      .map(node => convertArchitectureNodeToReactFlowNode(
+        node,
+        () => handleNodeEdit(node.id),
+        () => handleNodeDelete(node.id),
+        () => handleNodeDuplicate(node.id),
+        () => handleNodeConfigure(node.id)
+      ))
+
     setNodes(updatedNodes)
-  }, [architecture.nodes, handleNodeEdit, handleNodeDelete, handleNodeDuplicate, handleNodeConfigure, setNodes])
+
+    // Reset flag after a tick
+    setTimeout(() => {
+      isUpdatingFromPropsRef.current = false
+    }, 0)
+  }, [architecture.nodes, setNodes, handleNodeEdit, handleNodeDelete, handleNodeDuplicate, handleNodeConfigure])
 
   // Update edges when showConnections changes
   useEffect(() => {
     setEdges(showConnections ? initialEdges : [])
-  }, [showConnections, initialEdges])
+  }, [showConnections, initialEdges, setEdges])
 
   const handleNodesChange = useCallback((changes: any[]) => {
-    if (readonly) return
+    if (readonly || isUpdatingFromPropsRef.current) return
+
+    // Always apply changes to ReactFlow state for smooth dragging
     onNodesChange(changes)
-    
-    // Update architecture with new positions
-    const positionChanges = changes.filter(change => change.type === 'position' && change.position)
-    if (positionChanges.length > 0 && onArchitectureChange) {
-      const updatedNodes = architecture.nodes.map(node => {
-        const positionChange = positionChanges.find(change => change.id === node.id)
-        if (positionChange) {
-          return {
-            ...node,
-            position: positionChange.position
+
+    // Only sync position changes when dragging ends
+    const positionChanges = changes.filter(change =>
+      change.type === 'position' && change.dragging === false && change.position
+    )
+
+    if (positionChanges.length > 0) {
+      const updatedNodes = architecture.nodes
+        .filter(node => node !== null && node !== undefined)
+        .map(node => {
+          const positionChange = positionChanges.find(change => change.id === node.id)
+          if (positionChange) {
+            return {
+              ...node,
+              position: positionChange.position
+            }
           }
-        }
-        return node
-      })
-      
-      onArchitectureChange({
+          return node
+        })
+
+      const updatedArchitecture = {
         ...architecture,
         nodes: updatedNodes,
         metadata: {
           ...architecture.metadata,
           updatedAt: new Date().toISOString()
         }
-      })
+      }
+
+      handleArchitectureUpdate(updatedArchitecture)
     }
-  }, [onNodesChange, architecture, onArchitectureChange, readonly])
+  }, [onNodesChange, architecture, handleArchitectureUpdate, readonly])
+
+  const handleEdgesChange = useCallback((changes: any[]) => {
+    if (readonly || isUpdatingFromPropsRef.current) return
+
+    onEdgesChange(changes)
+
+    // Handle edge deletions
+    const removeChanges = changes.filter(change => change.type === 'remove')
+
+    if (removeChanges.length > 0) {
+      const removedIds = removeChanges.map(change => change.id)
+      const updatedEdges = architecture.edges.filter(edge => !removedIds.includes(edge.id))
+
+      const updatedArchitecture = {
+        ...architecture,
+        edges: updatedEdges,
+        metadata: {
+          ...architecture.metadata,
+          updatedAt: new Date().toISOString()
+        }
+      }
+
+      handleArchitectureUpdate(updatedArchitecture)
+    }
+  }, [onEdgesChange, architecture, handleArchitectureUpdate, readonly])
 
   const onConnect = useCallback((params: Connection) => {
-    if (readonly) return
-    
+    if (readonly || isUpdatingFromPropsRef.current) return
+
+    const existingEdgeIndex = architecture.edges.findIndex(
+      edge => (edge.source === params.source && edge.target === params.target) ||
+        (edge.source === params.target && edge.target === params.source)
+    )
+
     const newEdge: ArchitectureEdge = {
       id: `edge-${Date.now()}`,
       source: params.source!,
@@ -308,40 +404,119 @@ export function SystemArchitectureEditor({
         security: 'JWT'
       }
     }
-    
-    if (onArchitectureChange) {
-      onArchitectureChange({
-        ...architecture,
-        edges: [...architecture.edges, newEdge],
-        metadata: {
-          ...architecture.metadata,
-          updatedAt: new Date().toISOString()
-        }
-      })
+
+    let updatedEdges: ArchitectureEdge[]
+
+    if (existingEdgeIndex !== -1) {
+      updatedEdges = [...architecture.edges]
+      updatedEdges[existingEdgeIndex] = newEdge
+    } else {
+      updatedEdges = [...architecture.edges, newEdge]
     }
-    
-    setEdges((eds) => addEdge({
-      ...params,
-      id: newEdge.id,
-      type: 'smoothstep',
-      animated: true,
-      label: newEdge.label,
-      style: {
-        stroke: '#005BE3',
-        strokeWidth: 2,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 20,
-        height: 20,
-        color: '#005BE3',
-      },
-    }, eds))
-  }, [setEdges, architecture, onArchitectureChange, readonly])
+
+    const updatedArchitecture = {
+      ...architecture,
+      edges: updatedEdges,
+      metadata: {
+        ...architecture.metadata,
+        updatedAt: new Date().toISOString()
+      }
+    }
+
+    handleArchitectureUpdate(updatedArchitecture)
+
+    setEdges((eds) => {
+      const filteredEdges = eds.filter(
+        e => !((e.source === params.source && e.target === params.target) ||
+          (e.source === params.target && e.target === params.source))
+      )
+
+      return addEdge({
+        ...params,
+        id: newEdge.id,
+        type: 'smoothstep',
+        animated: true,
+        label: newEdge.label,
+        style: {
+          stroke: '#005BE3',
+          strokeWidth: 2,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
+          color: '#005BE3',
+        },
+        labelBgStyle: {
+          fill: 'white',
+          fillOpacity: 0.9,
+        },
+      }, filteredEdges)
+    })
+  }, [setEdges, architecture, handleArchitectureUpdate, readonly])
+
+  const handleEdgeClick = useCallback((event: React.MouseEvent, edge: any) => {
+    if (readonly) return
+
+    event.stopPropagation()
+    setSelectedEdgeId(edge.id)
+    setEditEdgeLabel(edge.label || '')
+    setShowEditEdgeDialog(true)
+  }, [readonly])
+
+  const handleUpdateEdge = useCallback(() => {
+    if (readonly || !selectedEdgeId) return
+
+    const updatedEdges = architecture.edges.map(edge => {
+      if (edge.id === selectedEdgeId) {
+        return {
+          ...edge,
+          label: editEdgeLabel
+        }
+      }
+      return edge
+    })
+
+    const updatedArchitecture = {
+      ...architecture,
+      edges: updatedEdges,
+      metadata: {
+        ...architecture.metadata,
+        updatedAt: new Date().toISOString()
+      }
+    }
+
+    handleArchitectureUpdate(updatedArchitecture)
+
+    setShowEditEdgeDialog(false)
+    setEditEdgeLabel('')
+    setSelectedEdgeId(null)
+  }, [selectedEdgeId, editEdgeLabel, architecture, handleArchitectureUpdate, readonly])
+
+  const handleDeleteEdge = useCallback(() => {
+    if (readonly || !selectedEdgeId) return
+
+    const updatedEdges = architecture.edges.filter(edge => edge.id !== selectedEdgeId)
+
+    const updatedArchitecture = {
+      ...architecture,
+      edges: updatedEdges,
+      metadata: {
+        ...architecture.metadata,
+        updatedAt: new Date().toISOString()
+      }
+    }
+
+    handleArchitectureUpdate(updatedArchitecture)
+
+    setShowEditEdgeDialog(false)
+    setEditEdgeLabel('')
+    setSelectedEdgeId(null)
+  }, [selectedEdgeId, architecture, handleArchitectureUpdate, readonly])
 
   const handleAddNode = useCallback(() => {
     if (readonly) return
-    
+
     const newNode: ArchitectureNode = {
       id: `node-${Date.now()}`,
       type: newNodeType,
@@ -351,33 +526,126 @@ export function SystemArchitectureEditor({
         description: newNodeDescription || `A new ${newNodeType} component`,
         color: getNodeTypeColor(newNodeType),
         metadata: {
-          technology: newNodeType === 'database' ? 'PostgreSQL' : 
-                      newNodeType === 'frontend' ? 'React' : 
-                      newNodeType === 'api-service' ? 'Node.js' : ''
+          technology: newNodeType === 'database' ? 'PostgreSQL' :
+            newNodeType === 'frontend' ? 'React' :
+              newNodeType === 'api-service' ? 'Node.js' : ''
         }
       }
     }
 
-    if (onArchitectureChange) {
-      onArchitectureChange({
-        ...architecture,
-        nodes: [...architecture.nodes, newNode],
-        metadata: {
-          ...architecture.metadata,
-          updatedAt: new Date().toISOString()
-        }
-      })
+    const updatedArchitecture = {
+      ...architecture,
+      nodes: [...architecture.nodes.filter(n => n !== null && n !== undefined), newNode],
+      metadata: {
+        ...architecture.metadata,
+        updatedAt: new Date().toISOString()
+      }
     }
+
+    handleArchitectureUpdate(updatedArchitecture)
 
     setNewNodeName('')
     setNewNodeDescription('')
     setShowAddNodeDialog(false)
-  }, [newNodeType, newNodeName, newNodeDescription, architecture, onArchitectureChange, readonly, screenToFlowPosition])
+  }, [newNodeType, newNodeName, newNodeDescription, architecture, handleArchitectureUpdate, readonly, screenToFlowPosition])
 
+  const handleUpdateNode = useCallback(() => {
+    if (readonly || !selectedNodeId || !editNodeData) return
+
+    // Filter out any null/undefined nodes BEFORE mapping
+    const validNodes = architecture.nodes.filter(node => node !== null && node !== undefined)
+
+    const updatedNodes = validNodes.map(node => {
+      if (node.id === selectedNodeId) {
+        return {
+          ...node,
+          type: node.type,
+          position: node.position,
+          style: node.style,
+          data: {
+            ...node.data,
+            name: editNodeData.name,
+            description: editNodeData.description,
+            color: node.data.color,
+            metadata: node.data.metadata,
+            aiExplanation: node.data.aiExplanation,
+          }
+        }
+      }
+      return node
+    })
+
+    const updatedArchitecture = {
+      ...architecture,
+      nodes: updatedNodes,
+      edges: architecture.edges || [],
+      metadata: {
+        ...architecture.metadata,
+        updatedAt: new Date().toISOString()
+      }
+    }
+
+    handleArchitectureUpdate(updatedArchitecture)
+
+    // Force immediate node re-render with proper callbacks
+    const updatedReactFlowNodes = updatedNodes
+      .filter(node => node !== null && node !== undefined)
+      .map(node => convertArchitectureNodeToReactFlowNode(
+        node,
+        () => handleNodeEdit(node.id),
+        () => handleNodeDelete(node.id),
+        () => handleNodeDuplicate(node.id),
+        () => handleNodeConfigure(node.id)
+      ))
+    setNodes(updatedReactFlowNodes)
+
+    setShowEditNodeDialog(false)
+    setEditNodeData(null)
+    setSelectedNodeId(null)
+  }, [selectedNodeId, editNodeData, architecture, handleArchitectureUpdate, readonly, setNodes, handleNodeEdit, handleNodeDelete, handleNodeDuplicate, handleNodeConfigure])
 
   const handleFitView = useCallback(() => {
     fitView({ padding: 0.2 })
   }, [fitView])
+
+  // Save architecture to localStorage
+  const handleSaveToStorage = useCallback(async () => {
+    setIsSaving(true)
+    setSaveSuccess(false)
+
+    try {
+      // Filter out null nodes before saving
+      const cleanedArchitecture = {
+        ...architecture,
+        nodes: architecture.nodes.filter(node => node !== null && node !== undefined)
+      }
+      // Update the architecture in localStorage via onboardingData
+      if (type === "hld") {
+        await updateData({ architecture: cleanedArchitecture })
+
+      } else {
+        const diagrams = data?.diagrams || {};
+        updateData({
+          diagrams: {
+            ...diagrams,
+            [type]: cleanedArchitecture
+          }
+        })
+
+      }
+
+      setSaveSuccess(true)
+
+      // Reset success message after 2 seconds
+      setTimeout(() => {
+        setSaveSuccess(false)
+      }, 2000)
+    } catch (error) {
+      console.error('Failed to save architecture to storage:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [architecture, updateData])
 
   const nodeTypeOptions = [
     { value: 'frontend', label: 'Frontend App' },
@@ -404,6 +672,9 @@ export function SystemArchitectureEditor({
     { value: 'external-service', label: 'External Service' },
   ]
 
+  // Count valid nodes only
+  const validNodesCount = architecture.nodes.filter(n => n !== null && n !== undefined).length
+
   return (
     <div className="h-full flex flex-col bg-[#fafafa]">
       {/* Toolbar */}
@@ -413,7 +684,7 @@ export function SystemArchitectureEditor({
             <h3 className="font-semibold text-[#1d1d1f] text-sm">System Architecture</h3>
             <div className="flex items-center gap-1.5">
               <Badge variant="outline" className="text-xs h-6 px-2.5 border-[rgba(55,50,47,0.12)]">
-                {architecture.nodes.length} components
+                {validNodesCount} components
               </Badge>
               <Badge variant="outline" className="text-xs h-6 px-2.5 border-[rgba(55,50,47,0.12)]">
                 {architecture.edges.length} connections
@@ -453,6 +724,33 @@ export function SystemArchitectureEditor({
                   Add Node
                 </Button>
 
+                <Button
+                  onClick={handleSaveToStorage}
+                  disabled={isSaving}
+                  size="sm"
+                  className={`h-8 px-3 text-xs ${saveSuccess
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-[#005BE3] hover:bg-[#004BC9]'
+                    }`}
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="w-3.5 h-3.5 mr-1.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : saveSuccess ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 mr-1.5" />
+                      Saved!
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5 mr-1.5" />
+                      Save to Storage
+                    </>
+                  )}
+                </Button>
+
                 {onSave && (
                   <Button
                     variant="ghost"
@@ -476,8 +774,9 @@ export function SystemArchitectureEditor({
           nodes={nodes}
           edges={edges}
           onNodesChange={handleNodesChange}
-          onEdgesChange={onEdgesChange}
+          onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
+          onEdgeClick={handleEdgeClick}
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Loose}
           fitView
@@ -491,6 +790,8 @@ export function SystemArchitectureEditor({
           nodesDraggable={!readonly}
           nodesConnectable={!readonly}
           elementsSelectable={!readonly}
+          edgesupdatable={!readonly}
+          edgesFocusable={!readonly}
         >
           <Background
             variant={BackgroundVariant.Dots}
@@ -498,15 +799,15 @@ export function SystemArchitectureEditor({
             size={0.8}
             color="#d1d5db"
           />
-          
-          <Controls 
+
+          <Controls
             position="bottom-right"
             className="bg-white border border-[rgba(55,50,47,0.12)] rounded-lg shadow-md !m-4"
             showZoom
             showFitView
             showInteractive={false}
           />
-          
+
           {showMiniMap && (
             <MiniMap
               position="bottom-left"
@@ -519,8 +820,7 @@ export function SystemArchitectureEditor({
             />
           )}
 
-          {/* Custom Panel for Empty State */}
-          {architecture.nodes.length === 0 && (
+          {validNodesCount === 0 && (
             <Panel position="center" className="pointer-events-none">
               <div className="text-center">
                 <div className="w-16 h-16 bg-gray-200 rounded-2xl mx-auto mb-4 flex items-center justify-center">
@@ -541,7 +841,7 @@ export function SystemArchitectureEditor({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <span>
-              {architecture.nodes.length} components, {showConnections ? architecture.edges.length : 0} connections
+              {validNodesCount} components, {showConnections ? architecture.edges.length : 0} connections
             </span>
             <span className="text-[rgba(55,50,47,0.2)] hidden sm:inline">|</span>
             <span className="hidden sm:inline">
@@ -549,7 +849,7 @@ export function SystemArchitectureEditor({
             </span>
           </div>
           <div className="hidden md:flex items-center gap-2">
-            <span className="text-[#605A57]/70">Drag components • Connect handles • Zoom with wheel</span>
+            <span className="text-[#605A57]/70">Drag components • Connect handles • Click edges to edit</span>
           </div>
         </div>
       </div>
@@ -576,7 +876,7 @@ export function SystemArchitectureEditor({
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="node-name">Component Name</Label>
               <Input
@@ -586,7 +886,7 @@ export function SystemArchitectureEditor({
                 placeholder={`New ${newNodeType}`}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="node-description">Description</Label>
               <Input
@@ -604,6 +904,100 @@ export function SystemArchitectureEditor({
             <Button onClick={handleAddNode}>
               Add Component
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Node Dialog */}
+      <Dialog open={showEditNodeDialog} onOpenChange={setShowEditNodeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Component</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-node-type">Component Type</Label>
+              <Input
+                id="edit-node-type"
+                value={editNodeData?.type || ''}
+                disabled
+                className="bg-gray-50"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-node-name">Component Name</Label>
+              <Input
+                id="edit-node-name"
+                value={editNodeData?.name || ''}
+                onChange={(e) => setEditNodeData(editNodeData ? { ...editNodeData, name: e.target.value } : null)}
+                placeholder="Component name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-node-description">Description</Label>
+              <Input
+                id="edit-node-description"
+                value={editNodeData?.description || ''}
+                onChange={(e) => setEditNodeData(editNodeData ? { ...editNodeData, description: e.target.value } : null)}
+                placeholder="Brief description of this component"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowEditNodeDialog(false)
+              setEditNodeData(null)
+              setSelectedNodeId(null)
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateNode}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Edge Dialog */}
+      <Dialog open={showEditEdgeDialog} onOpenChange={setShowEditEdgeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Connection</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-edge-label">Connection Label</Label>
+              <Input
+                id="edit-edge-label"
+                value={editEdgeLabel}
+                onChange={(e) => setEditEdgeLabel(e.target.value)}
+                placeholder="Connection label"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between">
+            <Button
+              variant="destructive"
+              onClick={handleDeleteEdge}
+              className="mr-auto"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => {
+                setShowEditEdgeDialog(false)
+                setEditEdgeLabel('')
+                setSelectedEdgeId(null)
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateEdge}>
+                Save Changes
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

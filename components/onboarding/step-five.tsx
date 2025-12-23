@@ -56,6 +56,7 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { loadDecisions, useOnboardingData } from '../../lib/app-context'
 
 interface StepFiveProps {
   data: {
@@ -65,29 +66,44 @@ interface StepFiveProps {
     analysis?: any
     endpoints?: any[]
     architecture?: SystemArchitecture
+    decisions?: SystemDecisionsSummary
+    selectedTools?: Record<string, string>
   }
   onComplete: (payload?: { decisions: SystemDecisionsSummary; selectedTools: Record<string, string> }) => void
   onBack: () => void
 }
 
 export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
-  const [decisions, setDecisions] = useState<SystemDecisionsSummary | null>(null)
-  const [selectedTools, setSelectedTools] = useState<Record<string, string>>({})
-  const [isGenerating, setIsGenerating] = useState(true)
+  const { data: onboardingData, updateData } = useOnboardingData()
+
+  console.log(onboardingData,'onboarding data in step five')
+  
+  // Initialize from props or onboarding data
+  const [decisions, setDecisions] = useState<SystemDecisionsSummary | null>(
+    loadDecisions() || null
+  )
+
+  console.log(decisions,'decisions state in step five' )
+
+  const [selectedTools, setSelectedTools] = useState<Record<string, string>>(
+    data.selectedTools || onboardingData?.selectedTools || {}
+  )
+  
+  const [isGenerating, setIsGenerating] = useState(!decisions)
   const [activeTab, setActiveTab] = useState("decisions")
   const [searchTerm, setSearchTerm] = useState('')
   const [compareMode, setCompareMode] = useState(false)
   const [comparisonTools, setComparisonTools] = useState<string[]>([])
   const [filters, setFilters] = useState({
     type: 'all',
-    urgency: 'critical', // Default to Critical only (70% reduction)
+    urgency: 'critical',
     category: 'all',
     complexity: 'all',
     pricing: 'all',
     popularity: 'all'
   })
-  const [showAllDecisions, setShowAllDecisions] = useState(false) // Progressive disclosure
-  const [expandedToolCards, setExpandedToolCards] = useState<Set<string>>(new Set()) // Track expanded tool details
+  const [showAllDecisions, setShowAllDecisions] = useState(false)
+  const [expandedToolCards, setExpandedToolCards] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'popularity' | 'cost' | 'complexity'>('popularity')
   const [groupBy, setGroupBy] = useState<'category' | 'component' | 'type' | 'none'>('category')
   
@@ -110,24 +126,14 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
       return
     }
     
+    // If we already have decisions, don't generate again
+    if (decisions) {
+      hasGeneratedRef.current = true
+      setIsGenerating(false)
+      return
+    }
+    
     const generateDecisions = async () => {
-      // Check if decisions are already cached in localStorage
-      const cachedDecisions = localStorage.getItem('onboarding-decisions')
-      if (cachedDecisions) {
-        try {
-          const parsed = JSON.parse(cachedDecisions)
-          console.log('✅ Using cached decisions:', parsed)
-          setDecisions(parsed.decisions)
-          setSelectedTools(parsed.selectedTools || {})
-          setIsGenerating(false)
-          hasGeneratedRef.current = true
-          return
-        } catch (error) {
-          console.warn('Failed to parse cached decisions:', error)
-          localStorage.removeItem('onboarding-decisions')
-        }
-      }
-
       setIsGenerating(true)
       hasGeneratedRef.current = true
       
@@ -175,16 +181,15 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
         })
         setSelectedTools(initialSelections)
         
-        // Cache the decisions to prevent re-generation
-        console.log('💾 Caching decisions to localStorage')
-        localStorage.setItem('onboarding-decisions', JSON.stringify({
+        // Save to AppContext instead of localStorage
+        await updateData({
           decisions: decisionsSummary,
           selectedTools: initialSelections
-        }))
+        })
       } catch (error) {
         console.error('Failed to generate system decisions:', error)
         setDecisions(null)
-        hasGeneratedRef.current = false // Allow retry
+        hasGeneratedRef.current = false
         alert(
           `Failed to generate system decisions: ${
             error instanceof Error ? error.message : 'Unknown error'
@@ -201,18 +206,14 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   // Effect to restore scroll position after selection
   useEffect(() => {
     if (shouldRestoreScroll.current) {
-      // Use multiple methods to ensure scroll position is maintained
       const targetScroll = scrollPositionRef.current
       
-      // Immediate restoration
       window.scrollTo({ top: targetScroll, behavior: 'instant' })
       
-      // Fallback after next frame
       requestAnimationFrame(() => {
         window.scrollTo({ top: targetScroll, behavior: 'instant' })
       })
       
-      // Final fallback after paint
       setTimeout(() => {
         window.scrollTo({ top: targetScroll, behavior: 'instant' })
       }, 0)
@@ -221,20 +222,19 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
     }
   }, [selectedTools])
 
-  const handleToolSelection = (decisionId: string, toolId: string) => {
-    // Use functional setState to avoid dependency on selectedTools
+  const handleToolSelection = async (decisionId: string, toolId: string) => {
     setSelectedTools(prev => {
       const updated = {
         ...prev,
         [decisionId]: toolId
       }
       
-      // Update localStorage cache to persist selection
+      // Update AppContext asynchronously
       if (decisions) {
-        localStorage.setItem('onboarding-decisions', JSON.stringify({
+        updateData({
           decisions,
           selectedTools: updated
-        }))
+        })
       }
       
       return updated
@@ -266,28 +266,23 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   }
 
   const handleGamifiedSelection = (decisionId: string, toolId: string) => {
-    // Save current scroll position in ref
     scrollPositionRef.current = window.scrollY
     shouldRestoreScroll.current = true
     
-    // Prevent any default behavior or propagation
     const decision = decisions?.decisions.find(d => d.id === decisionId)
     const tool = decision?.recommendations.find(r => r.id === toolId)
     
-    // Update selection immediately without side effects
     handleToolSelection(decisionId, toolId)
     
     if (tool) {
       const score = calculateToolScore(tool)
       
-      // Use functional updates to avoid state mutation issues
       setCompletedDecisions(prev => {
         const isNewDecision = !prev.has(decisionId)
         
         if (isNewDecision) {
           setTotalScore(current => current + score)
           
-          // Check for achievements
           const newAchievements = []
           if (tool.type === 'open-source' && !achievements.includes('open-source-advocate')) {
             newAchievements.push('open-source-advocate')
@@ -379,7 +374,6 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   )
 
   const filteredAndSearchedDecisions = decisions?.decisions.filter(decision => {
-    // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
       const matchesSearch = 
@@ -393,31 +387,24 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
       if (!matchesSearch) return false
     }
 
-    // Category filter
     if (filters.category !== 'all' && decision.category !== filters.category) return false
-    
-    // Urgency filter
     if (filters.urgency !== 'all' && decision.urgency !== filters.urgency) return false
     
-    // Tool type filter
     if (filters.type !== 'all') {
       const selectedTool = decision.recommendations.find(r => r.id === selectedTools[decision.id])
       if (selectedTool && selectedTool.type !== filters.type) return false
     }
 
-    // Complexity filter
     if (filters.complexity !== 'all') {
       const selectedTool = decision.recommendations.find(r => r.id === selectedTools[decision.id])
       if (selectedTool && selectedTool.complexity !== filters.complexity) return false
     }
 
-    // Pricing filter
     if (filters.pricing !== 'all') {
       const selectedTool = decision.recommendations.find(r => r.id === selectedTools[decision.id])
       if (selectedTool && selectedTool.pricing.model !== filters.pricing) return false
     }
 
-    // Popularity filter
     if (filters.popularity !== 'all') {
       const selectedTool = decision.recommendations.find(r => r.id === selectedTools[decision.id])
       if (selectedTool) {
@@ -432,13 +419,11 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
     return true
   }) || []
 
-  // Group and sort decisions - STABLE (doesn't change order on selection)
   const processedDecisions = React.useMemo(() => {
     let processed = [...filteredAndSearchedDecisions]
     
-    // Sort decisions - use stable properties that don't change on selection
     processed.sort((a, b) => {
-      const toolA = a.recommendations[0] // Use first tool for stable sorting
+      const toolA = a.recommendations[0]
       const toolB = b.recommendations[0]
       
       switch (sortBy) {
@@ -457,7 +442,6 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
     return processed
   }, [filteredAndSearchedDecisions, sortBy])
 
-  // Group decisions if needed - STABLE GROUPING (doesn't change on selection)
   const groupedDecisions = React.useMemo(() => {
     if (groupBy === 'none') return { 'All Decisions': processedDecisions }
     
@@ -467,15 +451,12 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
       let groupKey = ''
       switch (groupBy) {
         case 'category':
-          // Group by decision category (stable)
           groupKey = decision.category.charAt(0).toUpperCase() + decision.category.slice(1)
           break
         case 'component':
-          // Group by component (stable)
           groupKey = decision.component.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
           break
         case 'type':
-          // Group by first recommended tool type (stable, doesn't depend on selection)
           const firstTool = decision.recommendations[0]
           groupKey = firstTool?.type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown'
           break
@@ -489,101 +470,6 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
     
     return groups
   }, [processedDecisions, groupBy])
-
-  if (isGenerating) {
-    return (
-      <div className="w-full min-h-screen flex items-center justify-center px-6">
-        <div className="max-w-2xl w-full text-center space-y-8">
-          {/* Spinner */}
-          <div className="flex justify-center">
-            <div className="relative">
-              <div className="w-20 h-20 border-4 border-[rgba(55,50,47,0.1)] border-t-[#005BE3] rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <BarChart3 className="w-8 h-8 text-[#005BE3]" />
-              </div>
-            </div>
-          </div>
-
-          {/* Heading */}
-          <div className="space-y-4">
-            <h2 className="text-[32px] font-normal text-[#1d1d1f] leading-tight" style={{ fontFamily: 'SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif', letterSpacing: '-0.01em' }}>
-              Analyzing Your Architecture
-            </h2>
-            <p className="text-base text-[#605A57] leading-relaxed max-w-xl mx-auto">
-              Our AI is evaluating your system requirements, examining compatibility matrices, and generating intelligent tool recommendations tailored to your stack.
-            </p>
-          </div>
-
-          {/* Processing Steps */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-            <div className="flex flex-col items-center gap-3 p-4">
-              <div className="w-10 h-10 rounded-full bg-[#005BE3]/10 flex items-center justify-center">
-                <Search className="w-5 h-5 text-[#005BE3]" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-[#1d1d1f]">Tool Analysis</p>
-                <div className="flex items-center justify-center gap-1">
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse"></div>
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-3 p-4">
-              <div className="w-10 h-10 rounded-full bg-[#005BE3]/10 flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-[#005BE3]" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-[#1d1d1f]">Cost Estimation</p>
-                <div className="flex items-center justify-center gap-1">
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse"></div>
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-3 p-4">
-              <div className="w-10 h-10 rounded-full bg-[#005BE3]/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-[#005BE3]" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-[#1d1d1f]">Risk Assessment</p>
-                <div className="flex items-center justify-center gap-1">
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse"></div>
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-1.5 h-1.5 bg-[#005BE3] rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Progress note */}
-          <p className="text-sm text-[#605A57] italic">
-            This usually takes a few moments...
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!decisions) {
-    return (
-      <div className="w-full max-w-7xl mx-auto py-6 px-6">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-semibold">Error Generating Decisions</h2>
-          <p className="text-muted-foreground">
-            There was an issue analyzing your system architecture. Please try again.
-          </p>
-          <Button onClick={onBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Return to Architecture
-          </Button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="w-full max-w-7xl mx-auto py-4 px-6 space-y-6">
