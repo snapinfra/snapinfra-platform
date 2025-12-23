@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Trash2, Key, Link } from "lucide-react"
-import type { TableSchema, FieldSchema, FieldType } from "@/lib/app-context"
+import type { TableSchema, FieldSchema, FieldType } from "@/lib/appContext/app-context"
 
 interface TableEditDialogProps {
   open: boolean

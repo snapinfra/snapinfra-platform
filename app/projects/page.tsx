@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAppContext } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
 import { getProjects, deleteProject as deleteProjectAPI, isBackendAvailable } from "@/lib/api-client"
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Plus, Search, Filter, MoreVertical, Database, Calendar, Settings, Trash2, ExternalLink, LayoutGrid, List, Folder, Clock, GitBranch } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import type { Project } from "@/lib/app-context"
+import type { Project } from "@/lib/appContext/app-context"
 
 export default function ProjectsPage() {
   const { state, dispatch } = useAppContext()

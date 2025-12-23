@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { Project } from '@/lib/app-context'
+import type { Project } from '@/lib/appContext/app-context'
 import { DynamoService } from '@/lib/services/database/dynamoService'
 import { getCurrentUser, getDevUserId } from '@/lib/services/auth-helper'
 

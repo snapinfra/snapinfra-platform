@@ -38,8 +38,8 @@ import { useToast } from "@/hooks/use-toast"
 
 import TableNode, { TableNodeData } from './table-node'
 import { TableEditDialog } from './table-edit-dialog'
-import { useAppContext } from "@/lib/app-context"
-import type { TableSchema, Relationship } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
+import type { TableSchema, Relationship } from "@/lib/appContext/app-context"
 
 interface ReactFlowSchemaEditorProps {
   onTableEdit?: (table: TableSchema) => void

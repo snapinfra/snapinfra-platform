@@ -5,7 +5,7 @@ import { Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
-import { AppProvider } from "@/lib/app-context"
+import { AppProvider } from "@/lib/appContext/app-context"
 import { WorkspaceProvider } from "@/lib/workspace-context"
 import { EnterpriseQueryProvider, NetworkStatusMonitor } from "./providers-enterprise"
 import { ErrorBoundary } from "@/components/error-boundary"

@@ -1,18 +1,15 @@
 // ============================================================================
-// TERRAFORM AWS ECS GENERATORS - COMPLETE WITH UPDATED VARIABLE NAMES
+// FIXED TERRAFORM GENERATOR - Single Source of Truth for app_name
 // ============================================================================
-// Add these functions to the end of code-generator-utils.ts
 
 import { CodeGenOptions, GeneratedFile, Project } from "./code-generator-utils";
 
 /**
- * Generate main Terraform configuration
+ * Generate main Terraform configuration - app_name driven
  */
 export function generateTerraformMain(project: Project, options: CodeGenOptions): GeneratedFile {
-  const projectSlug = project.name.toLowerCase().replace(/\s+/g, '-');
-
   const content = `# =============================================================================
-# ${project.name} - AWS ECS Terraform Configuration
+# ${project.name} - AWS ECS Terraform Configuration (app_name driven)
 # =============================================================================
 
 terraform {
@@ -24,15 +21,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-
-  # Uncomment to use S3 backend for state management
-  # backend "s3" {
-  #   bucket         = "${projectSlug}-terraform-state"
-  #   key            = "infrastructure/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   encrypt        = true
-  #   dynamodb_table = "${projectSlug}-terraform-locks"
-  # }
 }
 
 provider "aws" {
@@ -41,11 +29,27 @@ provider "aws" {
   default_tags {
     tags = {
       Project     = "${project.name}"
+      ProjectId   = "${project.id}"
       Environment = var.environment
       ManagedBy   = "Terraform"
-      Application = "${projectSlug}"
+      AppName     = var.app_name
     }
   }
+}
+
+# =============================================================================
+# CRITICAL: app_name is the SINGLE source of truth for ALL resource naming
+# =============================================================================
+
+locals {
+  # DO NOT compute names - use app_name directly
+  app_name = var.app_name
+  
+  # Optional: Add suffixes for specific resources
+  service_name = "\${var.app_name}-service"
+  alb_name     = substr("\${var.app_name}-alb", 0, 32)  # ALB has 32 char limit
+  tg_name      = substr("\${var.app_name}-tg", 0, 32)
+  log_group    = "/ecs/\${var.app_name}"
 }
 
 # =============================================================================
@@ -54,9 +58,16 @@ provider "aws" {
 
 data "aws_availability_zones" "available" {
   state = "available"
+  
+  filter {
+    name   = "opt-in-status"
+    values = ["opt-in-not-required"]
+  }
 }
 
 data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}
 
 # =============================================================================
 # VPC Module
@@ -65,11 +76,11 @@ data "aws_caller_identity" "current" {}
 module "vpc" {
   source = "./modules/vpc"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  vpc_cidr            = var.vpc_cidr
-  availability_zones  = data.aws_availability_zones.available.names
-  public_subnet_cidrs = var.public_subnet_cidrs
+  app_name             = local.app_name
+  environment          = var.environment
+  vpc_cidr             = var.vpc_cidr
+  availability_zones   = slice(data.aws_availability_zones.available.names, 0, 2)
+  public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
 }
 
@@ -80,19 +91,19 @@ module "vpc" {
 module "security_groups" {
   source = "./modules/security"
 
-  project_name = var.project_name
-  environment  = var.environment
-  vpc_id       = module.vpc.vpc_id
+  app_name    = local.app_name
+  environment = var.environment
+  vpc_id      = module.vpc.vpc_id
 }
 
 # =============================================================================
-# RDS PostgreSQL Database
+# RDS PostgreSQL Database (Free Tier: db.t3.micro, 20GB)
 # =============================================================================
 
 module "rds" {
   source = "./modules/rds"
 
-  project_name           = var.project_name
+  app_name               = local.app_name
   environment            = var.environment
   vpc_id                 = module.vpc.vpc_id
   private_subnet_ids     = module.vpc.private_subnet_ids
@@ -105,24 +116,27 @@ module "rds" {
 }
 
 # =============================================================================
-# ECR Repository
+# ECR Repository - MUST match app_name exactly
 # =============================================================================
 
 module "ecr" {
   source = "./modules/ecr"
 
-  project_name = var.project_name
-  environment  = var.environment
+  app_name    = local.app_name
+  environment = var.environment
 }
 
 # =============================================================================
-# ECS Cluster
+# ECS Cluster (Free Tier: Fargate with minimal resources)
 # =============================================================================
 
 module "ecs" {
   source = "./modules/ecs"
 
-  project_name             = var.project_name
+  app_name                 = local.app_name
+  service_name             = local.service_name
+  alb_name                 = local.alb_name
+  tg_name                  = local.tg_name
   environment              = var.environment
   vpc_id                   = module.vpc.vpc_id
   public_subnet_ids        = module.vpc.public_subnet_ids
@@ -138,7 +152,7 @@ module "ecs" {
   db_username              = var.db_username
   db_password              = var.db_password
   
-  # Application configuration
+  # Application configuration (Free Tier optimized)
   app_port                 = var.app_port
   app_cpu                  = var.app_cpu
   app_memory               = var.app_memory
@@ -152,46 +166,59 @@ module "ecs" {
 }
 
 # =============================================================================
-# CloudWatch Log Groups
+# CloudWatch Log Groups (Free Tier: 5GB ingestion, 1 month retention)
 # =============================================================================
 
 resource "aws_cloudwatch_log_group" "app" {
-  name              = "/ecs/\${var.project_name}-\${var.environment}"
-  retention_in_days = 7
+  name              = local.log_group
+  retention_in_days = 1
 
   tags = {
-    Name = "\${var.project_name}-\${var.environment}-logs"
+    Name    = "\${local.app_name}-logs"
+    AppName = local.app_name
   }
 }`;
 
   return {
     path: 'terraform/main.tf',
     content,
-    description: 'Main Terraform configuration file'
+    description: 'Main Terraform configuration using app_name as single source of truth'
   };
 }
 
 /**
- * Generate Terraform variables
+ * Generate Terraform variables - app_name is REQUIRED input
  */
 export function generateTerraformVariables(project: Project, options: CodeGenOptions): GeneratedFile {
-  const projectSlug = project.name.toLowerCase().replace(/\s+/g, '-');
   const dbName = project.name.toLowerCase().replace(/\s+/g, '_');
 
   const content = `# =============================================================================
-# ${project.name} - Terraform Variables
+# ${project.name} - Terraform Variables (app_name driven)
 # =============================================================================
+
+# =============================================================================
+# CRITICAL: app_name is provided by deploy service - DO NOT set default
+# =============================================================================
+
+variable "app_name" {
+  description = "Immutable application identifier (generated by deploy service)"
+  type        = string
+  
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", var.app_name))
+    error_message = "app_name must be lowercase alphanumeric with hyphens, start/end with alphanumeric"
+  }
+  
+  validation {
+    condition     = length(var.app_name) <= 50
+    error_message = "app_name must be 50 characters or less for AWS resource limits"
+  }
+}
 
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string
   default     = "us-east-1"
-}
-
-variable "project_name" {
-  description = "Project name"
-  type        = string
-  default     = "${projectSlug}"
 }
 
 variable "environment" {
@@ -201,7 +228,7 @@ variable "environment" {
 }
 
 # =============================================================================
-# VPC Configuration
+# VPC Configuration (Free Tier Compatible)
 # =============================================================================
 
 variable "vpc_cidr" {
@@ -211,19 +238,19 @@ variable "vpc_cidr" {
 }
 
 variable "public_subnet_cidrs" {
-  description = "CIDR blocks for public subnets"
+  description = "CIDR blocks for public subnets (2 AZs for HA)"
   type        = list(string)
   default     = ["10.0.1.0/24", "10.0.2.0/24"]
 }
 
 variable "private_subnet_cidrs" {
-  description = "CIDR blocks for private subnets"
+  description = "CIDR blocks for private subnets (2 AZs for RDS)"
   type        = list(string)
   default     = ["10.0.11.0/24", "10.0.12.0/24"]
 }
 
 # =============================================================================
-# Database Configuration
+# Database Configuration (FREE TIER: db.t3.micro + 20GB)
 # =============================================================================
 
 variable "db_name" {
@@ -240,25 +267,30 @@ variable "db_username" {
 }
 
 variable "db_password" {
-  description = "Database master password"
+  description = "Database master password (min 8 characters)"
   type        = string
   sensitive   = true
+  
+  validation {
+    condition     = length(var.db_password) >= 8
+    error_message = "Database password must be at least 8 characters"
+  }
 }
 
 variable "db_instance_class" {
-  description = "RDS instance class"
+  description = "RDS instance class (FREE TIER: db.t3.micro only)"
   type        = string
   default     = "db.t3.micro"
 }
 
 variable "db_allocated_storage" {
-  description = "Allocated storage in GB"
+  description = "Allocated storage in GB (FREE TIER: max 20GB)"
   type        = number
   default     = 20
 }
 
 # =============================================================================
-# Application Configuration
+# Application Configuration (FREE TIER: 256 CPU + 512 MB)
 # =============================================================================
 
 variable "app_port" {
@@ -268,21 +300,21 @@ variable "app_port" {
 }
 
 variable "app_cpu" {
-  description = "Fargate CPU units"
+  description = "Fargate CPU units (FREE TIER: 256 = 0.25 vCPU)"
   type        = number
   default     = 256
 }
 
 variable "app_memory" {
-  description = "Fargate memory in MB"
+  description = "Fargate memory in MB (FREE TIER: 512-2048 MB)"
   type        = number
   default     = 512
 }
 
 variable "desired_count" {
-  description = "Desired number of tasks"
+  description = "Desired number of tasks (FREE TIER: 1 recommended)"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "health_check_path" {
@@ -296,16 +328,21 @@ ${options.includeAuth ? `# =====================================================
 # =============================================================================
 
 variable "jwt_secret" {
-  description = "JWT secret for authentication"
+  description = "JWT secret for authentication (min 32 characters)"
   type        = string
   sensitive   = true
+  
+  validation {
+    condition     = length(var.jwt_secret) >= 32
+    error_message = "JWT secret must be at least 32 characters for security"
+  }
 }
 ` : ''}`;
 
   return {
     path: 'terraform/variables.tf',
     content,
-    description: 'Terraform variables definition'
+    description: 'Terraform variables with app_name as required input'
   };
 }
 
@@ -317,6 +354,11 @@ export function generateTerraformOutputs(project: Project): GeneratedFile {
 # ${project.name} - Terraform Outputs
 # =============================================================================
 
+output "app_name" {
+  description = "Application name used for all resources"
+  value       = var.app_name
+}
+
 output "vpc_id" {
   description = "VPC ID"
   value       = module.vpc.vpc_id
@@ -325,6 +367,11 @@ output "vpc_id" {
 output "ecr_repository_url" {
   description = "ECR repository URL"
   value       = module.ecr.repository_url
+}
+
+output "ecr_repository_name" {
+  description = "ECR repository name (must match app_name)"
+  value       = var.app_name
 }
 
 output "alb_dns_name" {
@@ -343,11 +390,6 @@ output "db_endpoint" {
   sensitive   = true
 }
 
-output "db_port" {
-  description = "RDS database port"
-  value       = module.rds.db_port
-}
-
 output "ecs_cluster_name" {
   description = "ECS cluster name"
   value       = module.ecs.cluster_name
@@ -358,490 +400,47 @@ output "ecs_service_name" {
   value       = module.ecs.service_name
 }
 
-output "cloudwatch_log_group" {
-  description = "CloudWatch log group name"
-  value       = aws_cloudwatch_log_group.app.name
+output "container_image" {
+  description = "Full container image path used in ECS"
+  value       = "\${module.ecr.repository_url}:latest"
+}
+
+output "resource_summary" {
+  description = "Summary of all created resources"
+  value = {
+    app_name         = var.app_name
+    ecr_repo         = var.app_name
+    ecs_cluster      = "\${var.app_name}-cluster"
+    ecs_service      = "\${var.app_name}-service"
+    task_family      = var.app_name
+    container_name   = var.app_name
+    alb              = "\${substr(var.app_name, 0, 28)}-alb"
+    log_group        = "/ecs/\${var.app_name}"
+    image_path       = "\${module.ecr.repository_url}:latest"
+  }
 }`;
 
   return {
     path: 'terraform/outputs.tf',
     content,
-    description: 'Terraform outputs'
+    description: 'Terraform outputs showing app_name usage'
   };
 }
 
 /**
- * Generate VPC module
- */
-export function generateTerraformVPCModule(): GeneratedFile {
-  const content = `# =============================================================================
-# VPC Module
-# =============================================================================
-
-resource "aws_vpc" "vpc_main" {
-  cidr_block           = var.vpc_cidr
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-vpc"
-  }
-}
-
-# =============================================================================
-# Internet Gateway
-# =============================================================================
-
-resource "aws_internet_gateway" "igw_main" {
-  vpc_id = aws_vpc.vpc_main.id
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-igw"
-  }
-}
-
-# =============================================================================
-# Public Subnets
-# =============================================================================
-
-resource "aws_subnet" "subnet_public" {
-  count                   = length(var.public_subnet_cidrs)
-  vpc_id                  = aws_vpc.vpc_main.id
-  cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = var.availability_zones[count.index]
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-public-\${count.index + 1}"
-    Type = "Public"
-  }
-}
-
-# =============================================================================
-# Private Subnets
-# =============================================================================
-
-resource "aws_subnet" "subnet_private" {
-  count             = length(var.private_subnet_cidrs)
-  vpc_id            = aws_vpc.vpc_main.id
-  cidr_block        = var.private_subnet_cidrs[count.index]
-  availability_zone = var.availability_zones[count.index]
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-private-\${count.index + 1}"
-    Type = "Private"
-  }
-}
-
-# =============================================================================
-# NAT Gateway
-# =============================================================================
-
-resource "aws_eip" "nat_eip" {
-  count  = length(var.public_subnet_cidrs)
-  domain = "vpc"
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-nat-eip-\${count.index + 1}"
-  }
-
-  depends_on = [aws_internet_gateway.igw_main]
-}
-
-resource "aws_nat_gateway" "nat_gw" {
-  count         = length(var.public_subnet_cidrs)
-  allocation_id = aws_eip.nat_eip[count.index].id
-  subnet_id     = aws_subnet.subnet_public[count.index].id
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-nat-\${count.index + 1}"
-  }
-
-  depends_on = [aws_internet_gateway.igw_main]
-}
-
-# =============================================================================
-# Route Tables
-# =============================================================================
-
-resource "aws_route_table" "rt_public" {
-  vpc_id = aws_vpc.vpc_main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw_main.id
-  }
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-public-rt"
-  }
-}
-
-resource "aws_route_table" "rt_private" {
-  count  = length(var.private_subnet_cidrs)
-  vpc_id = aws_vpc.vpc_main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat_gw[count.index].id
-  }
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-private-rt-\${count.index + 1}"
-  }
-}
-
-# =============================================================================
-# Route Table Associations
-# =============================================================================
-
-resource "aws_route_table_association" "rta_public" {
-  count          = length(var.public_subnet_cidrs)
-  subnet_id      = aws_subnet.subnet_public[count.index].id
-  route_table_id = aws_route_table.rt_public.id
-}
-
-resource "aws_route_table_association" "rta_private" {
-  count          = length(var.private_subnet_cidrs)
-  subnet_id      = aws_subnet.subnet_private[count.index].id
-  route_table_id = aws_route_table.rt_private[count.index].id
-}
-
-# =============================================================================
-# Module Variables
-# =============================================================================
-
-variable "project_name" {
-  type = string
-}
-
-variable "environment" {
-  type = string
-}
-
-variable "vpc_cidr" {
-  type = string
-}
-
-variable "availability_zones" {
-  type = list(string)
-}
-
-variable "public_subnet_cidrs" {
-  type = list(string)
-}
-
-variable "private_subnet_cidrs" {
-  type = list(string)
-}
-
-# =============================================================================
-# Module Outputs
-# =============================================================================
-
-output "vpc_id" {
-  value = aws_vpc.vpc_main.id
-}
-
-output "public_subnet_ids" {
-  value = aws_subnet.subnet_public[*].id
-}
-
-output "private_subnet_ids" {
-  value = aws_subnet.subnet_private[*].id
-}`;
-
-  return {
-    path: 'terraform/modules/vpc/main.tf',
-    content,
-    description: 'VPC module for networking infrastructure'
-  };
-}
-
-/**
- * Generate Security Groups module
- */
-export function generateTerraformSecurityModule(): GeneratedFile {
-  const content = `# =============================================================================
-# Security Groups Module
-# =============================================================================
-
-# =============================================================================
-# ALB Security Group
-# =============================================================================
-
-resource "aws_security_group" "sg_alb" {
-  name        = "\${var.project_name}-\${var.environment}-alb-sg"
-  description = "Security group for Application Load Balancer"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description = "HTTP from anywhere"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTPS from anywhere"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-alb-sg"
-  }
-}
-
-# =============================================================================
-# ECS Tasks Security Group
-# =============================================================================
-
-resource "aws_security_group" "sg_ecs_tasks" {
-  name        = "\${var.project_name}-\${var.environment}-ecs-tasks-sg"
-  description = "Security group for ECS tasks"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description     = "Allow traffic from ALB"
-    from_port       = 3000
-    to_port         = 3000
-    protocol        = "tcp"
-    security_groups = [aws_security_group.sg_alb.id]
-  }
-
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-ecs-tasks-sg"
-  }
-}
-
-# =============================================================================
-# RDS Security Group
-# =============================================================================
-
-resource "aws_security_group" "sg_rds" {
-  name        = "\${var.project_name}-\${var.environment}-rds-sg"
-  description = "Security group for RDS PostgreSQL"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description     = "PostgreSQL from ECS tasks"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.sg_ecs_tasks.id]
-  }
-
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-rds-sg"
-  }
-}
-
-# =============================================================================
-# Module Variables
-# =============================================================================
-
-variable "project_name" {
-  type = string
-}
-
-variable "environment" {
-  type = string
-}
-
-variable "vpc_id" {
-  type = string
-}
-
-# =============================================================================
-# Module Outputs
-# =============================================================================
-
-output "alb_security_group_id" {
-  value = aws_security_group.sg_alb.id
-}
-
-output "ecs_security_group_id" {
-  value = aws_security_group.sg_ecs_tasks.id
-}
-
-output "db_security_group_id" {
-  value = aws_security_group.sg_rds.id
-}`;
-
-  return {
-    path: 'terraform/modules/security/main.tf',
-    content,
-    description: 'Security groups module'
-  };
-}
-
-/**
- * Generate RDS module
- */
-export function generateTerraformRDSModule(): GeneratedFile {
-  const content = `# =============================================================================
-# RDS PostgreSQL Module
-# =============================================================================
-
-resource "aws_db_subnet_group" "rds_subnet_group" {
-  name       = "\${var.project_name}-\${var.environment}-db-subnet-group"
-  subnet_ids = var.private_subnet_ids
-
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-db-subnet-group"
-  }
-}
-
-resource "aws_db_instance" "rds_postgres" {
-  identifier     = "\${var.project_name}-\${var.environment}-db"
-  engine         = "postgres"
-  engine_version = "15"
-  
-  instance_class    = var.db_instance_class
-  allocated_storage = var.db_allocated_storage
-  storage_type      = "gp3"
-  storage_encrypted = true
-  
-  db_name  = var.db_name
-  username = var.db_username
-  password = var.db_password
-  port     = 5432
-  
-  db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
-  vpc_security_group_ids = [var.db_security_group_id]
-  
-  backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "mon:04:00-mon:05:00"
-  
-  skip_final_snapshot       = true
-  final_snapshot_identifier = "\${var.project_name}-\${var.environment}-final-snapshot"
-  
-  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
-  
-  auto_minor_version_upgrade = true
-  deletion_protection        = false
-  
-  tags = {
-    Name = "\${var.project_name}-\${var.environment}-db"
-  }
-}
-
-# =============================================================================
-# Module Variables
-# =============================================================================
-
-variable "project_name" {
-  type = string
-}
-
-variable "environment" {
-  type = string
-}
-
-variable "vpc_id" {
-  type = string
-}
-
-variable "private_subnet_ids" {
-  type = list(string)
-}
-
-variable "db_security_group_id" {
-  type = string
-}
-
-variable "db_name" {
-  type = string
-}
-
-variable "db_username" {
-  type      = string
-  sensitive = true
-}
-
-variable "db_password" {
-  type      = string
-  sensitive = true
-}
-
-variable "db_instance_class" {
-  type = string
-}
-
-variable "db_allocated_storage" {
-  type = number
-}
-
-# =============================================================================
-# Module Outputs
-# =============================================================================
-
-output "db_endpoint" {
-  value = aws_db_instance.rds_postgres.endpoint
-}
-
-output "db_address" {
-  value = aws_db_instance.rds_postgres.address
-}
-
-output "db_port" {
-  value = aws_db_instance.rds_postgres.port
-}
-
-output "db_name" {
-  value = aws_db_instance.rds_postgres.db_name
-}`;
-
-  return {
-    path: 'terraform/modules/rds/main.tf',
-    content,
-    description: 'RDS PostgreSQL module'
-  };
-}
-
-/**
- * Generate ECR module
+ * UPDATED: ECR module - uses app_name directly
  */
 export function generateTerraformECRModule(): GeneratedFile {
   const content = `# =============================================================================
-# ECR Repository Module
+# ECR Repository Module - MUST match app_name exactly
 # =============================================================================
 
 resource "aws_ecr_repository" "ecr_repo" {
-  name                 = "\${var.project_name}-\${var.environment}"
+  name                 = var.app_name  # CRITICAL: Must match Docker image name
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
-    scan_on_push = true
+    scan_on_push = false
   }
 
   encryption_configuration {
@@ -849,7 +448,9 @@ resource "aws_ecr_repository" "ecr_repo" {
   }
 
   tags = {
-    Name = "\${var.project_name}-\${var.environment}-ecr"
+    Name     = "\${var.app_name}-ecr"
+    AppName  = var.app_name
+    FreeTier = "true"
   }
 }
 
@@ -860,11 +461,11 @@ resource "aws_ecr_lifecycle_policy" "ecr_lifecycle" {
     rules = [
       {
         rulePriority = 1
-        description  = "Keep last 10 images"
+        description  = "Keep last 3 images"
         selection = {
           tagStatus     = "any"
           countType     = "imageCountMoreThan"
-          countNumber   = 10
+          countNumber   = 3
         }
         action = {
           type = "expire"
@@ -878,8 +479,9 @@ resource "aws_ecr_lifecycle_policy" "ecr_lifecycle" {
 # Module Variables
 # =============================================================================
 
-variable "project_name" {
-  type = string
+variable "app_name" {
+  type        = string
+  description = "Application name - MUST match Docker image name"
 }
 
 variable "environment" {
@@ -891,7 +493,8 @@ variable "environment" {
 # =============================================================================
 
 output "repository_url" {
-  value = aws_ecr_repository.ecr_repo.repository_url
+  value       = aws_ecr_repository.ecr_repo.repository_url
+  description = "Full ECR repository URL including registry"
 }
 
 output "repository_arn" {
@@ -899,38 +502,37 @@ output "repository_arn" {
 }
 
 output "repository_name" {
-  value = aws_ecr_repository.ecr_repo.name
+  value       = aws_ecr_repository.ecr_repo.name
+  description = "ECR repository name (equals app_name)"
 }`;
 
   return {
     path: 'terraform/modules/ecr/main.tf',
     content,
-    description: 'ECR repository module'
+    description: 'ECR module using app_name directly'
   };
 }
 
 /**
- * Generate ECS module - FIXED VERSION with proper database connectivity
+ * UPDATED: ECS module - uses app_name for container and image
  */
 export function generateTerraformECSModule(project: Project, options: CodeGenOptions): GeneratedFile {
   const content = `# =============================================================================
-# ECS Cluster and Service Module
-# =============================================================================
-
-# =============================================================================
-# ECS Cluster
+# ECS Module - app_name driven naming
 # =============================================================================
 
 resource "aws_ecs_cluster" "ecs_cluster_main" {
-  name = "\${var.project_name}-\${var.environment}-cluster"
+  name = "\${var.app_name}-cluster"
 
   setting {
     name  = "containerInsights"
-    value = "enabled"
+    value = "disabled"
   }
 
   tags = {
-    Name = "\${var.project_name}-\${var.environment}-cluster"
+    Name     = "\${var.app_name}-cluster"
+    AppName  = var.app_name
+    FreeTier = "true"
   }
 }
 
@@ -939,7 +541,7 @@ resource "aws_ecs_cluster" "ecs_cluster_main" {
 # =============================================================================
 
 resource "aws_iam_role" "iam_ecs_task_execution" {
-  name = "\${var.project_name}-\${var.environment}-ecs-task-execution-role"
+  name = substr("\${var.app_name}-ecs-exec", 0, 64)
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -953,6 +555,11 @@ resource "aws_iam_role" "iam_ecs_task_execution" {
       }
     ]
   })
+
+  tags = {
+    Name    = "\${var.app_name}-ecs-exec"
+    AppName = var.app_name
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "iam_ecs_task_execution_attach" {
@@ -961,7 +568,7 @@ resource "aws_iam_role_policy_attachment" "iam_ecs_task_execution_attach" {
 }
 
 resource "aws_iam_role" "iam_ecs_task" {
-  name = "\${var.project_name}-\${var.environment}-ecs-task-role"
+  name = substr("\${var.app_name}-ecs-task", 0, 64)
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -975,6 +582,11 @@ resource "aws_iam_role" "iam_ecs_task" {
       }
     ]
   })
+
+  tags = {
+    Name    = "\${var.app_name}-ecs-task"
+    AppName = var.app_name
+  }
 }
 
 # =============================================================================
@@ -982,22 +594,24 @@ resource "aws_iam_role" "iam_ecs_task" {
 # =============================================================================
 
 resource "aws_lb" "alb_main" {
-  name               = "\${var.project_name}-\${var.environment}-alb"
+  name               = var.alb_name
   internal           = false
   load_balancer_type = "application"
   security_groups    = [var.alb_security_group_id]
   subnets            = var.public_subnet_ids
 
   enable_deletion_protection = false
-  enable_http2              = true
+  enable_http2               = true
+  idle_timeout               = 60
 
   tags = {
-    Name = "\${var.project_name}-\${var.environment}-alb"
+    Name    = var.alb_name
+    AppName = var.app_name
   }
 }
 
 resource "aws_lb_target_group" "alb_target_group" {
-  name        = "\${var.project_name}-\${var.environment}-tg"
+  name        = var.tg_name
   port        = var.app_port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
@@ -1017,7 +631,8 @@ resource "aws_lb_target_group" "alb_target_group" {
   deregistration_delay = 30
 
   tags = {
-    Name = "\${var.project_name}-\${var.environment}-tg"
+    Name    = var.tg_name
+    AppName = var.app_name
   }
 }
 
@@ -1033,11 +648,11 @@ resource "aws_lb_listener" "alb_listener" {
 }
 
 # =============================================================================
-# ECS Task Definition
+# ECS Task Definition - CRITICAL: image path must match pushed image
 # =============================================================================
 
 resource "aws_ecs_task_definition" "ecs_task_def" {
-  family                   = "\${var.project_name}-\${var.environment}"
+  family                   = var.app_name  # CRITICAL: Task family = app_name
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.app_cpu
@@ -1047,8 +662,8 @@ resource "aws_ecs_task_definition" "ecs_task_def" {
 
   container_definitions = jsonencode([
     {
-      name      = "\${var.project_name}-\${var.environment}"
-      image     = "\${var.ecr_repository_url}:latest"
+      name      = var.app_name  # CRITICAL: Container name = app_name
+      image     = "\${var.ecr_repository_url}:latest"  # CRITICAL: Must match pushed image
       essential = true
 
       portMappings = [
@@ -1067,7 +682,6 @@ resource "aws_ecs_task_definition" "ecs_task_def" {
           name  = "PORT"
           value = tostring(var.app_port)
         },
-        # FIXED: Extract hostname from RDS endpoint (removes :5432)
         {
           name  = "DB_HOST"
           value = split(":", var.db_host)[0]
@@ -1088,23 +702,9 @@ resource "aws_ecs_task_definition" "ecs_task_def" {
           name  = "DB_PASSWORD"
           value = var.db_password
         },
-        # ADDED: Full connection string for compatibility
         {
           name  = "DATABASE_URL"
           value = "postgresql://\${var.db_username}:\${var.db_password}@\${split(":", var.db_host)[0]}:\${var.db_port}/\${var.db_name}"
-        },
-        # ADDED: Connection pool settings
-        {
-          name  = "DB_POOL_MIN"
-          value = "2"
-        },
-        {
-          name  = "DB_POOL_MAX"
-          value = "10"
-        },
-        {
-          name  = "DB_POOL_IDLE"
-          value = "10000"
         }${options.includeAuth ? `,
         {
           name  = "JWT_SECRET"
@@ -1115,7 +715,7 @@ resource "aws_ecs_task_definition" "ecs_task_def" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/\${var.project_name}-\${var.environment}"
+          "awslogs-group"         = "/ecs/\${var.app_name}"
           "awslogs-region"        = data.aws_region.current.name
           "awslogs-stream-prefix" = "ecs"
         }
@@ -1132,7 +732,9 @@ resource "aws_ecs_task_definition" "ecs_task_def" {
   ])
 
   tags = {
-    Name = "\${var.project_name}-\${var.environment}-task"
+    Name     = "\${var.app_name}-task"
+    AppName  = var.app_name
+    FreeTier = "true"
   }
 }
 
@@ -1141,7 +743,7 @@ resource "aws_ecs_task_definition" "ecs_task_def" {
 # =============================================================================
 
 resource "aws_ecs_service" "ecs_service_main" {
-  name            = "\${var.project_name}-\${var.environment}-service"
+  name            = var.service_name
   cluster         = aws_ecs_cluster.ecs_cluster_main.id
   task_definition = aws_ecs_task_definition.ecs_task_def.arn
   desired_count   = var.desired_count
@@ -1150,12 +752,12 @@ resource "aws_ecs_service" "ecs_service_main" {
   network_configuration {
     security_groups  = [var.ecs_security_group_id]
     subnets          = var.private_subnet_ids
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {
     target_group_arn = aws_lb_target_group.alb_target_group.arn
-    container_name   = "\${var.project_name}-\${var.environment}"
+    container_name   = var.app_name  # CRITICAL: Must match container name in task def
     container_port   = var.app_port
   }
 
@@ -1179,53 +781,9 @@ resource "aws_ecs_service" "ecs_service_main" {
   ]
 
   tags = {
-    Name = "\${var.project_name}-\${var.environment}-service"
-  }
-}
-
-# =============================================================================
-# Auto Scaling
-# =============================================================================
-
-resource "aws_appautoscaling_target" "ecs_autoscale_target" {
-  max_capacity       = 4
-  min_capacity       = var.desired_count
-  resource_id        = "service/\${aws_ecs_cluster.ecs_cluster_main.name}/\${aws_ecs_service.ecs_service_main.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "ecs_cpu_policy" {
-  name               = "\${var.project_name}-\${var.environment}-cpu-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs_autoscale_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs_autoscale_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs_autoscale_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    target_value       = 70.0
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 60
-  }
-}
-
-resource "aws_appautoscaling_policy" "ecs_memory_policy" {
-  name               = "\${var.project_name}-\${var.environment}-memory-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs_autoscale_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs_autoscale_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs_autoscale_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
-    }
-    target_value       = 80.0
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 60
+    Name     = var.service_name
+    AppName  = var.app_name
+    FreeTier = "true"
   }
 }
 
@@ -1239,8 +797,24 @@ data "aws_region" "current" {}
 # Module Variables
 # =============================================================================
 
-variable "project_name" {
-  type = string
+variable "app_name" {
+  type        = string
+  description = "Application name - used for task family and container name"
+}
+
+variable "service_name" {
+  type        = string
+  description = "ECS service name"
+}
+
+variable "alb_name" {
+  type        = string
+  description = "Application Load Balancer name"
+}
+
+variable "tg_name" {
+  type        = string
+  description = "Target Group name"
 }
 
 variable "environment" {
@@ -1268,7 +842,8 @@ variable "alb_security_group_id" {
 }
 
 variable "ecr_repository_url" {
-  type = string
+  type        = string
+  description = "Full ECR repository URL - image MUST exist before terraform apply"
 }
 
 variable "db_host" {
@@ -1334,378 +909,747 @@ output "alb_dns_name" {
   value = aws_lb.alb_main.dns_name
 }
 
-output "alb_arn" {
-  value = aws_lb.alb_main.arn
-}
-
-output "target_group_arn" {
-  value = aws_lb_target_group.alb_target_group.arn
+output "task_definition_arn" {
+  value = aws_ecs_task_definition.ecs_task_def.arn
 }`;
 
   return {
     path: 'terraform/modules/ecs/main.tf',
     content,
-    description: 'ECS module with fixed database connectivity'
+    description: 'ECS module with app_name driven naming and image path'
   };
 }
 
-/**
- * Generate terraform.tfvars.example
- */
+// Update VPC and Security modules to use app_name instead of project_name
+export function generateTerraformVPCModule(): GeneratedFile {
+  const content = `# =============================================================================
+# VPC Module - app_name driven
+# =============================================================================
+
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = {
+    Name    = "\${var.app_name}-vpc"
+    AppName = var.app_name
+  }
+}
+
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name    = "\${var.app_name}-igw"
+    AppName = var.app_name
+  }
+}
+
+resource "aws_subnet" "public" {
+  count                   = length(var.public_subnet_cidrs)
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_cidrs[count.index]
+  availability_zone       = var.availability_zones[count.index]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name    = "\${var.app_name}-public-\${count.index + 1}"
+    AppName = var.app_name
+    Type    = "Public"
+  }
+}
+
+resource "aws_subnet" "private" {
+  count             = length(var.private_subnet_cidrs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
+
+  tags = {
+    Name    = "\${var.app_name}-private-\${count.index + 1}"
+    AppName = var.app_name
+    Type    = "Private"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name    = "\${var.app_name}-public-rt"
+    AppName = var.app_name
+  }
+}
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name    = "\${var.app_name}-private-rt"
+    AppName = var.app_name
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  count          = length(var.public_subnet_cidrs)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "private" {
+  count          = length(var.private_subnet_cidrs)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
+# =============================================================================
+# Variables
+# =============================================================================
+
+variable "app_name" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
+variable "vpc_cidr" {
+  type = string
+}
+
+variable "availability_zones" {
+  type = list(string)
+}
+
+variable "public_subnet_cidrs" {
+  type = list(string)
+}
+
+variable "private_subnet_cidrs" {
+  type = list(string)
+}
+
+# =============================================================================
+# Outputs
+# =============================================================================
+
+output "vpc_id" {
+  value = aws_vpc.main.id
+}
+
+output "public_subnet_ids" {
+  value = aws_subnet.public[*].id
+}
+
+output "private_subnet_ids" {
+  value = aws_subnet.private[*].id
+}
+
+output "internet_gateway_id" {
+  value = aws_internet_gateway.main.id
+}`;
+
+  return {
+    path: 'terraform/modules/vpc/main.tf',
+    content,
+    description: 'VPC module using app_name'
+  };
+}
+
+export function generateTerraformSecurityModule(): GeneratedFile {
+  const content = `# =============================================================================
+# Security Groups Module - app_name driven
+# =============================================================================
+
+resource "aws_security_group" "alb" {
+  name        = "\${var.app_name}-alb-sg"
+  description = "Security group for Application Load Balancer"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description = "HTTP from anywhere"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS from anywhere"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name    = "\${var.app_name}-alb-sg"
+    AppName = var.app_name
+  }
+}
+
+resource "aws_security_group" "ecs_tasks" {
+  name        = "\${var.app_name}-ecs-tasks-sg"
+  description = "Security group for ECS tasks"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description     = "Allow traffic from ALB"
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name    = "\${var.app_name}-ecs-tasks-sg"
+    AppName = var.app_name
+  }
+}
+
+resource "aws_security_group" "rds" {
+  name        = "\${var.app_name}-rds-sg"
+  description = "Security group for RDS PostgreSQL"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description     = "PostgreSQL from ECS tasks"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs_tasks.id]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name    = "\${var.app_name}-rds-sg"
+    AppName = var.app_name
+  }
+}
+
+# =============================================================================
+# Variables
+# =============================================================================
+
+variable "app_name" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
+variable "vpc_id" {
+  type = string
+}
+
+# =============================================================================
+# Outputs
+# =============================================================================
+
+output "alb_security_group_id" {
+  value = aws_security_group.alb.id
+}
+
+output "ecs_security_group_id" {
+  value = aws_security_group.ecs_tasks.id
+}
+
+output "db_security_group_id" {
+  value = aws_security_group.rds.id
+}`;
+
+  return {
+    path: 'terraform/modules/security/main.tf',
+    content,
+    description: 'Security groups module using app_name'
+  };
+}
+
+export function generateTerraformRDSModule(): GeneratedFile {
+  const content = `# =============================================================================
+# RDS Module - app_name driven
+# =============================================================================
+
+resource "aws_db_subnet_group" "rds_subnet_group" {
+  name       = "\${var.app_name}-db-subnet-group"
+  subnet_ids = var.private_subnet_ids
+
+  tags = {
+    Name    = "\${var.app_name}-db-subnet-group"
+    AppName = var.app_name
+  }
+}
+
+resource "aws_db_instance" "rds_postgres" {
+  identifier            = "\${var.app_name}-db"
+  engine                = "postgres"
+  engine_version        = "15"
+  instance_class        = var.db_instance_class
+  allocated_storage     = var.db_allocated_storage
+  storage_type          = "gp2"
+  storage_encrypted     = false
+  
+  db_name  = var.db_name
+  username = var.db_username
+  password = var.db_password
+  port     = 5432
+
+  db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
+  vpc_security_group_ids = [var.db_security_group_id]
+  
+  backup_retention_period = 1
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
+  
+  skip_final_snapshot       = true
+  final_snapshot_identifier = null
+  
+  enabled_cloudwatch_logs_exports = []
+  monitoring_interval             = 0
+  
+  auto_minor_version_upgrade = true
+  deletion_protection        = false
+  multi_az                   = false
+  performance_insights_enabled = false
+  publicly_accessible        = false
+
+  tags = {
+    Name     = "\${var.app_name}-db"
+    AppName  = var.app_name
+    FreeTier = "true"
+  }
+}
+
+# =============================================================================
+# Variables
+# =============================================================================
+
+variable "app_name" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
+variable "vpc_id" {
+  type = string
+}
+
+variable "private_subnet_ids" {
+  type = list(string)
+}
+
+variable "db_security_group_id" {
+  type = string
+}
+
+variable "db_name" {
+  type = string
+}
+
+variable "db_username" {
+  type      = string
+  sensitive = true
+}
+
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "db_instance_class" {
+  type = string
+}
+
+variable "db_allocated_storage" {
+  type = number
+}
+
+# =============================================================================
+# Outputs
+# =============================================================================
+
+output "db_endpoint" {
+  value = aws_db_instance.rds_postgres.endpoint
+}
+
+output "db_address" {
+  value = aws_db_instance.rds_postgres.address
+}
+
+output "db_port" {
+  value = aws_db_instance.rds_postgres.port
+}
+
+output "db_name" {
+  value = aws_db_instance.rds_postgres.db_name
+}
+
+output "db_identifier" {
+  value = aws_db_instance.rds_postgres.identifier
+}`;
+
+  return {
+    path: 'terraform/modules/rds/main.tf',
+    content,
+    description: 'RDS module using app_name'
+  };
+}
+
+
 export function generateTerraformTfvarsExample(
   project: Project,
   options: CodeGenOptions
 ): GeneratedFile {
-  const projectSlug = project.name.toLowerCase().replace(/\s+/g, '-');
   const dbName = project.name.toLowerCase().replace(/\s+/g, '_');
 
   const content = `# =============================================================================
-# ${project.name} - Terraform Variables Example
+# ${project.name} - Terraform Variables
 # =============================================================================
-# Copy this file to terraform.tfvars and update with your actual values
+# IMPORTANT: Do NOT edit this file manually when using deploy service
+# The deploy service will pass app_name automatically via -var flag
+#
+# This file is only needed if you're running Terraform manually (not recommended)
+# =============================================================================
 
-# Project Configuration
-project_name = "${projectSlug}"
-environment  = "dev"
-aws_region   = "us-east-1"
+# =============================================================================
+# CRITICAL: app_name is automatically generated and passed by deploy service
+# =============================================================================
+# DO NOT SET app_name HERE - it will be passed via: terraform apply -var="app_name=..."
+# If running manually, you must provide: -var="app_name=your-app-name-here"
+#
+# Example:
+#   terraform apply -var="app_name=task-manager-dev-abc12345"
+#
+# app_name format: lowercase alphanumeric with hyphens, max 50 chars
+# Example: "my-project-dev-abc12345"
 
-# Database Configuration
-db_name     = "${dbName}"
+# =============================================================================
+# AWS Configuration
+# =============================================================================
+
+aws_region = "us-east-1"
+environment = "dev"
+
+# =============================================================================
+# Database Configuration (FREE TIER)
+# =============================================================================
+
+db_name = "${dbName}"
 db_username = "postgres"
-db_password = "CHANGE_THIS_SECURE_PASSWORD"  # Change this!
+db_password = "CHANGE_THIS_PASSWORD_NOW"  # Min 8 characters, REQUIRED!
 
-db_instance_class    = "db.t3.micro"
-db_allocated_storage = 20
+# FREE TIER LIMITS:
+db_instance_class = "db.t3.micro"     # ✓ Free Tier eligible
+db_allocated_storage = 20              # ✓ Max 20GB for Free Tier
 
-# Application Configuration
-app_port       = 3000
-app_cpu        = 256
-app_memory     = 512
-desired_count  = 2
+# =============================================================================
+# Application Configuration (FREE TIER)
+# =============================================================================
 
-${options.includeAuth ? `# Authentication
-jwt_secret = "CHANGE_THIS_SECURE_JWT_SECRET"  # Change this!
+app_port = 3000
+app_cpu = 256       # ✓ 0.25 vCPU (Free Tier eligible)
+app_memory = 512    # ✓ 512 MB RAM
+desired_count = 1   # ✓ 1 task recommended for Free Tier
+
+${options.includeAuth ? `# =============================================================================
+# Authentication
+# =============================================================================
+
+jwt_secret = "CHANGE_THIS_JWT_SECRET_32_CHARS_MINIMUM"  # Min 32 characters, REQUIRED!
 ` : ''}
+# =============================================================================
 # Health Check
-health_check_path = "/health"`;
+# =============================================================================
+
+health_check_path = "/health"
+
+# =============================================================================
+# Cost Control
+# =============================================================================
+
+enable_deletion_protection = false  # Keep false for easy cleanup
+
+# =============================================================================
+# 💰 ESTIMATED MONTHLY COSTS (Free Tier):
+# =============================================================================
+# - RDS db.t3.micro (750 hours/month free): $0
+# - Fargate (512 MB RAM, 1 task): ~$5-10/month
+# - ALB (750 hours/month free first year): $0 first year, then ~$16/month
+# - ECR (500MB free): $0
+# - CloudWatch Logs (5GB free): $0
+# - Data Transfer (1GB free): $0
+#
+# TOTAL FIRST YEAR: ~$5-10/month
+# TOTAL AFTER YEAR 1: ~$20-30/month
+#
+# 🔥 FREE TIER LIMITS (12 months):
+# - 750 hours/month RDS db.t3.micro
+# - 750 hours/month ALB
+# - Always Free: 25 GB RDS storage, 20 GB backup storage
+# =============================================================================
+
+# =============================================================================
+# ⚠️  IMPORTANT NOTES:
+# =============================================================================
+# 1. app_name is NOT in this file - it's generated by deploy service
+# 2. If deploying manually, you MUST pass: -var="app_name=your-name"
+# 3. app_name must match the Docker image name pushed to ECR
+# 4. See README.md for proper deployment workflow
+# =============================================================================`;
 
   return {
-    path: 'terraform/terraform.tfvars.example',
+    path: 'terraform/terraform.tfvars',
     content,
-    description: 'Example Terraform variables file'
+    description: 'Example Terraform variables (app_name passed by deploy service)'
   };
 }
 
 /**
- * Generate deployment script
+ * Generate deployment script - DEPRECATED, use deploy service API instead
  */
-export function generateDeploymentScript(project: Project): GeneratedFile {
-  const projectSlug = project.name.toLowerCase().replace(/\s+/g, '-');
-
+export function generateDeploymentScript(project: Project, options: CodeGenOptions): GeneratedFile {
   const content = `#!/bin/bash
 # =============================================================================
 # ${project.name} - Deployment Script
+# =============================================================================
+# ⚠️  WARNING: This script is DEPRECATED
+# 
+# This project uses an app_name-driven deployment architecture where:
+# 1. app_name is generated by the deploy service (not this script)
+# 2. Docker images are built with the generated app_name
+# 3. Terraform receives app_name as a variable
+#
+# RECOMMENDED: Use the deploy service API instead:
+#   POST http://localhost:3001/api/deploy
+#   Then connect to WebSocket for real-time updates
+#
+# This script is provided for reference only and may not work correctly.
 # =============================================================================
 
 set -e
 set -o pipefail
 
-# Colors
 RED='\\033[0;31m'
 GREEN='\\033[0;32m'
 YELLOW='\\033[1;33m'
 BLUE='\\033[0;34m'
-NC='\\033[0m'
+NC='\\033[0;0m'
 
-# Configuration
-PROJECT_NAME="\${PROJECT_NAME:-${projectSlug}}"
-AWS_REGION="\${AWS_REGION:-us-east-1}"
-ENVIRONMENT="\${ENVIRONMENT:-dev}"
+echo -e "\${RED}╔════════════════════════════════════════════════════════╗\${NC}"
+echo -e "\${RED}║  ⚠️  WARNING: Manual Deployment Not Recommended       ║\${NC}"
+echo -e "\${RED}╚════════════════════════════════════════════════════════╝\${NC}"
+echo ""
+echo -e "\${YELLOW}This script cannot generate app_name correctly.\${NC}"
+echo -e "\${YELLOW}Use the deploy service API for proper deployment:\${NC}"
+echo ""
+echo -e "\${BLUE}1. Start deploy service:\${NC}"
+echo "   cd deploy-service && npm start"
+echo ""
+echo -e "\${BLUE}2. Initiate deployment:\${NC}"
+echo "   curl -X POST http://localhost:3001/api/deploy \\\\"
+echo "     -H 'Content-Type: application/json' \\\\"
+echo "     -d '{"
+echo "       \"userId\": \"your-user-id\","
+echo "       \"projectId\": \"your-project-id\","
+echo "       \"accessKeyId\": \"YOUR_AWS_KEY\","
+echo "       \"secretAccessKey\": \"YOUR_AWS_SECRET\","
+echo "       \"region\": \"us-east-1\""
+echo "     }'"
+echo ""
+echo -e "\${BLUE}3. Connect to WebSocket for real-time updates:\${NC}"
+echo "   Use deployment ID from step 2"
+echo ""
+echo -e "\${YELLOW}═══════════════════════════════════════════════════════\${NC}"
+echo ""
+read -p "Continue with manual deployment anyway? (yes/no): " CONFIRM
 
-error_exit() {
-    echo -e "\${RED}❌ Error: $1\${NC}" >&2
+if [ "\$CONFIRM" != "yes" ]; then
+    echo "Deployment cancelled. Please use the deploy service API."
     exit 1
-}
+fi
 
-success() {
-    echo -e "\${GREEN}✅ $1\${NC}"
-}
-
-info() {
-    echo -e "\${BLUE}ℹ️  $1\${NC}"
-}
-
-warn() {
-    echo -e "\${YELLOW}⚠️  $1\${NC}"
-}
-
-echo -e "\${GREEN}========================================\${NC}"
-echo -e "\${GREEN}🚀 Deploying ${project.name}\${NC}"
-echo -e "\${GREEN}========================================\${NC}"
+echo ""
+echo -e "\${YELLOW}⚠️  Proceeding with manual deployment...\${NC}"
 echo ""
 
 # =============================================================================
-# 1. Prerequisites Check
+# Manual Deployment (NOT RECOMMENDED)
+# =============================================================================
+
+# You MUST provide app_name manually
+if [ -z "\$APP_NAME" ]; then
+    echo -e "\${RED}ERROR: APP_NAME environment variable not set\${NC}"
+    echo ""
+    echo "Set APP_NAME to match your Docker image name:"
+    echo "  export APP_NAME=\"my-project-dev-abc12345\""
+    echo ""
+    echo "Format: lowercase alphanumeric with hyphens, max 50 chars"
+    echo "MUST match the image you pushed to ECR"
+    exit 1
+fi
+
+AWS_REGION="\${AWS_REGION:-us-east-1}"
+
+echo -e "\${GREEN}════════════════════════════════════\${NC}"
+echo -e "\${GREEN}Manual Deployment Configuration\${NC}"
+echo -e "\${GREEN}════════════════════════════════════\${NC}"
+echo ""
+echo "APP_NAME: \$APP_NAME"
+echo "AWS_REGION: \$AWS_REGION"
+echo ""
+
+# =============================================================================
+# 1. Prerequisites
 # =============================================================================
 echo -e "\${YELLOW}📋 Step 1: Checking prerequisites...\${NC}"
 
-if ! command -v terraform &> /dev/null; then
-    error_exit "Terraform not found. Install: https://www.terraform.io/downloads"
-fi
-success "Terraform found: \$(terraform version | head -n1)"
+command -v terraform &>/dev/null || { echo "Terraform not installed"; exit 1; }
+command -v aws &>/dev/null || { echo "AWS CLI not installed"; exit 1; }
+command -v docker &>/dev/null || { echo "Docker not installed"; exit 1; }
+docker info &>/dev/null || { echo "Docker daemon not running"; exit 1; }
 
-if ! command -v aws &> /dev/null; then
-    error_exit "AWS CLI not found. Install: https://aws.amazon.com/cli/"
-fi
-success "AWS CLI found: \$(aws --version)"
+echo -e "\${GREEN}✅ All tools installed\${NC}"
 
-if ! command -v docker &> /dev/null; then
-    error_exit "Docker not found. Install: https://docs.docker.com/get-docker/"
-fi
-success "Docker found: \$(docker --version)"
-
-if ! docker info &> /dev/null; then
-    error_exit "Docker daemon not running. Please start Docker."
-fi
-success "Docker daemon running"
-
-echo ""
-info "Verifying AWS credentials..."
-if ! aws sts get-caller-identity &> /dev/null; then
-    error_exit "AWS credentials not configured. Run: aws configure"
-fi
+aws sts get-caller-identity &>/dev/null || { echo "AWS not configured"; exit 1; }
 
 AWS_ACCOUNT_ID=\$(aws sts get-caller-identity --query Account --output text)
-AWS_USER=\$(aws sts get-caller-identity --query Arn --output text)
-success "AWS authenticated as: \${AWS_USER}"
-info "AWS Account ID: \${AWS_ACCOUNT_ID}"
-info "AWS Region: \${AWS_REGION}"
+ECR_REGISTRY="\${AWS_ACCOUNT_ID}.dkr.ecr.\${AWS_REGION}.amazonaws.com"
+
+echo -e "\${GREEN}✅ AWS authenticated\${NC}"
+echo "Account ID: \${AWS_ACCOUNT_ID}"
 echo ""
 
 # =============================================================================
-# 2. Check AWS IAM Permissions (FIXED)
+# 2. Check if image exists in ECR
 # =============================================================================
-echo -e "\${YELLOW}🔐 Step 2: Checking AWS IAM permissions...\${NC}"
+echo -e "\${YELLOW}🔍 Step 2: Validating Docker image in ECR...\${NC}"
 
-check_service_access() {
-    local service=\$1
-    local test_command=\$2
+if ! aws ecr describe-images \\
+    --repository-name "\$APP_NAME" \\
+    --image-ids imageTag=latest \\
+    --region \$AWS_REGION &>/dev/null; then
     
-    if eval "\$test_command" &> /dev/null; then
-        success "\$service access confirmed"
-        return 0
-    else
-        warn "\$service access check failed (may work anyway)"
-        return 1
-    fi
-}
-
-# Fixed permission checks - removed --max-results and added || true for graceful failures
-check_service_access "EC2" "aws ec2 describe-regions --region \$AWS_REGION"
-check_service_access "ECR" "aws ecr describe-repositories --region \$AWS_REGION || true"
-check_service_access "ECS" "aws ecs list-clusters --region \$AWS_REGION"
-check_service_access "RDS" "aws rds describe-db-instances --region \$AWS_REGION || true"
-
-echo ""
-info "Permission checks completed. Proceeding with deployment..."
-echo ""
-
-# =============================================================================
-# 3. Terraform Infrastructure
-# =============================================================================
-echo -e "\${YELLOW}🏗️  Step 3: Provisioning infrastructure...\${NC}"
-
-if [ ! -d "terraform" ]; then
-    error_exit "terraform/ directory not found. Are you in the project root?"
+    echo -e "\${RED}ERROR: Image \${ECR_REGISTRY}/\${APP_NAME}:latest not found in ECR\${NC}"
+    echo ""
+    echo "You must build and push the image first:"
+    echo "  1. aws ecr get-login-password --region \$AWS_REGION | \\\\"
+    echo "       docker login --username AWS --password-stdin \$ECR_REGISTRY"
+    echo "  2. docker build -t \$APP_NAME:latest ."
+    echo "  3. docker tag \$APP_NAME:latest \${ECR_REGISTRY}/\${APP_NAME}:latest"
+    echo "  4. docker push \${ECR_REGISTRY}/\${APP_NAME}:latest"
+    echo ""
+    exit 1
 fi
 
-cd terraform
+echo -e "\${GREEN}✅ Image found in ECR: \${APP_NAME}:latest\${NC}"
+echo ""
+
+# =============================================================================
+# 3. Terraform Deployment
+# =============================================================================
+echo -e "\${YELLOW}🏗️  Step 3: Deploying infrastructure...\${NC}"
+
+cd terraform || { echo "terraform/ directory not found"; exit 1; }
 
 if [ ! -f "terraform.tfvars" ]; then
-    error_exit "terraform.tfvars not found! Copy terraform.tfvars.example and configure it."
+    echo -e "\${RED}ERROR: terraform.tfvars not found\${NC}"
+    echo "Copy terraform.tfvars.example and set your passwords"
+    exit 1
 fi
-success "terraform.tfvars found"
 
-info "Initializing Terraform..."
-if ! terraform init; then
-    error_exit "Terraform initialization failed"
+# Check for required passwords
+if grep -q "CHANGE_THIS" terraform.tfvars; then
+    echo -e "\${RED}ERROR: Please set passwords in terraform.tfvars\${NC}"
+    exit 1
 fi
-success "Terraform initialized"
 
-info "Validating configuration..."
-if ! terraform validate; then
-    error_exit "Terraform validation failed"
-fi
-success "Configuration valid"
+echo "Initializing Terraform..."
+terraform init -reconfigure || exit 1
 
-info "Creating execution plan..."
-if ! terraform plan -out=tfplan; then
-    error_exit "Terraform plan failed"
-fi
-success "Execution plan created"
+echo "Planning deployment with app_name: \$APP_NAME"
+terraform plan -var="app_name=\$APP_NAME" || exit 1
 
 echo ""
-warn "About to apply infrastructure changes."
-read -p "Continue? (yes/no): " CONFIRM
-if [ "\$CONFIRM" != "yes" ]; then
-    error_exit "Deployment cancelled"
+echo -e "\${YELLOW}Review the plan above. Ready to apply?\${NC}"
+read -p "Continue? (yes/no): " APPLY_CONFIRM
+
+if [ "\$APPLY_CONFIRM" != "yes" ]; then
+    echo "Deployment cancelled"
+    exit 1
 fi
 
-info "Applying changes (10-15 minutes)..."
-if ! terraform apply tfplan; then
-    error_exit "Terraform apply failed"
-fi
-success "Infrastructure provisioned"
+echo "Applying with app_name: \$APP_NAME"
+terraform apply -auto-approve -var="app_name=\$APP_NAME" || exit 1
 
-info "Retrieving outputs..."
-ECR_REPOSITORY_URL=\$(terraform output -raw ecr_repository_url 2>/dev/null) || error_exit "Failed to get ECR URL"
-ECS_CLUSTER_NAME=\$(terraform output -raw ecs_cluster_name 2>/dev/null) || error_exit "Failed to get cluster name"
-ECS_SERVICE_NAME=\$(terraform output -raw ecs_service_name 2>/dev/null) || error_exit "Failed to get service name"
-ALB_DNS_NAME=\$(terraform output -raw alb_dns_name 2>/dev/null) || error_exit "Failed to get ALB DNS"
-success "Outputs retrieved"
-
-cd ..
+echo -e "\${GREEN}✅ Infrastructure deployed\${NC}"
 echo ""
 
 # =============================================================================
-# 4. Docker Build & Push
+# 4. Get outputs
 # =============================================================================
-echo -e "\${YELLOW}🐳 Step 4: Building and pushing Docker image...\${NC}"
+ALB_DNS=\$(terraform output -raw alb_dns_name 2>/dev/null || echo "")
 
-if [ ! -f "Dockerfile" ]; then
-    error_exit "Dockerfile not found"
-fi
-success "Dockerfile found"
-
-info "Logging into ECR..."
-if ! aws ecr get-login-password --region \$AWS_REGION | \\
-    docker login --username AWS --password-stdin \$ECR_REPOSITORY_URL; then
-    error_exit "ECR login failed"
-fi
-success "ECR login successful"
-
-info "Building Docker image..."
-if ! docker build -t \$PROJECT_NAME:latest .; then
-    error_exit "Docker build failed"
-fi
-success "Image built"
-
-info "Tagging for ECR..."
-docker tag \$PROJECT_NAME:latest \$ECR_REPOSITORY_URL:latest
-success "Image tagged"
-
-info "Pushing to ECR..."
-if ! docker push \$ECR_REPOSITORY_URL:latest; then
-    error_exit "Push to ECR failed"
-fi
-success "Image pushed"
+echo -e "\${GREEN}════════════════════════════════════\${NC}"
+echo -e "\${GREEN}✅ Deployment Complete\${NC}"
+echo -e "\${GREEN}════════════════════════════════════\${NC}"
 echo ""
-
-# =============================================================================
-# 5. ECS Deployment
-# =============================================================================
-echo -e "\${YELLOW}🚢 Step 5: Deploying to ECS...\${NC}"
-
-info "Forcing new deployment..."
-if ! aws ecs update-service \\
-    --cluster \$ECS_CLUSTER_NAME \\
-    --service \$ECS_SERVICE_NAME \\
-    --force-new-deployment \\
-    --region \$AWS_REGION \\
-    > /dev/null; then
-    error_exit "ECS update failed"
-fi
-success "Deployment initiated"
-
-info "Waiting for stability (5-10 minutes)..."
-info "Press Ctrl+C to exit (deployment continues)"
-
-if aws ecs wait services-stable \\
-    --cluster \$ECS_CLUSTER_NAME \\
-    --services \$ECS_SERVICE_NAME \\
-    --region \$AWS_REGION 2>/dev/null; then
-    success "Service is stable"
-else
-    warn "Stabilization timeout"
-    info "Check status: aws ecs describe-services --cluster \$ECS_CLUSTER_NAME --services \$ECS_SERVICE_NAME"
-fi
-echo ""
-
-# =============================================================================
-# 6. Health Check
-# =============================================================================
-echo -e "\${YELLOW}🏥 Step 6: Health check...\${NC}"
-
-info "Waiting 30s for load balancer..."
-sleep 30
-
-HEALTH_URL="http://\${ALB_DNS_NAME}/health"
-info "Checking: \$HEALTH_URL"
-
-for i in {1..10}; do
-    if curl -f -s -o /dev/null "\$HEALTH_URL"; then
-        success "Health check passed!"
-        break
-    else
-        warn "Health check failed (attempt \$i/10), retrying..."
-        sleep 10
-    fi
-    
-    if [ \$i -eq 10 ]; then
-        warn "Health check incomplete"
-        info "Check logs: aws logs tail /ecs/\${PROJECT_NAME}-\${ENVIRONMENT} --follow"
-    fi
-done
-echo ""
-
-# =============================================================================
-# 7. Summary
-# =============================================================================
-echo -e "\${GREEN}========================================\${NC}"
-echo -e "\${GREEN}✅ Deployment Complete!\${NC}"
-echo -e "\${GREEN}========================================\${NC}"
-echo ""
-echo -e "\${BLUE}📊 Summary:\${NC}"
-echo "  • Project: \${PROJECT_NAME}"
-echo "  • Environment: \${ENVIRONMENT}"
-echo "  • Region: \${AWS_REGION}"
-echo "  • Account: \${AWS_ACCOUNT_ID}"
-echo ""
-echo -e "\${BLUE}🌐 URLs:\${NC}"
-echo "  • App: http://\${ALB_DNS_NAME}"
-echo "  • Health: http://\${ALB_DNS_NAME}/health"
-echo ""
-echo -e "\${BLUE}🎯 Resources:\${NC}"
-echo "  • Cluster: \${ECS_CLUSTER_NAME}"
-echo "  • Service: \${ECS_SERVICE_NAME}"
-echo "  • Registry: \${ECR_REPOSITORY_URL}"
-echo ""
-echo -e "\${YELLOW}⏳ Load balancer may take 2-3 minutes to be fully healthy\${NC}"
-echo ""
-echo -e "\${BLUE}📚 Commands:\${NC}"
-echo ""
-echo "Service status:"
-echo "  aws ecs describe-services --cluster \$ECS_CLUSTER_NAME --services \$ECS_SERVICE_NAME"
+echo "APP_NAME: \$APP_NAME"
+echo "URL: http://\${ALB_DNS}"
 echo ""
 echo "View logs:"
-echo "  aws logs tail /ecs/\${PROJECT_NAME}-\${ENVIRONMENT} --follow"
+echo "  aws logs tail /ecs/\${APP_NAME} --follow"
 echo ""
-echo "List tasks:"
-echo "  aws ecs list-tasks --cluster \$ECS_CLUSTER_NAME --service-name \$ECS_SERVICE_NAME"
-echo ""
-echo "Test API:"
-echo "  curl http://\${ALB_DNS_NAME}/health"
+echo "Destroy:"
+echo "  cd terraform && terraform destroy -var=\\"app_name=\$APP_NAME\\""
 echo ""`;
 
   return {
     path: 'deploy.sh',
     content,
-    description: 'Fixed deployment script with proper permission checks and error handling'
+    description: 'Deprecated deployment script (use deploy service API instead)'
   };
 }
 
 /**
- * Generate Terraform README
+ * Generate Terraform README - UPDATED for app_name architecture
  */
 export function generateTerraformReadme(
   project: Project,
@@ -1715,103 +1659,185 @@ export function generateTerraformReadme(
 
 This directory contains Terraform configurations for deploying ${project.name} to AWS ECS (Fargate).
 
+## 🎯 Architecture: app_name Driven
+
+**IMPORTANT**: This project uses an **app_name-driven architecture** where:
+
+1. **app_name** is generated by the deploy service (not by Terraform)
+2. Docker images are built and tagged with app_name
+3. Images are validated in ECR before Terraform runs
+4. Terraform receives app_name as an input variable
+5. All resources are named using app_name
+
+### Why app_name?
+
+The deploy service generates a unique, immutable identifier for your application:
+
+\`\`\`
+generateAppName("Task Manager", "abc12345-...")
+  → "task-manager-dev-abc12345"
+\`\`\`
+
+This ensures perfect consistency between:
+- ECR repository name
+- Docker image name
+- ECS task definition family
+- ECS container name
+- All other AWS resources
+
 ## 📋 Infrastructure Components
 
 - **VPC**: Custom VPC with public and private subnets across 2 AZs
 - **RDS**: PostgreSQL database in private subnets
-- **ECR**: Docker container registry
-- **ECS**: Fargate cluster with auto-scaling
+- **ECR**: Docker container registry (named with app_name)
+- **ECS**: Fargate cluster (tasks use app_name)
 - **ALB**: Application Load Balancer for traffic distribution
 - **Security Groups**: Properly configured network security
 
-## 🚀 Quick Start
+## 🚀 Deployment (RECOMMENDED: Use Deploy Service API)
 
-### Prerequisites
+### Method 1: Deploy Service API (Recommended)
+
+The deploy service handles everything automatically:
 
 \`\`\`bash
-# Install Terraform
-brew install terraform  # macOS
-# or download from https://www.terraform.io/downloads
+# 1. Start deploy service
+cd deploy-service
+npm install
+npm start
 
-# Configure AWS credentials
-aws configure
+# 2. Initiate deployment via API
+curl -X POST http://localhost:3001/api/deploy \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "userId": "your-user-id",
+    "projectId": "your-project-id",
+    "accessKeyId": "YOUR_AWS_ACCESS_KEY",
+    "secretAccessKey": "YOUR_AWS_SECRET_KEY",
+    "region": "us-east-1"
+  }'
+
+# 3. Connect to WebSocket for real-time updates
+# Use deploymentId from response above
 \`\`\`
 
-### Deployment Steps
+The deploy service will:
+1. ✅ Generate app_name automatically
+2. ✅ Build Docker image with app_name
+3. ✅ Push to ECR with app_name
+4. ✅ Validate image exists in ECR
+5. ✅ Run Terraform with \`-var="app_name=..."\`
+6. ✅ Stream logs via WebSocket
 
-1. **Configure Variables**
+### Method 2: Manual Deployment (Not Recommended)
+
+If you must deploy manually, you need to:
+
+1. **Generate app_name** (cannot be done manually - use deploy service)
+2. **Build and push Docker image**:
+   \`\`\`bash
+   # Set app_name (must match exactly what deploy service would generate)
+   export APP_NAME="task-manager-dev-abc12345"
+   export AWS_REGION="us-east-1"
+   export AWS_ACCOUNT_ID=\$(aws sts get-caller-identity --query Account --output text)
+   export ECR_REGISTRY="\${AWS_ACCOUNT_ID}.dkr.ecr.\${AWS_REGION}.amazonaws.com"
+   
+   # Login to ECR
+   aws ecr get-login-password --region \$AWS_REGION | \\
+     docker login --username AWS --password-stdin \$ECR_REGISTRY
+   
+   # Create ECR repository
+   aws ecr create-repository --repository-name \$APP_NAME --region \$AWS_REGION
+   
+   # Build and push
+   docker build -t \$APP_NAME:latest .
+   docker tag \$APP_NAME:latest \${ECR_REGISTRY}/\${APP_NAME}:latest
+   docker push \${ECR_REGISTRY}/\${APP_NAME}:latest
+   \`\`\`
+
+3. **Validate image exists**:
+   \`\`\`bash
+   aws ecr describe-images \\
+     --repository-name \$APP_NAME \\
+     --image-ids imageTag=latest \\
+     --region \$AWS_REGION
+   \`\`\`
+
+4. **Deploy with Terraform**:
    \`\`\`bash
    cd terraform
-   cp terraform.tfvars.example terraform.tfvars
-   # Edit terraform.tfvars with your values
-   \`\`\`
-
-2. **Deploy Everything**
-   \`\`\`bash
-   # From project root
-   chmod +x deploy.sh
-   ./deploy.sh
-   \`\`\`
-
-   Or manually:
-   \`\`\`bash
-   # Initialize Terraform
+   # Edit terraform.tfvars with your passwords
+   
    terraform init
-
-   # Review changes
-   terraform plan
-
-   # Apply infrastructure
-   terraform apply
-
-   # Build and push Docker image
-   ECR_URL=$(terraform output -raw ecr_repository_url)
-   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URL
-   docker build -t myapp .
-   docker tag myapp:latest $ECR_URL:latest
-   docker push $ECR_URL:latest
-
-   # Force ECS deployment
-   aws ecs update-service \\
-     --cluster $(terraform output -raw ecs_cluster_name) \\
-     --service $(terraform output -raw ecs_service_name) \\
-     --force-new-deployment
+   terraform plan -var="app_name=\$APP_NAME"
+   terraform apply -var="app_name=\$APP_NAME"
    \`\`\`
+
+**⚠️ WARNING**: Manual deployment is error-prone. The deploy service is designed to prevent common mistakes like:
+- Name mismatches between Docker and Terraform
+- Deploying before image is pushed
+- Using incorrect app_name format
 
 ## 📁 File Structure
 
 \`\`\`
 terraform/
-├── main.tf                    # Main configuration
-├── variables.tf               # Variable definitions
+├── main.tf                    # Main configuration (uses var.app_name)
+├── variables.tf               # Variable definitions (app_name required)
 ├── outputs.tf                 # Output values
-├── terraform.tfvars.example   # Example variables
+├── terraform.tfvars   # Example variables (app_name NOT here)
 └── modules/
-    ├── vpc/                   # VPC networking
-    ├── security/              # Security groups
-    ├── rds/                   # PostgreSQL database
-    ├── ecr/                   # Container registry
-    └── ecs/                   # ECS cluster & service
+    ├── vpc/                   # VPC networking (uses var.app_name)
+    ├── security/              # Security groups (uses var.app_name)
+    ├── rds/                   # PostgreSQL database (uses var.app_name)
+    ├── ecr/                   # Container registry (name = var.app_name)
+    └── ecs/                   # ECS cluster & service (uses var.app_name)
 \`\`\`
 
 ## 🔧 Important Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| \`project_name\` | Project identifier | - |
-| \`environment\` | Environment name | dev |
-| \`db_password\` | Database password | - |
-${options.includeAuth ? '| `jwt_secret` | JWT signing secret | - |\n' : ''}| \`app_cpu\` | Fargate CPU units | 256 |
-| \`app_memory\` | Fargate memory (MB) | 512 |
-| \`desired_count\` | Number of tasks | 2 |
+| Variable | Description | Source | Default |
+|----------|-------------|--------|---------|
+| \`app_name\` | **CRITICAL**: Unique app identifier | Deploy service | **NONE** (must provide) |
+| \`aws_region\` | AWS region | terraform.tfvars | us-east-1 |
+| \`environment\` | Environment name | terraform.tfvars | dev |
+| \`db_password\` | Database password | terraform.tfvars | **REQUIRED** |
+${options.includeAuth ? '| `jwt_secret` | JWT signing secret | terraform.tfvars | **REQUIRED** |\n' : ''}| \`app_cpu\` | Fargate CPU units | terraform.tfvars | 256 |
+| \`app_memory\` | Fargate memory (MB) | terraform.tfvars | 512 |
+| \`desired_count\` | Number of tasks | terraform.tfvars | 1 |
+
+### app_name Requirements
+
+The app_name must:
+- ✅ Be lowercase
+- ✅ Use only alphanumeric and hyphens
+- ✅ Start and end with alphanumeric
+- ✅ Be 50 characters or less
+- ✅ Match the Docker image name in ECR
+- ✅ Be generated by deploy service (not manually)
+
+**Example**: \`task-manager-dev-abc12345\`
 
 ## 📊 Outputs
 
 After deployment, Terraform provides:
 
-- \`alb_url\`: Application URL
-- \`ecr_repository_url\`: Docker registry URL
-- \`db_endpoint\`: Database connection endpoint
+\`\`\`bash
+# Get app_name used
+terraform output app_name
+
+# Get application URL
+terraform output alb_url
+
+# Get ECR repository
+terraform output ecr_repository_url
+
+# Get container image path
+terraform output container_image
+
+# Get resource summary
+terraform output resource_summary
+\`\`\`
 
 ## 🔒 Security Considerations
 
@@ -1819,60 +1845,130 @@ After deployment, Terraform provides:
 2. Use strong passwords for \`db_password\`${options.includeAuth ? ' and `jwt_secret`' : ''}
 3. Review security group rules before applying
 4. Enable deletion protection for production RDS instances
-5. Consider using AWS Secrets Manager for sensitive data
+5. Use AWS Secrets Manager for production secrets
+6. Never hardcode \`app_name\` - let deploy service generate it
 
 ## 💰 Cost Estimation
 
 Approximate monthly costs (us-east-1):
 
-- **ECS Fargate** (2 tasks, 0.25 vCPU, 0.5 GB): ~$15-20
+- **ECS Fargate** (1 task, 0.25 vCPU, 0.5 GB): ~$5-10
 - **RDS db.t3.micro**: ~$15-20
 - **ALB**: ~$16-20
 - **Data Transfer**: Variable
 - **ECR Storage**: Minimal
 
-**Total**: ~$50-70/month for dev environment
+**Total**: ~$40-60/month for dev environment
+
+**Free Tier Eligible** (first 12 months):
+- 750 hours/month RDS db.t3.micro
+- 750 hours/month ALB
+- Always free: 25 GB RDS storage
 
 ## 🔄 Updating Infrastructure
 
-\`\`\`bash
-# Modify .tf files
-terraform plan
-terraform apply
+### Update Application Code Only
 
-# To update application code only
-./deploy.sh  # Rebuilds and redeploys container
+\`\`\`bash
+# Use deploy service to rebuild and redeploy
+# It will handle Docker build/push and ECS update
+curl -X POST http://localhost:3001/api/deploy ...
+\`\`\`
+
+### Update Infrastructure (Terraform)
+
+\`\`\`bash
+# Modify .tf files, then:
+terraform plan -var="app_name=\$APP_NAME"
+terraform apply -var="app_name=\$APP_NAME"
 \`\`\`
 
 ## 🗑️ Cleanup
 
+### Using Deploy Service (Recommended)
+
+\`\`\`bash
+curl -X POST http://localhost:3001/api/destroy \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "userId": "your-user-id",
+    "projectId": "your-project-id",
+    "accessKeyId": "YOUR_AWS_ACCESS_KEY",
+    "secretAccessKey": "YOUR_AWS_SECRET_KEY",
+    "region": "us-east-1"
+  }'
+\`\`\`
+
+### Manual Cleanup
+
 \`\`\`bash
 cd terraform
-terraform destroy
+terraform destroy -var="app_name=\$APP_NAME"
 \`\`\`
 
 ⚠️ **Warning**: This will delete all resources including the database!
 
 ## 🐛 Troubleshooting
 
-### Issue: Service won't stabilize
+### Issue: "app_name variable not set"
+
+**Cause**: Terraform doesn't know the app_name
+
+**Solution**: 
+- Use deploy service API (recommended)
+- OR manually pass: \`terraform apply -var="app_name=your-app-name"\`
+
+### Issue: "Image not found" during ECS deployment
+
+**Cause**: Docker image doesn't exist in ECR with the expected name
+
+**Solution**:
+1. Verify ECR repository exists:
+   \`\`\`bash
+   aws ecr describe-repositories --repository-names \$APP_NAME
+   \`\`\`
+
+2. Verify image exists:
+   \`\`\`bash
+   aws ecr describe-images \\
+     --repository-name \$APP_NAME \\
+     --image-ids imageTag=latest
+   \`\`\`
+
+3. If missing, build and push with correct app_name:
+   \`\`\`bash
+   docker build -t \$APP_NAME:latest .
+   docker tag \$APP_NAME:latest \${ECR_REGISTRY}/\${APP_NAME}:latest
+   docker push \${ECR_REGISTRY}/\${APP_NAME}:latest
+   \`\`\`
+
+### Issue: Name mismatch between Docker and ECS
+
+**Cause**: Docker image was pushed with different name than Terraform expects
+
+**Solution**: This is why we recommend using the deploy service! It guarantees consistency.
+
+**Manual fix**:
+1. Delete wrong ECR repository
+2. Use same app_name for Docker build and Terraform
+3. Push image with correct name
+4. Redeploy with Terraform
+
+### Issue: ECS service won't stabilize
+
 \`\`\`bash
 # Check service events
-aws ecs describe-services --cluster CLUSTER_NAME --services SERVICE_NAME
+aws ecs describe-services \\
+  --cluster \${APP_NAME}-cluster \\
+  --services \${APP_NAME}-service
 
 # Check task logs
-aws logs tail /ecs/PROJECT_NAME-ENV --follow
-\`\`\`
-
-### Issue: Can't push to ECR
-\`\`\`bash
-# Re-authenticate
-aws ecr get-login-password --region us-east-1 | \\
-  docker login --username AWS --password-stdin ECR_URL
+aws logs tail /ecs/\${APP_NAME} --follow
 \`\`\`
 
 ### Issue: Database connection fails
-- Check security group rules
+
+- Check security group rules allow ECS → RDS
 - Verify RDS is in "available" state
 - Confirm environment variables in ECS task definition
 
@@ -1880,11 +1976,25 @@ aws ecr get-login-password --region us-east-1 | \\
 
 - [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
 - [AWS ECS Documentation](https://docs.aws.amazon.com/ecs/)
-- [AWS RDS PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html)`;
+- [AWS RDS PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html)
+- [Deploy Service API Documentation](../deploy-service/README.md)
+
+## ✅ Verification Checklist
+
+After deployment, verify:
+
+- [ ] \`terraform output app_name\` shows correct value
+- [ ] ECR repository exists: \`aws ecr describe-repositories --repository-names \$APP_NAME\`
+- [ ] Image exists in ECR: \`aws ecr describe-images --repository-name \$APP_NAME\`
+- [ ] ECS task definition family matches app_name
+- [ ] ECS container name matches app_name
+- [ ] ECS service is running: \`aws ecs describe-services --cluster \${APP_NAME}-cluster\`
+- [ ] No image pull errors in ECS events
+- [ ] Application accessible via ALB URL`;
 
   return {
     path: 'terraform/README.md',
     content,
-    description: 'Comprehensive Terraform documentation'
+    description: 'Comprehensive Terraform documentation for app_name architecture'
   };
 }

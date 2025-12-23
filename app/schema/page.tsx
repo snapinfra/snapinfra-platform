@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Database, Plus, Rocket, Info, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useAppContext } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
 import { DeploymentModal } from "@/components/deployment-modal"
 import Link from "next/link"
 

@@ -43,7 +43,7 @@ import {
   Lock,
   Cloud
 } from "lucide-react"
-import { DatabaseConfig, DatabaseType } from "@/lib/app-context"
+import { DatabaseConfig, DatabaseType } from "@/lib/appContext/app-context"
 
 interface DatabaseConfigPanelProps {
   databaseConfig: DatabaseConfig

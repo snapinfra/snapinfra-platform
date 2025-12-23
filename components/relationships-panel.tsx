@@ -45,7 +45,7 @@ import {
   Network,
   Layers
 } from "lucide-react"
-import { TableSchema, FieldSchema, Relationship } from "@/lib/app-context"
+import { TableSchema, FieldSchema, Relationship } from "@/lib/appContext/app-context"
 import { RelationshipDiagram } from "./relationship-diagram"
 
 interface RelationshipsPanelProps {

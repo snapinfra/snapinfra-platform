@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useAppContext } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
 import { updateProject as updateProjectAPI } from "@/lib/api-client"
 import { EnterpriseDashboardLayout } from "@/components/enterprise-dashboard-layout"
 import { Button } from "@/components/ui/button"

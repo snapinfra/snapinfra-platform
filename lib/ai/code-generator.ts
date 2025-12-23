@@ -270,9 +270,9 @@ function extractComponentName(rawName: string): string {
 
   const parts = name.split(/\s+/);
   name = parts
-    .map((part, index) => 
-      index === 0 
-        ? part.toLowerCase() 
+    .map((part, index) =>
+      index === 0
+        ? part.toLowerCase()
         : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
     )
     .join('');
@@ -1119,7 +1119,7 @@ async function generateModuleWithValidation(
         generateTerraformECRModule(),
         generateTerraformECSModule(ctx.project, ctx.options),
         generateTerraformTfvarsExample(ctx.project, ctx.options),
-        generateDeploymentScript(ctx.project),
+        generateDeploymentScript(ctx.project, ctx.options),
         generateTerraformReadme(ctx.project, ctx.options)
       ];
 
@@ -1772,7 +1772,7 @@ export async function generateCode(
   console.log('\n🚀 Starting DIAGRAM-DRIVEN code generation...');
   console.log('='.repeat(70));
   console.log(`📦 Project: ${project.name}`);
-
+  console.log(project, 'this is the project')
   // Log architecture information
   if (project.diagrams) {
     console.log(`\n📐 Architecture Diagrams Detected:`);
@@ -2191,7 +2191,7 @@ function getModuleSpecs(project, options) {
       'terraform/main.tf',
       'terraform/variables.tf',
       'terraform/outputs.tf',
-      'terraform/terraform.tfvars.example',
+      'terraform/terraform.tfvars',
       'terraform/modules/vpc/main.tf',
       'terraform/modules/security/main.tf',
       'terraform/modules/rds/main.tf',
@@ -2267,6 +2267,177 @@ function generatePackageJson(
 // UPDATED ENTRY POINT - Register ALL Components
 // ============================================================================
 
+// function generateEntryPoint(
+//   project: Project,
+//   options: CodeGenOptions,
+//   ctx: EnhancedGenerationContext
+// ): GeneratedFile {
+//   const allComponents = extractAllComponents(project);
+//   const tableComponents = allComponents.filter(c => c.type === 'table');
+//   const customComponents = allComponents.filter(c => c.type === 'custom');
+
+//   // 🔥 VALIDATE ALL COMPONENT NAMES BEFORE USING
+//   [...tableComponents, ...customComponents].forEach(comp => {
+//     if (!isValidJavaScriptIdentifier(comp.name)) {
+//       throw new Error(
+//         `Invalid component name: "${comp.name}". ` +
+//         `Component names must be valid JavaScript identifiers. ` +
+//         `Please check your diagram node names.`
+//       );
+//     }
+//   });
+
+//   const content = `const express = require('express');
+// const cors = require('cors');
+// const helmet = require('helmet');
+// const compression = require('compression');
+// const dotenv = require('dotenv');
+
+// // Import middleware
+// const { errorHandler, notFoundHandler, requestLogger } = require('./middleware');
+// const { createLogger } = require('./utils/logger');
+
+// const logger = createLogger();
+
+// // ============================================================================
+// // TABLE-BASED ROUTES
+// // ============================================================================
+// ${tableComponents.map(comp => {
+//     // 🔥 DOUBLE CHECK: comp.name is valid
+//     const routerVarName = `${comp.name}Router`; // e.g., "userRouter"
+//     const routeFile = `${comp.name}Routes`; // e.g., "userRoutes"
+
+//     if (!isValidJavaScriptIdentifier(routerVarName)) {
+//       throw new Error(`Invalid router variable name: ${routerVarName}`);
+//     }
+
+//     return `const { router: ${routerVarName} } = require('./routes/${routeFile}');`;
+//   }).join('\n')}
+
+// // ============================================================================
+// // CUSTOM COMPONENT ROUTES (from LLD/API Map diagrams)
+// // ============================================================================
+// ${customComponents.map(comp => {
+//     // 🔥 DOUBLE CHECK: comp.name is valid
+//     const routerVarName = `${comp.name}Router`; // e.g., "helloApiRouter"
+//     const routeFile = `${comp.name}Routes`; // e.g., "helloApiRoutes"
+
+//     if (!isValidJavaScriptIdentifier(routerVarName)) {
+//       throw new Error(`Invalid router variable name: ${routerVarName}`);
+//     }
+
+//     return `const { router: ${routerVarName} } = require('./routes/${routeFile}');`;
+//   }).join('\n')}
+
+// ${options.includeAuth ? "const { router: authRouter } = require('./auth/routes');" : ''}
+
+// dotenv.config();
+
+// const app = express();
+// const PORT = process.env.PORT || 3000;
+
+// // Security middleware
+// app.use(helmet());
+// app.use(cors({
+//   origin: process.env.CORS_ORIGIN?.split(',') || '*',
+//   credentials: true
+// }));
+// app.use(compression());
+
+// // Body parsing middleware
+// app.use(express.json());
+// app.use(express.urlencoded({ extended: true }));
+
+// // Request logging middleware
+// app.use(requestLogger);
+
+// // Health check endpoint
+// app.get('/health', (req, res) => {
+//   res.json({ 
+//     status: 'ok', 
+//     timestamp: new Date().toISOString(),
+//     service: '${project.name}',
+//     environment: process.env.NODE_ENV || 'development',
+//     components: {
+//       tables: ${tableComponents.length},
+//       custom: ${customComponents.length},
+//       total: ${allComponents.length}
+//     }
+//   });
+// });
+
+// // ============================================================================
+// // REGISTER TABLE-BASED ROUTES
+// // ============================================================================
+// ${tableComponents.map(comp => {
+//     const basePath = comp.endpoints[0]?.path.match(/\/api\/v?\d*\/[\w-]+/)?.[0] || `/api/v1/${comp.name}`;
+//     const routerVarName = `${comp.name}Router`;
+//     return `app.use('${basePath}', ${routerVarName}); // ${comp.name}`;
+//   }).join('\n')}
+
+// // ============================================================================
+// // REGISTER CUSTOM COMPONENT ROUTES
+// // ============================================================================
+// ${customComponents.map(comp => {
+//     const firstEndpoint = comp.endpoints[0];
+//     const basePath = firstEndpoint?.path.match(/\/api\/v?\d*\/[\w-]+/)?.[0] || `/api/v1/${comp.name}`;
+//     const routerVarName = `${comp.name}Router`;
+//     return `app.use('${basePath}', ${routerVarName}); // ${comp.name} (custom)`;
+//   }).join('\n')}
+
+// ${options.includeAuth ? "app.use('/api/auth', authRouter);" : ''}
+
+// // 404 handler
+// app.use(notFoundHandler);
+
+// // Error handling middleware (must be last)
+// app.use(errorHandler);
+
+// // Start server
+// if (require.main === module) {
+//   app.listen(PORT, () => {
+//     logger.info('Server starting', {
+//       service: process.env.npm_package_name || '${project.name}',
+//       port: PORT,
+//       environment: process.env.NODE_ENV || 'development',
+//       components: {
+//         tables: ${tableComponents.length},
+//         custom: ${customComponents.length}
+//       }
+//     });
+
+//     console.log('='.repeat(60));
+//     console.log(\`🚀 \${process.env.npm_package_name || '${project.name}'} Server\`);
+//     console.log('='.repeat(60));
+//     console.log(\`📡 Port: \${PORT}\`);
+//     console.log(\`📝 Environment: \${process.env.NODE_ENV || 'development'}\`);
+//     console.log(\`\`);
+//     console.log(\`📊 Registered Routes:\`);
+// ${tableComponents.map(comp => {
+//     const basePath = comp.endpoints[0]?.path.match(/\/api\/v?\d*\/[\w-]+/)?.[0] || `/api/v1/${comp.name}`;
+//     return `    console.log(\`   • ${basePath} (${comp.name})\`);`;
+//   }).join('\n')}
+// ${customComponents.map(comp => {
+//     const firstEndpoint = comp.endpoints[0];
+//     const basePath = firstEndpoint?.path.match(/\/api\/v?\d*\/[\w-]+/)?.[0] || `/api/v1/${comp.name}`;
+//     return `    console.log(\`   • ${basePath} (${comp.name} - custom)\`);`;
+//   }).join('\n')}
+//     console.log('='.repeat(60));
+//     console.log(\`\\n✅ Server ready at http://localhost:\${PORT}\`);
+//     console.log(\`📊 Health check: http://localhost:\${PORT}/health\\n\`);
+//   });
+// }
+
+// module.exports = { app };`;
+
+//   return {
+//     path: 'src/index.js',
+//     content,
+//     description: 'Main application entry point with validated component names',
+//     exports: ['app']
+//   };
+// }
+
 function generateEntryPoint(
   project: Project,
   options: CodeGenOptions,
@@ -2287,6 +2458,54 @@ function generateEntryPoint(
     }
   });
 
+  // 🔥 NEW: Get actual route files from function registry
+  const getActualRouteFiles = (components: DiagramComponent[]) => {
+    const routeFiles: Array<{ comp: DiagramComponent; actualPath: string; routerVar: string }> = [];
+
+    components.forEach(comp => {
+      // Try to find the actual generated route file
+      const possiblePaths = [
+        `src/routes/${toCamelCase(comp.name)}Routes.js`,
+        `src/routes/${comp.name}Routes.js`,
+        `src/routes/${comp.name.toLowerCase()}Routes.js`,
+      ];
+
+      let foundPath: string | null = null;
+      for (const path of possiblePaths) {
+        const fileCtx = ctx.functionRegistry.get(path);
+        if (fileCtx && fileCtx.exports.includes('router')) {
+          foundPath = path;
+          break;
+        }
+      }
+
+      if (foundPath) {
+        const routerVarName = `${comp.name}Router`;
+        if (isValidJavaScriptIdentifier(routerVarName)) {
+          routeFiles.push({
+            comp,
+            actualPath: foundPath,
+            routerVar: routerVarName
+          });
+        } else {
+          console.warn(`⚠️  Skipping invalid router variable: ${routerVarName}`);
+        }
+      } else {
+        console.warn(`⚠️  Route file not found for component: ${comp.name}`);
+        console.warn(`   Tried paths: ${possiblePaths.join(', ')}`);
+      }
+    });
+
+    return routeFiles;
+  };
+
+  const tableRoutes = getActualRouteFiles(tableComponents);
+  const customRoutes = getActualRouteFiles(customComponents);
+
+  console.log(`\n📋 Entry Point Route Registration:`);
+  console.log(`   Table routes: ${tableRoutes.length}/${tableComponents.length}`);
+  console.log(`   Custom routes: ${customRoutes.length}/${customComponents.length}`);
+
   const content = `const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -2302,31 +2521,17 @@ const logger = createLogger();
 // ============================================================================
 // TABLE-BASED ROUTES
 // ============================================================================
-${tableComponents.map(comp => {
-    // 🔥 DOUBLE CHECK: comp.name is valid
-    const routerVarName = `${comp.name}Router`; // e.g., "userRouter"
-    const routeFile = `${comp.name}Routes`; // e.g., "userRoutes"
-
-    if (!isValidJavaScriptIdentifier(routerVarName)) {
-      throw new Error(`Invalid router variable name: ${routerVarName}`);
-    }
-
-    return `const { router: ${routerVarName} } = require('./routes/${routeFile}');`;
+${tableRoutes.map(({ actualPath, routerVar }) => {
+    const relativePath = actualPath.replace(/^src\//, './').replace(/\.js$/, '');
+    return `const { router: ${routerVar} } = require('${relativePath}');`;
   }).join('\n')}
 
 // ============================================================================
 // CUSTOM COMPONENT ROUTES (from LLD/API Map diagrams)
 // ============================================================================
-${customComponents.map(comp => {
-    // 🔥 DOUBLE CHECK: comp.name is valid
-    const routerVarName = `${comp.name}Router`; // e.g., "helloApiRouter"
-    const routeFile = `${comp.name}Routes`; // e.g., "helloApiRoutes"
-
-    if (!isValidJavaScriptIdentifier(routerVarName)) {
-      throw new Error(`Invalid router variable name: ${routerVarName}`);
-    }
-
-    return `const { router: ${routerVarName} } = require('./routes/${routeFile}');`;
+${customRoutes.map(({ actualPath, routerVar }) => {
+    const relativePath = actualPath.replace(/^src\//, './').replace(/\.js$/, '');
+    return `const { router: ${routerVar} } = require('${relativePath}');`;
   }).join('\n')}
 
 ${options.includeAuth ? "const { router: authRouter } = require('./auth/routes');" : ''}
@@ -2359,9 +2564,9 @@ app.get('/health', (req, res) => {
     service: '${project.name}',
     environment: process.env.NODE_ENV || 'development',
     components: {
-      tables: ${tableComponents.length},
-      custom: ${customComponents.length},
-      total: ${allComponents.length}
+      tables: ${tableRoutes.length},
+      custom: ${customRoutes.length},
+      total: ${tableRoutes.length + customRoutes.length}
     }
   });
 });
@@ -2369,20 +2574,18 @@ app.get('/health', (req, res) => {
 // ============================================================================
 // REGISTER TABLE-BASED ROUTES
 // ============================================================================
-${tableComponents.map(comp => {
+${tableRoutes.map(({ comp, routerVar }) => {
     const basePath = comp.endpoints[0]?.path.match(/\/api\/v?\d*\/[\w-]+/)?.[0] || `/api/v1/${comp.name}`;
-    const routerVarName = `${comp.name}Router`;
-    return `app.use('${basePath}', ${routerVarName}); // ${comp.name}`;
+    return `app.use('${basePath}', ${routerVar}); // ${comp.name}`;
   }).join('\n')}
 
 // ============================================================================
 // REGISTER CUSTOM COMPONENT ROUTES
 // ============================================================================
-${customComponents.map(comp => {
+${customRoutes.map(({ comp, routerVar }) => {
     const firstEndpoint = comp.endpoints[0];
     const basePath = firstEndpoint?.path.match(/\/api\/v?\d*\/[\w-]+/)?.[0] || `/api/v1/${comp.name}`;
-    const routerVarName = `${comp.name}Router`;
-    return `app.use('${basePath}', ${routerVarName}); // ${comp.name} (custom)`;
+    return `app.use('${basePath}', ${routerVar}); // ${comp.name} (custom)`;
   }).join('\n')}
 
 ${options.includeAuth ? "app.use('/api/auth', authRouter);" : ''}
@@ -2401,8 +2604,8 @@ if (require.main === module) {
       port: PORT,
       environment: process.env.NODE_ENV || 'development',
       components: {
-        tables: ${tableComponents.length},
-        custom: ${customComponents.length}
+        tables: ${tableRoutes.length},
+        custom: ${customRoutes.length}
       }
     });
     
@@ -2413,11 +2616,11 @@ if (require.main === module) {
     console.log(\`📝 Environment: \${process.env.NODE_ENV || 'development'}\`);
     console.log(\`\`);
     console.log(\`📊 Registered Routes:\`);
-${tableComponents.map(comp => {
+${tableRoutes.map(({ comp }) => {
     const basePath = comp.endpoints[0]?.path.match(/\/api\/v?\d*\/[\w-]+/)?.[0] || `/api/v1/${comp.name}`;
     return `    console.log(\`   • ${basePath} (${comp.name})\`);`;
   }).join('\n')}
-${customComponents.map(comp => {
+${customRoutes.map(({ comp }) => {
     const firstEndpoint = comp.endpoints[0];
     const basePath = firstEndpoint?.path.match(/\/api\/v?\d*\/[\w-]+/)?.[0] || `/api/v1/${comp.name}`;
     return `    console.log(\`   • ${basePath} (${comp.name} - custom)\`);`;
@@ -2433,7 +2636,7 @@ module.exports = { app };`;
   return {
     path: 'src/index.js',
     content,
-    description: 'Main application entry point with validated component names',
+    description: 'Main application entry point with function registry validation',
     exports: ['app']
   };
 }

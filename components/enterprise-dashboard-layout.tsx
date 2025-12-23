@@ -1,9 +1,9 @@
 "use client"
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useWorkspace } from '@/lib/workspace-context'
-import { useAppContext } from '@/lib/app-context'
+import { useAppContext } from '@/lib/appContext/app-context'
 import { WorkspaceSidebar } from '@/components/workspace-sidebar'
 import { ProjectContextBar } from '@/components/project-context-bar'
 import { ProjectTabsNav } from '@/components/project-tabs-nav'
@@ -31,28 +31,35 @@ interface EnterpriseDashboardLayoutProps {
   breadcrumbs?: { label: string; href?: string }[]
 }
 
-export function EnterpriseDashboardLayout({ 
-  children, 
-  title, 
-  description, 
+export function EnterpriseDashboardLayout({
+  children,
+  title,
+  description,
   actions,
   breadcrumbs
 }: EnterpriseDashboardLayoutProps) {
   const { sidebarCollapsed } = useWorkspace()
   const { state } = useAppContext()
   const pathname = usePathname()
-  
+
+  // Fix hydration issues with client-only rendering for Clerk components
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
   // Pages where project context should NOT be shown (list/browse views)
   const hideProjectContext = [
     '/projects',
-    '/analytics', 
+    '/analytics',
     '/ai-chat',
     '/activity',
     '/docs',
     '/team',
     '/settings'
   ].includes(pathname)
-  
+
   // Show project context only if: project is selected AND not on a list page
   const showProjectContext = state.currentProject && !hideProjectContext
 
@@ -60,7 +67,7 @@ export function EnterpriseDashboardLayout({
     <div className="min-h-screen bg-gray-50">
       <WorkspaceSidebar />
       <CommandPalette />
-      
+
       <div
         className={cn(
           'transition-all duration-300 ease-in-out',
@@ -75,7 +82,7 @@ export function EnterpriseDashboardLayout({
             <div className="flex items-center gap-4">
               {/* Project Context Bar - Shows current project on project-specific pages */}
               {showProjectContext && <ProjectContextBar />}
-              
+
               {/* Breadcrumbs - Only show if no project context */}
               {breadcrumbs && breadcrumbs.length > 0 && !showProjectContext && (
                 <nav className="flex items-center space-x-1 text-sm">
@@ -124,11 +131,14 @@ export function EnterpriseDashboardLayout({
                 </button>
               </Link>
 
-              {/* User Menu */}
-              <UserButton afterSignOutUrl="/" />
+              {/* User Menu - Only render on client to avoid hydration issues */}
+              {isClient && <UserButton afterSignOutUrl="/" />}
+              {!isClient && (
+                <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+              )}
             </div>
           </div>
-          
+
           {/* Secondary Tab Bar - Only shown when project is selected on project pages */}
           {showProjectContext && (
             <div className="border-b border-gray-200 bg-white">

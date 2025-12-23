@@ -19,7 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { ProjectNameDialog } from "@/components/project-name-dialog"
-import { useAppContext } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
 
 export function NavProjects({
   projects,

@@ -48,7 +48,7 @@ import {
   Search,
   Eye
 } from "lucide-react"
-import { TableSchema, FieldSchema, FieldType } from "@/lib/app-context"
+import { TableSchema, FieldSchema, FieldType } from "@/lib/appContext/app-context"
 import { FieldConfigPanel } from "./field-config-panel"
 
 interface TableViewProps {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DynamoService } from '@/lib/services/database/dynamoService';
 import { getCurrentUser, getDevUserId } from '@/lib/services/auth-helper';
-import type { Project, ProjectStatus } from '@/lib/app-context';
+import type { Project, ProjectStatus } from '@/lib/appContext/app-context';
 
 export async function GET(request: NextRequest) {
   try {

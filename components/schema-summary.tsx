@@ -1,13 +1,13 @@
 "use client"
 
-import { useAppContext } from "@/lib/app-context"
+import { useAppContext } from "@/lib/appContext/app-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CodeGenerationModal } from "./code-generation-modal"
 import { DeploymentModal } from "./deployment-modal"
 import { IacGenerationModal } from "./iac-generation-modal"
-import { TableSchema, DatabaseType } from "@/lib/app-context"
+import { TableSchema, DatabaseType } from "@/lib/appContext/app-context"
 import {
   DropdownMenu,
   DropdownMenuContent,
