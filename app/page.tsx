@@ -11,8 +11,8 @@ import { Instrument_Serif } from 'next/font/google'
 import { FlickeringGrid } from '@/components/ui/shadcn-io/flickering-grid'
 import { loadProjects, hasCompletedOnboarding } from '@/lib/storage'
 
-const instrumentSerif = Instrument_Serif({ 
-  subsets: ['latin'], 
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
   weight: ['400'],
   style: ['italic']
 })
@@ -62,10 +62,10 @@ const StreamingCode = memo(function StreamingCode() {
     // Reduced from 50ms to 75ms for better performance
     const interval = setInterval(() => {
       if (!mountedRef.current) return
-      
+
       setCurrentChar(prev => {
         const lineLength = lineTexts[currentLine]?.length || 0
-        
+
         if (prev >= lineLength) {
           if (currentLine < lineTexts.length - 1) {
             setCurrentLine(currentLine + 1)
@@ -94,7 +94,7 @@ const StreamingCode = memo(function StreamingCode() {
         const opacity = isComplete || isActive ? 1 : 0.2
         const lineText = lineTexts[idx]
         const visibleText = isActive ? lineText.substring(0, currentChar) : (isComplete ? lineText : '')
-        
+
         return (
           <div key={line.num} className="flex gap-3 sm:gap-4 md:gap-6 text-[8px] sm:text-[9px] md:text-[10px]" style={{ opacity }}>
             <span className="w-5 sm:w-6 text-right text-gray-400 flex-shrink-0">{line.num}</span>
@@ -144,7 +144,7 @@ const InteractivePromptBox = memo(function InteractivePromptBox() {
         textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
       }
     }, 50)
-    
+
     return () => clearTimeout(timeoutId)
   }, [prompt])
 
@@ -154,7 +154,7 @@ const InteractivePromptBox = memo(function InteractivePromptBox() {
       <div className="absolute inset-0 rounded-2xl p-[2px] bg-[#1d1d1f]">
         <div className="w-full h-full rounded-2xl"></div>
       </div>
-      
+
       {/* Main input container */}
       <div className="relative rounded-2xl shadow-2xl transition-all duration-300 overflow-hidden" style={{ margin: '2px' }}>
         {/* Semi-transparent dark background */}
@@ -172,23 +172,21 @@ const InteractivePromptBox = memo(function InteractivePromptBox() {
             className="flex-1 bg-transparent text-white placeholder-[rgba(255,255,255,0.4)] text-sm sm:text-base resize-none outline-none min-h-[24px] overflow-hidden font-sans"
             rows={1}
           />
-          
+
           {/* Submit Button */}
           <button
             onClick={handleSubmit}
             disabled={!prompt.trim()}
-            className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
-              prompt.trim()
-                ? 'bg-[#1d1d1f] cursor-pointer'
-                : 'bg-white/10 cursor-not-allowed'
-            }`}
+            className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${prompt.trim()
+              ? 'bg-[#1d1d1f] cursor-pointer'
+              : 'bg-white/10 cursor-not-allowed'
+              }`}
           >
-            <ArrowUp className={`w-5 h-5 ${
-              prompt.trim() ? 'text-white' : 'text-white/30'
-            }`} />
+            <ArrowUp className={`w-5 h-5 ${prompt.trim() ? 'text-white' : 'text-white/30'
+              }`} />
           </button>
         </div>
-        
+
         {/* Bottom row with hints */}
         <div className="px-4 sm:px-5 pb-3 flex items-center gap-2 text-xs text-[rgba(255,255,255,0.5)] relative z-10">
           <div className="flex items-center gap-1">
@@ -230,7 +228,7 @@ const ROICalculator = memo(function ROICalculator() {
   // Industry benchmarks based on market research and actual cloud provider pricing
   // Costs include: Database (RDS/Cloud SQL), Compute (EC2/VMs), API Gateway, Storage, Data Transfer
   const complexityMultipliers = useMemo(() => ({
-    simple: { 
+    simple: {
       apis: 10, // Simple MVP: 5-15 APIs, average 10
       hoursPerAPI: 8, // Simple API: 4-8 hours, average 8
       monthlyInfraCost: {
@@ -241,7 +239,7 @@ const ROICalculator = memo(function ROICalculator() {
       },
       snapinfraSetupHours: 1 // SnapInfra automated setup
     },
-    medium: { 
+    medium: {
       apis: 30, // Medium SaaS: 20-40 APIs, average 30
       hoursPerAPI: 12, // Medium API: 8-16 hours, average 12
       monthlyInfraCost: {
@@ -252,7 +250,7 @@ const ROICalculator = memo(function ROICalculator() {
       },
       snapinfraSetupHours: 2
     },
-    complex: { 
+    complex: {
       apis: 65, // Complex: 50-80 APIs, average 65
       hoursPerAPI: 20, // Complex API: 16-32 hours, average 20
       monthlyInfraCost: {
@@ -263,7 +261,7 @@ const ROICalculator = memo(function ROICalculator() {
       },
       snapinfraSetupHours: 3
     },
-    enterprise: { 
+    enterprise: {
       apis: 100, // Enterprise: 80-150 APIs, average 100
       hoursPerAPI: 24, // Enterprise API: 20-40 hours, average 24
       monthlyInfraCost: {
@@ -308,48 +306,48 @@ const ROICalculator = memo(function ROICalculator() {
   const calculations = useMemo(() => {
     const multiplier = complexityMultipliers[complexity]
     const iacMultiplier = iacSetupMultipliers[iacType][complexity]
-    
+
     // Get actual cloud provider costs based on complexity
     const traditionalMonthlyCost = multiplier.monthlyInfraCost[cloudProvider]
-    
+
     // Calculate development time
     const totalAPIs = multiplier.apis * projectsPerYear
     const hoursPerAPI = multiplier.hoursPerAPI
     const totalDevHours = totalAPIs * hoursPerAPI
-    
+
     // Infrastructure setup time (traditional IaC vs SnapInfra)
     // Multi-cloud adds 20% more setup time due to complexity
     const cloudComplexityMultiplier = cloudProvider === 'multi' ? 1.2 : 1.0
     const traditionalInfraHours = Math.round(iacMultiplier * cloudComplexityMultiplier * projectsPerYear)
     const snapinfraInfraHours = multiplier.snapinfraSetupHours * projectsPerYear
     const infraTimeSaved = traditionalInfraHours - snapinfraInfraHours
-    
+
     // Total time saved (infrastructure + reduced API dev time with code generation)
     // SnapInfra generates production-ready code, saving ~30% of API development time
     const apiDevTimeSaved = totalDevHours * 0.30 // 30% time saved on API development
     const totalHoursSaved = infraTimeSaved + apiDevTimeSaved
-    
+
     // Cost calculations - SnapInfra includes all infrastructure
     const snapinfraMonthlyCost = 99
     const monthlyCostSaved = traditionalMonthlyCost - snapinfraMonthlyCost
     const annualCostSaved = monthlyCostSaved * 12
-    
+
     // Development cost savings (time saved * developer rate * team size)
     const devCostSaved = totalHoursSaved * avgDeveloperRate * teamSize
-    
+
     // Total annual savings
     const totalCostSaved = annualCostSaved + devCostSaved
-    
+
     // ROI Payback Period (months) = Annual SnapInfra cost / Monthly savings
     const snapinfraAnnualCost = snapinfraMonthlyCost * 12
     const monthlySavings = totalCostSaved / 12
     const paybackMonths = monthlySavings > 0 ? Math.ceil(snapinfraAnnualCost / monthlySavings) : 0
 
     // Calculate percentage savings
-    const timeSavingsPercentage = traditionalInfraHours > 0 
-      ? Math.round((infraTimeSaved / traditionalInfraHours) * 100) 
+    const timeSavingsPercentage = traditionalInfraHours > 0
+      ? Math.round((infraTimeSaved / traditionalInfraHours) * 100)
       : 0
-    
+
     const costSavingsPercentage = traditionalMonthlyCost > 0
       ? Math.round((monthlyCostSaved / traditionalMonthlyCost) * 100)
       : 0
@@ -624,13 +622,13 @@ export default function LandingPage() {
   // Auto-redirect existing users to dashboard
   useEffect(() => {
     if (!isLoaded) return
-    
+
     if (isSignedIn) {
       // Check if user has projects or has completed onboarding
       const projects = loadProjects()
       const hasProjects = projects && projects.length > 0
       const hasOnboarded = hasCompletedOnboarding()
-      
+
       if (hasProjects || hasOnboarded) {
         // Existing user with projects or completed onboarding - go to dashboard
         router.push('/dashboard')
@@ -641,24 +639,10 @@ export default function LandingPage() {
     }
   }, [isLoaded, isSignedIn, user, router])
 
-  // Show loading state if user is signed in to prevent flash
-  if (isLoaded && isSignedIn) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#fafaf9] via-[#f5f3f0] to-[#ede9e3]">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-12 h-12 border-4 border-[rgba(55,50,47,0.1)] border-t-[#37322F] rounded-full animate-spin"></div>
-          </div>
-          <p className="mt-4 text-[#37322F] font-medium font-sans">Redirecting...</p>
-          <p className="text-[#605A57] text-sm font-sans">Taking you to your dashboard</p>
-        </div>
-      </div>
-    )
-  }
-
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://snapinfra.ai'
 
   // Memoize JSON-LD schemas to prevent recreation on every render
+  // NOTE: These hooks MUST be called before any conditional returns to comply with React's Rules of Hooks
   const organizationSchema = useMemo(() => ({
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -754,6 +738,21 @@ export default function LandingPage() {
     ]
   }), [])
 
+  // Show loading state if user is signed in to prevent flash
+  if (isLoaded && isSignedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#fafaf9] via-[#f5f3f0] to-[#ede9e3]">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-12 h-12 border-4 border-[rgba(55,50,47,0.1)] border-t-[#37322F] rounded-full animate-spin"></div>
+          </div>
+          <p className="mt-4 text-[#37322F] font-medium font-sans">Redirecting...</p>
+          <p className="text-[#605A57] text-sm font-sans">Taking you to your dashboard</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="w-full min-h-screen relative bg-gradient-to-br from-[#fafaf9] via-[#f5f3f0] to-[#ede9e3] overflow-x-hidden flex flex-col justify-start items-center">
       {/* Structured Data for SEO */}
@@ -793,7 +792,7 @@ export default function LandingPage() {
             <div className="w-full fixed top-0 left-0 right-0 z-50">
               <OpenSourceBanner />
             </div>
-            
+
             {/* Navigation */}
             <nav className="w-full h-14 fixed top-[32px] left-0 right-0 bg-white border-b border-[rgba(55,50,47,0.08)] z-50">
               <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -803,7 +802,7 @@ export default function LandingPage() {
                     <Image src="/snapinfra-logo.svg" alt="Snapinfra" width={100} height={24} className="h-6 w-auto" />
                   </Link>
                 </div>
-                
+
                 {/* Right side - Nav Links and Auth Buttons */}
                 <div className="flex items-center gap-8">
                   <div className="hidden md:flex items-center gap-6">
@@ -814,7 +813,7 @@ export default function LandingPage() {
                       GitHub
                     </a>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <Link href="/sign-in">
                       <button className="px-4 py-2 bg-[#1d1d1f] text-white text-sm font-medium font-sans">
@@ -837,8 +836,8 @@ export default function LandingPage() {
                 <div className="self-stretch rounded-[3px] flex flex-col justify-center items-center gap-3 sm:gap-4 md:gap-5">
                   <h1 className="w-full max-w-[700px] text-center flex justify-center flex-col text-[36px] xs:text-[40px] sm:text-[48px] md:text-[56px] lg:text-[64px] font-normal leading-[1.15] sm:leading-[1.15] md:leading-[1.15] font-serif px-2 sm:px-4 md:px-0" style={{ letterSpacing: '-0.02em' }}>
                     <span className="text-[#1d1d1f]" style={{ letterSpacing: '-0.02em' }}>Your{" "}
-                    <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className}`} style={{ letterSpacing: '-0.02em' }}>AI Solutions Architect</span>
-                    <br />for Backend Systems</span>
+                      <span className={`text-[#005BE3] font-normal italic ${instrumentSerif.className}`} style={{ letterSpacing: '-0.02em' }}>AI Solutions Architect</span>
+                      <br />for Backend Systems</span>
                   </h1>
                   <div className="w-full max-w-[700px] text-center flex justify-center flex-col text-[rgba(55,50,47,0.80)] text-[15px] sm:text-[16px] leading-[1.6] font-sans px-2 sm:px-4 md:px-0 font-normal">
                     Evaluate architecture patterns. Make strategic trade-offs. Implement production backend code.
@@ -872,12 +871,12 @@ export default function LandingPage() {
                         <span className="text-[10px] sm:text-xs">47 lines</span>
                       </div>
                     </div>
-                    
+
                     {/* Code Editor with AI Streaming Effect */}
                     <div className="flex-1 p-4 sm:p-6 font-mono text-[9px] sm:text-[10px] md:text-[11px] leading-relaxed overflow-x-auto bg-white relative min-h-[200px] sm:min-h-[250px]">
                       {/* Streaming Code Component */}
                       <StreamingCode />
-                      
+
                       {/* AI Generation Indicator */}
                       <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(55,50,47,0.05)] rounded-full border border-[rgba(55,50,47,0.12)]">
                         <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#37322F] animate-spin" fill="none" viewBox="0 0 24 24">
@@ -887,7 +886,7 @@ export default function LandingPage() {
                         <span className="text-[#37322F] text-[8px] sm:text-[10px] font-medium font-sans">Generating...</span>
                       </div>
                     </div>
-                    
+
                     {/* Bottom Status Bar */}
                     <div className="h-5 sm:h-6 bg-[#1d1d1f] flex items-center justify-between px-3 sm:px-4 text-[9px] sm:text-[10px] text-white">
                       <div className="flex items-center gap-2 sm:gap-4">
@@ -912,7 +911,7 @@ export default function LandingPage() {
                   <h2 className="text-[28px] xs:text-[32px] sm:text-[36px] md:text-[42px] lg:text-[48px] font-normal leading-[0.95] font-serif text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.02em' }}>Why Backend Architecture Fails</h2>
                   <p className="text-lg sm:text-xl text-[#605A57] max-w-2xl mx-auto">Most teams make critical architecture decisions without senior-level expertise. Early patterns determine if your backend scales or becomes a rewrite.</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
                   {/* Column 1: Wrong Multi-Tenancy Pattern */}
                   <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
@@ -923,7 +922,7 @@ export default function LandingPage() {
                       <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">Wrong Multi-Tenancy Pattern</h3>
                       <p className="text-sm italic text-[#605A57] leading-relaxed">"We picked schema-per-tenant..."</p>
                     </div>
-                    
+
                     <div className="flex-1 space-y-3.5 mb-8">
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
@@ -942,7 +941,7 @@ export default function LandingPage() {
                         <p className="text-sm text-[#605A57] leading-relaxed">6 months of eng time lost</p>
                       </div>
                     </div>
-                    
+
                     <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
                       <div className="flex items-baseline gap-2">
                         <span className="text-lg font-bold text-[#1d1d1f]">43%</span>
@@ -951,7 +950,7 @@ export default function LandingPage() {
                       <p className="text-xs text-[#605A57]">Pick wrong multi-tenant pattern</p>
                     </div>
                   </div>
-                  
+
                   {/* Column 2: No Scaling Strategy */}
                   <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
                     <div className="mb-6">
@@ -961,7 +960,7 @@ export default function LandingPage() {
                       <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">No Scaling Strategy</h3>
                       <p className="text-sm italic text-[#605A57] leading-relaxed">"We'll scale when we need to..."</p>
                     </div>
-                    
+
                     <div className="flex-1 space-y-3.5 mb-8">
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
@@ -980,7 +979,7 @@ export default function LandingPage() {
                         <p className="text-sm text-[#605A57] leading-relaxed">Lost 3 enterprise deals due to performance</p>
                       </div>
                     </div>
-                    
+
                     <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
                       <div className="flex items-baseline gap-2">
                         <span className="text-lg font-bold text-[#1d1d1f]">68%</span>
@@ -989,7 +988,7 @@ export default function LandingPage() {
                       <p className="text-xs text-[#605A57]">Underestimate scaling needs</p>
                     </div>
                   </div>
-                  
+
                   {/* Column 3: Poor Data Modeling */}
                   <div className="bg-white rounded-2xl p-8 lg:p-10 border border-[rgba(55,50,47,0.12)] flex flex-col">
                     <div className="mb-6">
@@ -999,7 +998,7 @@ export default function LandingPage() {
                       <h3 className="text-2xl lg:text-2xl font-bold text-[#1d1d1f] mb-3">Poor Data Modeling</h3>
                       <p className="text-sm italic text-[#605A57] leading-relaxed">"NoSQL seemed easier..."</p>
                     </div>
-                    
+
                     <div className="flex-1 space-y-3.5 mb-8">
                       <div className="flex items-start gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#37322F] mt-2 flex-shrink-0"></div>
@@ -1018,7 +1017,7 @@ export default function LandingPage() {
                         <p className="text-sm text-[#605A57] leading-relaxed">Analytics impossible without proper schema</p>
                       </div>
                     </div>
-                    
+
                     <div className="pt-6 border-t border-[rgba(55,50,47,0.12)] space-y-2">
                       <div className="flex items-baseline gap-2">
                         <span className="text-lg font-bold text-[#1d1d1f]">71%</span>
@@ -1028,7 +1027,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="text-center">
                   <Link href="/sign-up">
                     <button className="px-8 py-4 bg-[#1d1d1f] text-white text-base sm:text-lg font-semibold rounded-lg transition-opacity hover:opacity-90">
@@ -1046,16 +1045,16 @@ export default function LandingPage() {
                   </h2>
                   <p className="text-xl text-[#605A57] mt-6">Define your requirements. AI evaluates patterns and proposes architecture. You refine decisions. Deploy production code to your infrastructure.</p>
                 </div>
-                
+
                 <div className="bg-white rounded-2xl border border-[rgba(55,50,47,0.12)] overflow-hidden shadow-xl">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-[#f8f8f8] border-b-2 border-[rgba(55,50,47,0.12)]">
                         <tr>
                           <th className="px-6 py-4 text-left text-sm font-semibold text-[#37322F]">Feature Comparison</th>
-                          <th className="px-6 py-4 text-center text-sm font-semibold text-[#37322F]">No-Code<br/><span className="text-xs font-normal">(Firebase/Supabase)</span></th>
+                          <th className="px-6 py-4 text-center text-sm font-semibold text-[#37322F]">No-Code<br /><span className="text-xs font-normal">(Firebase/Supabase)</span></th>
                           <th className="px-6 py-4 text-center text-sm font-bold text-[#1d1d1f] bg-[rgba(55,50,47,0.05)]">SnapInfra</th>
-                          <th className="px-6 py-4 text-center text-sm font-semibold text-[#37322F]">Raw IaC<br/><span className="text-xs font-normal">(Terraform/K8s)</span></th>
+                          <th className="px-6 py-4 text-center text-sm font-semibold text-[#37322F]">Raw IaC<br /><span className="text-xs font-normal">(Terraform/K8s)</span></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[rgba(55,50,47,0.08)]">
@@ -1115,8 +1114,8 @@ export default function LandingPage() {
                         </tr>
                         <tr className="bg-[#f8f8f8] font-semibold">
                           <td className="px-6 py-4 text-sm font-bold text-[#37322F]">Your monthly cost at 1M users</td>
-                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">$0-$2,847<br/><span className="text-xs font-normal">(volatile)</span></td>
-                          <td className="px-6 py-4 text-center text-sm font-bold text-[#1d1d1f] bg-[rgba(55,50,47,0.10)]">$0-$299<br/><span className="text-xs font-normal">(capped)</span></td>
+                          <td className="px-6 py-4 text-center text-sm text-[#605A57]">$0-$2,847<br /><span className="text-xs font-normal">(volatile)</span></td>
+                          <td className="px-6 py-4 text-center text-sm font-bold text-[#1d1d1f] bg-[rgba(55,50,47,0.10)]">$0-$299<br /><span className="text-xs font-normal">(capped)</span></td>
                           <td className="px-6 py-4 text-center text-sm text-[#605A57]">$280 + 3 engineers</td>
                         </tr>
                       </tbody>

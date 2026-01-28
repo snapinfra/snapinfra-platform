@@ -8,8 +8,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 import { SystemArchitectureEditor } from '@/components/architecture/system-architecture-editor'
 import { SystemArchitecture } from '@/lib/types/architecture'
 import { useOnboardingData } from "@/lib/appContext/app-context"
-import ERDDiagramViewer from "../erd/ERDDiagramViewer"
-import DataFlowDiagram from "../dataflow/DataFlowDiagram"
+
 
 interface LLDStepProps {
   data: {
@@ -65,8 +64,24 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
 
       // Convert any ERD data to proper format if needed
       let erdData = data.diagrams.erd
-      if (erdData && (erdData as any).tables) {
-        erdData = convertERDToArchitecture(erdData as any)
+      if (erdData && (erdData as any).nodes) {
+        // Check if nodes use 'label' (ERD format) instead of 'name' (SystemArchitecture format)
+        const firstNode = (erdData as any).nodes[0]
+        if (firstNode?.data?.label && !firstNode?.data?.name) {
+          console.log('🔄 Converting ERD format to SystemArchitecture format')
+          erdData = convertERDToArchitecture(erdData as any)
+        }
+      }
+
+      // Convert any Dataflow data to proper format if needed
+      let dataflowData = data.diagrams.dataflow
+      if (dataflowData && (dataflowData as any).nodes) {
+        // Check if nodes use 'label' (DataFlow format) instead of 'name' (SystemArchitecture format)
+        const firstNode = (dataflowData as any).nodes[0]
+        if (firstNode?.data?.label && !firstNode?.data?.name) {
+          console.log('🔄 Converting DataFlow format to SystemArchitecture format')
+          dataflowData = convertDataFlowToArchitecture(dataflowData as any)
+        }
       }
 
       // Convert any API Map data to proper format if needed
@@ -77,7 +92,7 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
 
       setDiagrams({
         lld: data.diagrams.lld || null,
-        dataflow: data.diagrams.dataflow || null,
+        dataflow: dataflowData || null,
         erd: erdData || null,
         apiMap: apiMapData || null
       })
@@ -188,7 +203,12 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
       diagramData = result.lld
     } else if (key === 'dataflow') {
       // Note: API returns "dataFlow" with capital F
-      diagramData = result.dataFlow || result.dataflow || result.diagram || result.architecture
+      const dfData = result.dataFlow || result.dataflow || result.diagram || result.architecture
+      if (dfData && dfData.aiInsights) {
+        diagramData = convertDataFlowToArchitecture(dfData)
+      } else {
+        diagramData = dfData
+      }
     } else if (key === 'erd') {
       const erdData = result.erd || result.diagram || result.architecture
       // Convert ERD format to SystemArchitecture format
@@ -221,34 +241,34 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
     }))
   }
 
-  // Convert ERD format (tables/relationships) to SystemArchitecture format (nodes/edges)
+  // Convert ERD format (nodes with data.label) to SystemArchitecture format (nodes with data.name)
   const convertERDToArchitecture = (erdData: any): SystemArchitecture => {
-    const nodes = erdData.tables?.map((table: any) => ({
-      id: table.id,
+    const nodes = erdData.nodes?.map((node: any) => ({
+      id: node.id,
       type: 'database',
-      position: table.position || { x: 0, y: 0 },
+      position: node.position || { x: 0, y: 0 },
       data: {
-        name: table.name,
-        description: `${table.fields?.length || 0} fields`,
-        color: table.color || '#EF4444',
+        name: node.data?.label || node.data?.name || 'Unknown Table',
+        description: node.data?.description || `${node.data?.fields?.length || 0} fields`,
+        color: node.data?.color || '#EF4444',
         metadata: {
-          fields: table.fields,
-          indexes: table.indexes,
-          constraints: table.constraints
+          fields: node.data?.fields,
+          indexes: node.data?.indexes,
+          constraints: node.data?.constraints
         }
       }
     })) || []
 
-    const edges = erdData.relationships?.map((rel: any) => ({
-      id: rel.id,
-      source: rel.source,
-      target: rel.target,
+    const edges = erdData.edges?.map((edge: any) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
       type: 'smoothstep',
-      label: rel.label || `${rel.sourceField} → ${rel.targetField}`,
+      label: edge.label || 'relates to',
       data: {
-        type: rel.type,
-        sourceField: rel.sourceField,
-        targetField: rel.targetField
+        type: edge.data?.relationType || 'one-to-many',
+        sourceField: edge.data?.sourceField,
+        targetField: edge.data?.targetField
       }
     })) || []
 
@@ -259,6 +279,49 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
       nodes,
       edges,
       metadata: erdData.metadata || {}
+    }
+  }
+
+  // Convert Data Flow format (nodes with data.label) to SystemArchitecture format (nodes with data.name)
+  const convertDataFlowToArchitecture = (dfData: any): SystemArchitecture => {
+    const nodes = dfData.nodes?.map((node: any) => ({
+      id: node.id,
+      type: node.type === 'process' ? 'api-service' :
+        node.type === 'data-store' ? 'database' :
+          node.type === 'external-entity' ? 'external-service' :
+            node.type === 'gateway' ? 'load-balancer' : 'api-service',
+      position: node.position || { x: 0, y: 0 },
+      data: {
+        name: node.data?.label || node.data?.name || 'Unknown Node',
+        description: node.data?.description || '',
+        color: node.data?.color,
+        metadata: {
+          originalType: node.type,
+          technology: node.data?.metadata?.technology,
+          operations: node.data?.metadata?.operations
+        }
+      }
+    })) || []
+
+    const edges = dfData.edges?.map((edge: any) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      type: 'smoothstep',
+      label: edge.label || 'Flows to',
+      animated: true,
+      data: {
+        ...edge.data
+      }
+    })) || []
+
+    return {
+      id: dfData.id || 'dataflow-converted',
+      name: dfData.name || 'Data Flow Diagram',
+      description: 'System data flow visualization',
+      nodes,
+      edges,
+      metadata: dfData.metadata || {}
     }
   }
 
@@ -323,6 +386,59 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
     }
   }
 
+
+  // Reverse Conversion: Architecture -> ERD
+  const convertArchitectureToERD = (archLines: SystemArchitecture, originalErd: any): any => {
+    return {
+      ...originalErd,
+      name: archLines.name,
+      tables: archLines.nodes.map(node => ({
+        id: node.id,
+        name: node.data.name,
+        color: node.data.color,
+        position: node.position,
+        fields: node.data.metadata?.fields || [],
+        indexes: node.data.metadata?.indexes || [],
+        constraints: node.data.metadata?.constraints || []
+      })),
+      relationships: archLines.edges.map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: (edge.data as any)?.type || 'one-to-many',
+        label: edge.label,
+        sourceField: (edge.data as any)?.sourceField,
+        targetField: (edge.data as any)?.targetField
+      }))
+    }
+  }
+
+  // Reverse Conversion: Architecture -> Data Flow
+  const convertArchitectureToDataFlow = (archLines: SystemArchitecture, originalDf: any): any => {
+    return {
+      ...originalDf,
+      nodes: archLines.nodes.map(node => ({
+        id: node.id,
+        type: node.data.metadata?.originalType || 'process', // Fallback if lost
+        position: node.position,
+        data: {
+          label: node.data.name,
+          description: node.data.description,
+          color: node.data.color
+        }
+      })),
+      edges: archLines.edges.map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        label: edge.label,
+        type: 'smoothstep', // specific to DF
+        data: edge.data
+      }))
+    }
+  }
+
+
   const handleDiagramChange = (key: keyof DiagramData, updatedDiagram: SystemArchitecture) => {
     setDiagrams(prev => ({
       ...prev,
@@ -332,7 +448,24 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
   }
 
   const handleSaveDiagram = (key: keyof DiagramData) => {
-    console.log(`Saving ${key}:`, diagrams[key])
+    let dataToSave = diagrams[key]
+
+    if (key === 'erd' && dataToSave) {
+      // Convert back to original ERD format
+      const originalErd = data.diagrams?.erd || {}
+      dataToSave = convertArchitectureToERD(dataToSave, originalErd)
+      console.log('💾 Converted ERD back to original format for save:', dataToSave)
+    } else if (key === 'dataflow' && dataToSave) {
+      // Convert back to original Data Flow format
+      const originalDf = data.diagrams?.dataflow || {}
+      dataToSave = convertArchitectureToDataFlow(dataToSave, originalDf)
+      console.log('💾 Converted DataFlow back to original format for save:', dataToSave)
+    } else {
+      console.log(`Saving ${key}:`, dataToSave)
+    }
+
+    // Here you would trigger the actual save-to-context or API
+    // currently just clearing the flag as per original code
     setHasUnsavedChanges(false)
   }
 
@@ -624,17 +757,14 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
               </div>
             </div>
             <div ref={dataflowCanvasRef} className="h-[600px]">
-              {/* <ReactFlowProvider>
+              <ReactFlowProvider>
                 <SystemArchitectureEditor
                   type={"dataflow"}
                   architecture={diagrams.dataflow}
                   onArchitectureChange={(updated) => handleDiagramChange('dataflow', updated)}
                   onSave={() => handleSaveDiagram('dataflow')}
                 />
-              </ReactFlowProvider> */}
-
-              <DataFlowDiagram dataFlow={diagrams.dataflow} />
-
+              </ReactFlowProvider>
             </div>
           </div>
         )}
@@ -670,42 +800,14 @@ export function LLDStep({ data, onComplete, onBack }: LLDStepProps) {
               </div>
             </div>
             <div ref={erdCanvasRef} className="h-[600px]">
-              {/* <ReactFlowProvider>
+              <ReactFlowProvider>
                 <SystemArchitectureEditor
                   type={"erd"}
                   architecture={diagrams.erd}
                   onArchitectureChange={(updated) => handleDiagramChange('erd', updated)}
                   onSave={() => handleSaveDiagram('erd')}
                 />
-
-
-              </ReactFlowProvider> */}
-              <ERDDiagramViewer
-                erd={data.diagrams.erd}
-                readonly={false}
-                onSave={async (updatedERD) => {
-                  // Update onboardingData structure
-                  const newOnboardingData = {
-                    ...data,
-                    diagrams: {
-                      ...data.diagrams,
-                      erd: updatedERD
-                    }
-                  };
-
-                  // Persist to localStorage (browser)
-                  try {
-                    window.localStorage.setItem('onboardingData', JSON.stringify(newOnboardingData));
-                  } catch (err) {
-                    console.warn('Failed to write onboardingData to localStorage', err);
-                  }
-
-                  // Update onboarding context/state if updateData is available
-                  if (typeof updateData === 'function') {
-                    await updateData(newOnboardingData);
-                  }
-                }}
-              />
+              </ReactFlowProvider>
             </div>
           </div>
         )}

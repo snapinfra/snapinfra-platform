@@ -28,8 +28,6 @@ import {
 import { ReactFlowProvider } from '@xyflow/react'
 import { SystemArchitectureEditor } from '@/components/architecture/system-architecture-editor'
 import { SystemArchitecture } from '@/lib/types/architecture'
-import ERDDiagramViewer from "@/components/erd/ERDDiagramViewer"
-import DataFlowDiagram from "@/components/dataflow/DataFlowDiagram"
 import { hybridStorage } from "@/lib/appContext/storage-utils"
 
 interface DiagramData {
@@ -101,10 +99,29 @@ export default function ArchitecturePage() {
     if (state.currentProject?.diagrams) {
       console.log('Loading diagrams from project:', state.currentProject.diagrams)
 
-      // Convert ERD data if needed
+      // Convert any ERD data to proper format if needed
       let erdData = state.currentProject.diagrams.erd
-      if (erdData && (erdData as any).tables) {
+      if (erdData && (erdData as any).nodes) {
+        // Check if nodes use 'label' (ERD format) instead of 'name' (SystemArchitecture format)
+        const firstNode = (erdData as any).nodes[0]
+        if (firstNode?.data?.label && !firstNode?.data?.name) {
+          console.log('🔄 Converting ERD format to SystemArchitecture format')
+          erdData = convertERDToArchitecture(erdData as any)
+        }
+      } else if (erdData && (erdData as any).tables) {
+        // Handle legacy ERD format
         erdData = convertERDToArchitecture(erdData as any)
+      }
+
+      // Convert any Dataflow data to proper format if needed
+      let dataflowData = state.currentProject.diagrams.dataflow
+      if (dataflowData && (dataflowData as any).nodes) {
+        // Check if nodes use 'label' (DataFlow format) instead of 'name' (SystemArchitecture format)
+        const firstNode = (dataflowData as any).nodes[0]
+        if (firstNode?.data?.label && !firstNode?.data?.name) {
+          console.log('🔄 Converting DataFlow format to SystemArchitecture format')
+          dataflowData = convertDataFlowToArchitecture(dataflowData as any)
+        }
       }
 
       // Convert API Map data if needed
@@ -115,7 +132,7 @@ export default function ArchitecturePage() {
 
       setDiagrams({
         lld: state.currentProject.diagrams.lld || null,
-        dataflow: state.currentProject.diagrams.dataflow || null,
+        dataflow: dataflowData || null,
         erd: erdData || null,
         apiMap: apiMapData || null
       })
@@ -125,8 +142,50 @@ export default function ArchitecturePage() {
     }
   }, [state.currentProject?.diagrams])
 
-  // Convert ERD format to SystemArchitecture format
+  // Convert ERD format (nodes with data.label or legacy tables) to SystemArchitecture format
   const convertERDToArchitecture = (erdData: any): SystemArchitecture => {
+    // Handle legitimate SystemArchitecture format that just needs normalization
+    if (erdData.nodes && erdData.edges && !erdData.tables) {
+      const nodes = erdData.nodes?.map((node: any) => ({
+        id: node.id,
+        type: 'database',
+        position: node.position || { x: 0, y: 0 },
+        data: {
+          name: node.data?.label || node.data?.name || 'Unknown Table',
+          description: node.data?.description || `${node.data?.fields?.length || 0} fields`,
+          color: node.data?.color || '#EF4444',
+          metadata: {
+            fields: node.data?.fields,
+            indexes: node.data?.indexes,
+            constraints: node.data?.constraints
+          }
+        }
+      })) || []
+
+      const edges = erdData.edges?.map((edge: any) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: 'smoothstep',
+        label: edge.label || 'relates to',
+        data: {
+          type: edge.data?.relationType || 'one-to-many',
+          sourceField: edge.data?.sourceField,
+          targetField: edge.data?.targetField
+        }
+      })) || []
+
+      return {
+        id: erdData.id || 'erd-converted',
+        name: erdData.name || 'Entity Relationship Diagram',
+        description: `${nodes.length} tables, ${edges.length} relationships`,
+        nodes,
+        edges,
+        metadata: erdData.metadata || {}
+      }
+    }
+
+    // Handle Legacy Format
     const nodes = erdData.tables?.map((table: any) => ({
       id: table.id,
       type: 'database',
@@ -163,6 +222,49 @@ export default function ArchitecturePage() {
       nodes,
       edges,
       metadata: erdData.metadata || {}
+    }
+  }
+
+  // Convert Data Flow format to SystemArchitecture format
+  const convertDataFlowToArchitecture = (dfData: any): SystemArchitecture => {
+    const nodes = dfData.nodes?.map((node: any) => ({
+      id: node.id,
+      type: node.type === 'process' ? 'api-service' :
+        node.type === 'data-store' ? 'database' :
+          node.type === 'external-entity' ? 'external-service' :
+            node.type === 'gateway' ? 'load-balancer' : 'api-service',
+      position: node.position || { x: 0, y: 0 },
+      data: {
+        name: node.data?.label || node.data?.name || 'Unknown Node',
+        description: node.data?.description || '',
+        color: node.data?.color,
+        metadata: {
+          originalType: node.type,
+          technology: node.data?.metadata?.technology,
+          operations: node.data?.metadata?.operations
+        }
+      }
+    })) || []
+
+    const edges = dfData.edges?.map((edge: any) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      type: 'smoothstep',
+      label: edge.label || 'Flows to',
+      animated: true,
+      data: {
+        ...edge.data
+      }
+    })) || []
+
+    return {
+      id: dfData.id || 'dataflow-converted',
+      name: dfData.name || 'Data Flow Diagram',
+      description: 'System data flow visualization',
+      nodes,
+      edges,
+      metadata: dfData.metadata || {}
     }
   }
 
@@ -224,6 +326,70 @@ export default function ArchitecturePage() {
     }
   }
 
+  // Reverse Conversion: Architecture -> ERD
+  const convertArchitectureToERD = (archLines: SystemArchitecture, originalErd: any): any => {
+    // If original format was already SystemArchitecture (nodes/edges), keep it that way
+    // But verify if backend expects tables/relationships
+
+    // We construct the legacy format because backend likely relies on 'tables' property
+    return {
+      ...originalErd,
+      id: archLines.id,
+      name: archLines.name,
+      nodes: archLines.nodes, // Keep new format too
+      edges: archLines.edges,
+      // AND legacy format for backward compatibility
+      tables: archLines.nodes.map(node => ({
+        id: node.id,
+        name: node.data.name,
+        color: node.data.color,
+        position: node.position,
+        fields: node.data.metadata?.fields || [],
+        indexes: node.data.metadata?.indexes || [],
+        constraints: node.data.metadata?.constraints || []
+      })),
+      relationships: archLines.edges.map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: (edge.data as any)?.type || 'one-to-many',
+        label: edge.label,
+        sourceField: (edge.data as any)?.sourceField,
+        targetField: (edge.data as any)?.targetField
+      }))
+    }
+  }
+
+  // Reverse Conversion: Architecture -> Data Flow
+  const convertArchitectureToDataFlow = (archLines: SystemArchitecture, originalDf: any): any => {
+    return {
+      ...originalDf,
+      id: archLines.id,
+      name: archLines.name,
+      // Provide both formats
+      nodes: archLines.nodes.map(node => ({
+        id: node.id,
+        type: node.data.metadata?.originalType || 'process', // Fallback if lost
+        position: node.position,
+        data: {
+          label: node.data.name,
+          description: node.data.description,
+          color: node.data.color,
+          metadata: node.data.metadata
+        }
+      })),
+      edges: archLines.edges.map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        label: edge.label,
+        type: 'smoothstep',
+        data: edge.data,
+        animated: true
+      }))
+    }
+  }
+
   const handleDiagramChange = (key: keyof DiagramData, updatedDiagram: SystemArchitecture) => {
     setDiagrams(prev => ({
       ...prev,
@@ -236,10 +402,29 @@ export default function ArchitecturePage() {
     if (!state.currentProject) return
 
     try {
+      // Perform reverse transformation to ensure backend compatibility
+      const diagramsToSave = { ...diagrams }
+
+      // Transform ERD back to legacy/hybrid if modified
+      if (diagrams.erd) {
+        diagramsToSave.erd = convertArchitectureToERD(
+          diagrams.erd,
+          state.currentProject.diagrams?.erd || {}
+        )
+      }
+
+      // Transform DataFlow back to legacy/hybrid if modified  
+      if (diagrams.dataflow) {
+        diagramsToSave.dataflow = convertArchitectureToDataFlow(
+          diagrams.dataflow,
+          state.currentProject.diagrams?.dataflow || {}
+        )
+      }
+
       // Update project with new diagrams
       const updatedProject = {
         ...state.currentProject,
-        diagrams: diagrams
+        diagrams: diagramsToSave
       }
 
       dispatch({
@@ -249,7 +434,7 @@ export default function ArchitecturePage() {
 
       // Update context if available
       if (updateData) {
-        await updateData({ diagrams })
+        await updateData({ diagrams: diagramsToSave })
       }
 
       setHasUnsavedChanges(false)
@@ -591,7 +776,14 @@ export default function ArchitecturePage() {
             </CardHeader>
             <CardContent>
               <div ref={dataflowCanvasRef} className="h-[600px] border rounded-lg overflow-hidden bg-gray-50">
-                <DataFlowDiagram dataFlow={diagrams.dataflow} />
+                <ReactFlowProvider>
+                  <SystemArchitectureEditor
+                    type="lld"
+                    architecture={diagrams.dataflow}
+                    onArchitectureChange={(updated) => handleDiagramChange('dataflow', updated)}
+                    onSave={handleSave}
+                  />
+                </ReactFlowProvider>
               </div>
             </CardContent>
           </Card>
@@ -633,34 +825,14 @@ export default function ArchitecturePage() {
             </CardHeader>
             <CardContent>
               <div ref={erdCanvasRef} className="h-[600px] border rounded-lg overflow-hidden bg-gray-50">
-                <ERDDiagramViewer
-                  erd={state.currentProject.diagrams?.erd}
-                  readonly={false}
-                  onSave={async (updatedERD) => {
-                    const newDiagrams = {
-                      ...diagrams,
-                      erd: updatedERD
-                    }
-                    setDiagrams(newDiagrams)
-                    setHasUnsavedChanges(true)
-
-                    // Update localStorage
-                    try {
-                      const projectData = {
-                        ...state.currentProject,
-                        diagrams: newDiagrams
-                      }
-                      window.localStorage.setItem('onboardingData', JSON.stringify(projectData))
-                    } catch (err) {
-                      console.warn('Failed to write to localStorage', err)
-                    }
-
-                    // Update context
-                    if (updateData) {
-                      await updateData({ diagrams: newDiagrams })
-                    }
-                  }}
-                />
+                <ReactFlowProvider>
+                  <SystemArchitectureEditor
+                    type="database" // Special mode for ERD-like behavior if needed, or just default
+                    architecture={diagrams.erd}
+                    onArchitectureChange={(updated) => handleDiagramChange('erd', updated)}
+                    onSave={handleSave}
+                  />
+                </ReactFlowProvider>
               </div>
             </CardContent>
           </Card>

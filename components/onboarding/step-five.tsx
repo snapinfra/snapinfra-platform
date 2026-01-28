@@ -47,8 +47,17 @@ import {
   GitCompare,
   Sparkles,
   Eye,
-  EyeOff
+  EyeOff,
+  Wand2 // For the magic wand icon
 } from "lucide-react"
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 import { SystemDecisionsSummary, SystemDecision, ToolRecommendation } from '@/lib/types/system-decisions'
 import { SystemArchitecture } from '@/lib/types/architecture'
@@ -114,6 +123,7 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   const [totalScore, setTotalScore] = useState(0)
   const [monthlyBudget, setMonthlyBudget] = useState(5000)
   const [showCelebration, setShowCelebration] = useState(false)
+  const [showAutoPilotDialog, setShowAutoPilotDialog] = useState(false)
 
   // Ref to preserve scroll position
   const scrollPositionRef = useRef<number>(0)
@@ -222,22 +232,20 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
   }, [selectedTools])
 
   const handleToolSelection = async (decisionId: string, toolId: string) => {
-    setSelectedTools(prev => {
-      const updated = {
-        ...prev,
-        [decisionId]: toolId
-      }
+    const updated = {
+      ...selectedTools,
+      [decisionId]: toolId
+    }
 
-      // Update AppContext asynchronously
-      if (decisions) {
-        updateData({
-          decisions,
-          selectedTools: updated
-        })
-      }
+    setSelectedTools(updated)
 
-      return updated
-    })
+    // Update AppContext after state update
+    if (decisions) {
+      await updateData({
+        decisions,
+        selectedTools: updated
+      })
+    }
   }
 
   const calculateTotalMonthlyCost = () => {
@@ -824,10 +832,8 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
                         selectedTools: recommendedSelections
                       }))
 
-                      // Show success message
-                      setTimeout(() => {
-                        alert('AI has selected all recommended tools! Review below or continue to complete onboarding.')
-                      }, 500)
+                      // Show rich dialog
+                      setShowAutoPilotDialog(true)
                     }}
                     className="px-8 py-6 bg-[#005BE3] hover:bg-[#004CC2] gap-2 text-base font-semibold shadow-lg"
                   >
@@ -1597,6 +1603,84 @@ export function StepFive({ data, onComplete, onBack }: StepFiveProps) {
 
       {/* Bottom padding to prevent content from being hidden under sticky button */}
       <div className="h-24"></div>
+      <Dialog open={showAutoPilotDialog} onOpenChange={setShowAutoPilotDialog}>
+        <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl p-0 overflow-hidden ring-1 ring-black/5">
+          {/* Header Background */}
+          <div className="absolute inset-0 h-32 bg-gradient-to-br from-[#005BE3]/10 via-purple-500/5 to-transparent pointer-events-none" />
+
+          <div className="relative p-8 pb-0">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#005BE3] to-[#004CC2] flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Wand2 className="w-5 h-5 text-white" />
+              </div>
+              <DialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#1d1d1f] to-[#4a4a4a]">
+                AI Auto-Pilot Activated
+              </DialogTitle>
+            </div>
+            <p className="text-[#605A57] text-base leading-relaxed pl-[52px]">
+              I've analyzed your requirements and selected a complete tech stack optimized for <span className="font-semibold text-[#1d1d1f]">scalability</span> and <span className="font-semibold text-[#1d1d1f]">performance</span>.
+            </p>
+          </div>
+
+          <div className="relative p-8 pt-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-white to-blue-50/30 p-4 rounded-xl border border-blue-100/50 shadow-sm">
+                <div className="flex items-center gap-2 mb-2 text-[#005BE3] font-medium text-sm">
+                  <Target className="w-4 h-4" />
+                  Selection Coverage
+                </div>
+                <div className="text-2xl font-bold text-[#1d1d1f]">100%</div>
+                <p className="text-xs text-[#605A57] mt-1">All critical decisions made</p>
+              </div>
+              <div className="bg-gradient-to-br from-white to-green-50/30 p-4 rounded-xl border border-green-100/50 shadow-sm">
+                <div className="flex items-center gap-2 mb-2 text-green-600 font-medium text-sm">
+                  <Zap className="w-4 h-4" />
+                  Optimization Score
+                </div>
+                <div className="text-2xl font-bold text-[#1d1d1f]">98/100</div>
+                <p className="text-xs text-[#605A57] mt-1">Based on best practices</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+              <h4 className="text-sm font-semibold text-[#1d1d1f] mb-3 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-500" />
+                Key Selections Applied
+              </h4>
+              <div className="space-y-2">
+                {decisions && decisions.decisions.slice(0, 3).map((decision, i) => {
+                  const tool = decision.recommendations.find(r => r.id === decision.selectedTool)
+                  return (
+                    <div key={i} className="flex items-center justify-between text-sm group">
+                      <span className="text-[#605A57] group-hover:text-[#1d1d1f] transition-colors">{decision.title}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-white border text-xs font-medium">
+                          {tool?.name}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50">
+                          Best Fit
+                        </Badge>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="p-6 pt-2 bg-gray-50/50 border-t border-gray-100/50 flex flex-row items-center justify-between gap-4">
+            <div className="text-xs text-[#605A57]">
+              <span className="font-medium text-[#1d1d1f]">{decisions?.decisions.length}</span> tools selected
+            </div>
+            <Button
+              onClick={() => setShowAutoPilotDialog(false)}
+              className="bg-[#005BE3] hover:bg-[#004CC2] text-white px-8 py-2.5 h-auto rounded-lg shadow-lg shadow-blue-500/20 transition-all hover:scale-105"
+            >
+              Review Selections
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
